@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Workflow — PM Operating Kit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream:#f5efe6; --cream-2:#ede4d3; --surface:#fffaf3; --surface-2:#f9f3ea;
+    --ink:#2d2a26; --ink-2:#5d5449; --ink-3:#998c7d;
+    --olive:#556b3e; --olive-2:#3e5028; --olive-soft:#eef0e6;
+    --sienna:#8a4f1f; --sienna-soft:#f5e9dc;
+    --success:#3e7d4a; --success-soft:#e3f0e6;
+    --warn:#c4843c; --warn-soft:#f8eed8;
+    --danger:#a64236; --danger-soft:#f5dcd8;
+    --info:#3b6b8f; --info-soft:#e0ebf3;
+    --line:#d9cfc2; --line-soft:#ebe2d3;
+    --shadow:0 2px 8px rgba(45,42,38,0.07);
+    --shadow-lg:0 10px 30px rgba(45,42,38,0.10);
+    --r-sm:6px; --r:10px; --r-lg:16px;
+    --serif:'Cormorant Garamond',Georgia,serif;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --mono:'JetBrains Mono',Consolas,monospace;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { scroll-behavior:smooth; scroll-padding-top:1.5rem; }
+  body { font-family:var(--sans); color:var(--ink); background:var(--cream); line-height:1.65; font-size:15.5px; -webkit-font-smoothing:antialiased; }
+  a { color:var(--olive); text-decoration:none; border-bottom:1px dotted var(--olive); }
+  a:hover { color:var(--olive-2); border-bottom-style:solid; }
+  code { font-family:var(--mono); background:var(--surface-2); padding:0.1rem 0.4rem; border-radius:4px; color:var(--sienna); font-size:0.875em; }
+  pre { background:var(--surface); border:1px solid var(--line-soft); border-left:4px solid var(--olive); padding:1rem 1.25rem; border-radius:var(--r-sm); overflow-x:auto; line-height:1.55; font-size:0.825rem; font-family:var(--mono); margin:0.75rem 0; }
+  pre code { background:transparent; padding:0; color:var(--ink); }
+  h1,h2,h3,h4 { font-family:var(--serif); font-weight:600; letter-spacing:-0.01em; color:var(--ink); }
+  h1 { font-size:clamp(2.25rem,5vw,3.5rem); line-height:1.1; }
+  h2 { font-size:clamp(1.6rem,3vw,2.1rem); line-height:1.2; }
+  h3 { font-size:1.3rem; line-height:1.3; }
+  h4 { font-size:1.05rem; line-height:1.4; font-family:var(--sans); font-weight:600; letter-spacing:0; }
+  p { margin-bottom:0.75rem; }
+  ul, ol { padding-left:1.5rem; margin-bottom:0.75rem; }
+  li { margin-bottom:0.25rem; }
+  strong { font-weight:600; color:var(--ink); }
+
+  /* Hero */
+  .hero { background:linear-gradient(135deg,var(--ink) 0%,var(--olive-2) 100%); color:var(--cream); padding:5rem 2rem 4rem; position:relative; overflow:hidden; }
+  .hero::before { content:''; position:absolute; inset:0; background-image:radial-gradient(circle at 20% 20%,rgba(245,239,230,0.06) 0%,transparent 40%),radial-gradient(circle at 80% 80%,rgba(138,79,31,0.10) 0%,transparent 40%); pointer-events:none; }
+  .hero-inner { max-width:1100px; margin:0 auto; position:relative; z-index:1; }
+  .eyebrow { font-family:var(--sans); text-transform:uppercase; letter-spacing:0.18em; font-size:0.75rem; color:var(--cream-2); margin-bottom:1rem; opacity:0.85; }
+  .hero h1 { color:var(--cream); margin-bottom:1rem; }
+  .hero h1 em { font-style:italic; color:var(--cream-2); font-weight:400; }
+  .hero-sub { font-family:var(--serif); font-size:1.3rem; font-style:italic; color:var(--cream-2); max-width:720px; line-height:1.45; margin-bottom:1.5rem; }
+  .hero-meta { display:flex; gap:2rem; flex-wrap:wrap; font-size:0.85rem; color:var(--cream-2); }
+  .hero-meta span { display:flex; align-items:center; gap:0.5rem; }
+  .hero-meta span::before { content:''; width:6px; height:6px; background:var(--cream); border-radius:50%; opacity:0.5; }
+
+  /* Layout */
+  .layout { display:grid; grid-template-columns:240px minmax(0,1fr); gap:3rem; max-width:1280px; margin:0 auto; padding:3rem 2rem 6rem; }
+  .toc { position:sticky; top:1.5rem; align-self:start; max-height:calc(100vh - 3rem); overflow-y:auto; padding-right:0.5rem; }
+  .toc-title { font-family:var(--sans); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--ink-3); margin-bottom:0.75rem; padding-left:0.75rem; }
+  .toc ol { list-style:none; padding:0; counter-reset:toc; }
+  .toc li { margin:0; }
+  .toc a { display:block; padding:0.4rem 0.75rem 0.4rem 2.25rem; color:var(--ink-2); font-size:0.825rem; border-left:2px solid transparent; border-bottom:none; position:relative; line-height:1.35; }
+  .toc a::before { counter-increment:toc; content:counter(toc,decimal-leading-zero); position:absolute; left:0.75rem; color:var(--ink-3); font-variant-numeric:tabular-nums; font-size:0.7rem; top:0.5rem; }
+  .toc a:hover { color:var(--olive); border-left-color:var(--olive); background:var(--olive-soft); }
+
+  /* Sections */
+  .section { background:var(--surface); border-radius:var(--r-lg); padding:2.5rem; margin-bottom:2rem; border:1px solid var(--line-soft); box-shadow:0 1px 2px rgba(45,42,38,0.05); }
+  .section-num { display:inline-block; font-family:var(--mono); font-size:0.75rem; color:var(--olive); background:var(--olive-soft); padding:0.2rem 0.6rem; border-radius:999px; margin-bottom:0.75rem; letter-spacing:0.05em; }
+  .section h2 { margin-bottom:0.5rem; }
+  .section .lede { font-family:var(--serif); font-style:italic; font-size:1.1rem; color:var(--ink-2); margin-bottom:1.5rem; line-height:1.5; max-width:720px; }
+
+  /* TL;DR / callouts */
+  .tldr { background:var(--olive-soft); border-left:4px solid var(--olive); padding:1rem 1.25rem; border-radius:var(--r-sm); margin-bottom:1.5rem; }
+  .tldr-label { font-family:var(--sans); text-transform:uppercase; font-size:0.7rem; letter-spacing:0.15em; color:var(--olive-2); font-weight:700; margin-bottom:0.35rem; }
+  .callout { padding:1rem 1.25rem; border-radius:var(--r-sm); margin:1.25rem 0; border-left:4px solid; font-size:0.95rem; }
+  .callout-label { font-family:var(--sans); text-transform:uppercase; font-size:0.7rem; letter-spacing:0.15em; font-weight:700; margin-bottom:0.35rem; }
+  .callout.warn { background:var(--warn-soft); border-color:var(--warn); }
+  .callout.warn .callout-label { color:var(--warn); }
+  .callout.danger { background:var(--danger-soft); border-color:var(--danger); }
+  .callout.danger .callout-label { color:var(--danger); }
+  .callout.success { background:var(--success-soft); border-color:var(--success); }
+  .callout.success .callout-label { color:var(--success); }
+  .callout.info { background:var(--info-soft); border-color:var(--info); }
+  .callout.info .callout-label { color:var(--info); }
+
+  /* Cards */
+  .card-grid { display:grid; gap:1.25rem; margin:1.5rem 0; }
+  .grid-2 { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+  .grid-3 { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
+  .grid-4 { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+  .card { background:var(--surface-2); border:1px solid var(--line-soft); border-radius:var(--r); padding:1.25rem; }
+  .card h4 { margin-bottom:0.5rem; }
+  .card-icon { font-size:1.25rem; margin-bottom:0.5rem; display:inline-flex; width:40px; height:40px; align-items:center; justify-content:center; background:var(--cream-2); border-radius:8px; font-family:var(--serif); color:var(--olive); font-weight:600; }
+  .card-meta { font-size:0.72rem; color:var(--ink-3); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.25rem; }
+
+  /* Tables */
+  .table-wrap { overflow-x:auto; margin:1rem 0; border-radius:var(--r-sm); }
+  table { width:100%; border-collapse:collapse; font-size:0.88rem; background:var(--surface); }
+  th, td { padding:0.7rem 1rem; text-align:left; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  th { background:var(--cream-2); font-family:var(--sans); font-weight:600; color:var(--ink); font-size:0.78rem; text-transform:uppercase; letter-spacing:0.05em; }
+  tr:last-child td { border-bottom:none; }
+  td.prompt-col { font-family:var(--mono); font-size:0.75rem; color:var(--olive); font-weight:600; white-space:nowrap; }
+  td.time-col { font-family:var(--mono); font-size:0.75rem; color:var(--ink-3); white-space:nowrap; }
+
+  /* Pills */
+  .pill { display:inline-block; padding:0.15rem 0.55rem; border-radius:999px; font-size:0.7rem; font-family:var(--mono); font-weight:500; letter-spacing:0.02em; white-space:nowrap; line-height:1.5; }
+  .pill.daily { background:var(--success-soft); color:var(--success); }
+  .pill.weekly { background:var(--info-soft); color:var(--info); }
+  .pill.monthly { background:var(--sienna-soft); color:var(--sienna); }
+  .pill.quarterly { background:var(--danger-soft); color:var(--danger); }
+  .pill.adhoc { background:var(--cream-2); color:var(--ink-2); }
+
+  /* Lifecycle strip */
+  .lifecycle-strip { display:flex; gap:0; margin:1.5rem 0; border-radius:var(--r); overflow:hidden; border:1px solid var(--line-soft); }
+  .lc-stage { flex:1; padding:1rem 0.75rem; text-align:center; background:var(--surface-2); position:relative; font-size:0.85rem; font-weight:500; }
+  .lc-stage:not(:last-child)::after { content:'▸'; position:absolute; right:-0.5rem; top:50%; transform:translateY(-50%); color:var(--olive); z-index:2; background:var(--surface); width:1rem; height:1rem; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.7rem; }
+  .lc-stage strong { display:block; font-family:var(--serif); font-weight:600; font-size:1.05rem; }
+  .lc-stage small { display:block; font-family:var(--mono); font-size:0.65rem; color:var(--ink-3); margin-top:0.25rem; text-transform:lowercase; letter-spacing:0.05em; }
+
+  /* Stepper */
+  .stepper { list-style:none; padding:0; counter-reset:step; margin:1.5rem 0; }
+  .stepper > li { padding:1.25rem 1.5rem 1.25rem 4.5rem; margin-bottom:0.85rem; background:var(--surface-2); border-radius:var(--r); position:relative; border-left:3px solid var(--olive); }
+  .stepper > li::before { counter-increment:step; content:counter(step); position:absolute; left:1rem; top:1.1rem; width:2.25rem; height:2.25rem; background:var(--olive); color:var(--cream); border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--serif); font-weight:600; font-size:1.05rem; }
+  .stepper .step-head { display:flex; gap:0.75rem; align-items:baseline; flex-wrap:wrap; margin-bottom:0.5rem; }
+  .stepper .step-head h4 { font-family:var(--serif); font-size:1.2rem; font-weight:600; }
+  .stepper .step-time { font-size:0.7rem; color:var(--ink-3); background:var(--cream-2); padding:0.1rem 0.55rem; border-radius:999px; font-family:var(--mono); }
+  .stepper .step-hat { font-size:0.7rem; padding:0.1rem 0.55rem; border-radius:999px; font-family:var(--mono); }
+  .stepper .step-hat.pm { background:var(--info-soft); color:var(--info); }
+  .stepper .step-hat.dev { background:var(--olive-soft); color:var(--olive); }
+  .stepper .step-hat.qa { background:var(--warn-soft); color:var(--warn); }
+  .stepper .step-hat.founder { background:var(--sienna-soft); color:var(--sienna); }
+
+  /* Quote-like prompt block */
+  .you-type { background:var(--cream); border:1px solid var(--line); border-left:4px solid var(--info); padding:0.75rem 1rem; border-radius:var(--r-sm); margin:0.75rem 0; font-family:var(--serif); font-style:italic; font-size:1.05rem; color:var(--ink); position:relative; }
+  .you-type::before { content:'YOU TYPE'; position:absolute; top:-0.6rem; left:0.75rem; background:var(--info); color:white; font-family:var(--sans); font-style:normal; font-size:0.6rem; padding:0.1rem 0.4rem; border-radius:3px; letter-spacing:0.08em; }
+  .claude-does { background:var(--olive-soft); border:1px solid var(--olive); border-left:4px solid var(--olive); padding:0.75rem 1rem; border-radius:var(--r-sm); margin:0.75rem 0 1rem; font-size:0.9rem; color:var(--ink); position:relative; }
+  .claude-does::before { content:'CLAUDE DOES'; position:absolute; top:-0.6rem; left:0.75rem; background:var(--olive); color:white; font-family:var(--sans); font-size:0.6rem; padding:0.1rem 0.4rem; border-radius:3px; letter-spacing:0.08em; }
+
+  /* Metrics row */
+  .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:1rem; margin:1.5rem 0; }
+  .metric { background:var(--surface-2); border-radius:var(--r); padding:1.25rem; text-align:center; border:1px solid var(--line-soft); }
+  .metric-value { font-family:var(--serif); font-size:2.25rem; line-height:1; color:var(--olive); font-weight:600; }
+  .metric-label { font-size:0.72rem; color:var(--ink-3); text-transform:uppercase; letter-spacing:0.08em; margin-top:0.4rem; }
+
+  /* Decision tree */
+  .decision-tree { display:flex; flex-direction:column; gap:0.5rem; margin:1.25rem 0; }
+  .dt-row { display:grid; grid-template-columns:180px 1fr 80px; gap:1rem; padding:0.85rem 1rem; background:var(--surface-2); border-radius:var(--r); align-items:center; border-left:3px solid var(--olive); }
+  .dt-row:nth-child(1) { border-left-color:var(--ink-3); }
+  .dt-row:nth-child(2) { border-left-color:var(--info); }
+  .dt-row:nth-child(3) { border-left-color:var(--success); }
+  .dt-row:nth-child(4) { border-left-color:var(--warn); }
+  .dt-row:nth-child(5) { border-left-color:var(--danger); }
+  .dt-size { font-family:var(--serif); font-weight:600; font-size:1rem; color:var(--ink); }
+  .dt-where { font-size:0.85rem; color:var(--ink-2); }
+  .dt-prompt { font-family:var(--mono); font-size:0.75rem; color:var(--olive); text-align:right; font-weight:600; }
+
+  /* Anti-patterns */
+  .anti-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1rem; margin:1.5rem 0; }
+  .anti { background:var(--danger-soft); border-left:4px solid var(--danger); padding:1rem 1.25rem; border-radius:var(--r-sm); }
+  .anti h4 { color:var(--danger); font-size:0.95rem; margin-bottom:0.4rem; }
+  .anti p { font-size:0.85rem; color:var(--ink-2); margin:0; }
+
+  /* Footer */
+  footer { background:var(--ink); color:var(--cream-2); padding:3rem 2rem; text-align:center; }
+  footer p { color:var(--cream-2); opacity:0.8; font-size:0.875rem; margin:0.25rem 0; }
+  footer em { font-family:var(--serif); font-style:italic; color:var(--cream); font-size:1.15rem; }
+  footer code { background:rgba(245,239,230,0.1); padding:0.15rem 0.4rem; border-radius:3px; }
+
+  /* Mobile */
+  @media (max-width:900px) {
+    .layout { grid-template-columns:1fr; padding:1.5rem 1rem 3rem; gap:1rem; }
+    .toc { position:static; max-height:280px; margin-bottom:1rem; background:var(--surface); padding:1rem; border-radius:var(--r); border:1px solid var(--line-soft); }
+    .section { padding:1.5rem; }
+    .hero { padding:3rem 1.25rem 2.5rem; }
+    .lifecycle-strip { flex-direction:column; }
+    .lc-stage:not(:last-child)::after { right:50%; top:auto; bottom:-0.5rem; transform:translateX(50%) rotate(90deg); }
+    .dt-row { grid-template-columns:1fr; gap:0.25rem; }
+    .dt-prompt { text-align:left; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">PM Operating Kit · Standards</div>
+    <h1>Daily <em>Workflow</em></h1>
+    <p class="hero-sub">How you actually use this kit. The rhythm, the prompts, and a worked example end-to-end. Read once after deployment. Re-read whenever you forget the cadence.</p>
+    <div class="hero-meta">
+      <span>Four prompts cover 80% of moves</span>
+      <span>~2 hours/week process overhead</span>
+      <span>Capture → Refine → Execute → Close</span>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <aside class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#s1">Mental model</a></li>
+      <li><a href="#s2">The 4 prompts you live in</a></li>
+      <li><a href="#s3">Worked example: wishlist</a></li>
+      <li><a href="#s4">A realistic week</a></li>
+      <li><a href="#s5">Where you live day-to-day</a></li>
+      <li><a href="#s6">Sizing a requirement</a></li>
+      <li><a href="#s7">First session after deployment</a></li>
+      <li><a href="#s8">When a prompt doesn't fit</a></li>
+      <li><a href="#s9">Hat protocol</a></li>
+      <li><a href="#s10">Anti-patterns</a></li>
+      <li><a href="#s11">When in doubt, ask Claude</a></li>
+      <li><a href="#s12">Single-sentence summary</a></li>
+    </ol>
+  </aside>
+
+  <main>
+
+    <!-- ==================== 1 ==================== -->
+    <section id="s1" class="section">
+      <div class="section-num">01 · Mental model</div>
+      <h2>The 60-second mental model</h2>
+      <p class="lede">You don't memorise stages. You memorise which prompt to use when.</p>
+
+      <div class="lifecycle-strip">
+        <div class="lc-stage"><strong>Inbox</strong><small>① capture</small></div>
+        <div class="lc-stage"><strong>Backlog</strong><small>② triage</small></div>
+        <div class="lc-stage"><strong>Ready</strong><small>③ DoR passed</small></div>
+        <div class="lc-stage"><strong>Active</strong><small>④ in-progress</small></div>
+        <div class="lc-stage"><strong>Review</strong><small>⑤ in-review</small></div>
+        <div class="lc-stage"><strong>Done</strong><small>⑥ DoD passed</small></div>
+      </div>
+
+      <div class="tldr">
+        <div class="tldr-label">TL;DR</div>
+        There are 10 prompts in <code>92-Prompts/</code>. You'll use <strong>four of them 80% of the time</strong>. The other six are scaffolding for less-frequent moves (Epic drafting, OKR refresh, monthly retro).
+      </div>
+    </section>
+
+    <!-- ==================== 2 ==================== -->
+    <section id="s2" class="section">
+      <div class="section-num">02 · Prompts</div>
+      <h2>The four prompts you live in</h2>
+      <p class="lede">Memorise these four. Open the kit's <code>92-Prompts/</code> folder for the full text.</p>
+
+      <div class="card-grid grid-2">
+        <div class="card" style="border-left:4px solid var(--info)">
+          <div class="card-icon">05</div>
+          <div class="card-meta">Friday · PM hat</div>
+          <h4>refine-backlog-to-ready</h4>
+          <p>Promote 5 Inbox/Backlog items to Ready by running the DoR checklist on each. Weekly.</p>
+        </div>
+        <div class="card" style="border-left:4px solid var(--olive)">
+          <div class="card-icon">06</div>
+          <div class="card-meta">Start of session · Dev hat</div>
+          <h4>execute-story</h4>
+          <p>Pull a Ready story. Claude codes, makes decisions on the spot as ADRs, flips to in-review. Daily.</p>
+        </div>
+        <div class="card" style="border-left:4px solid var(--warn)">
+          <div class="card-icon">07</div>
+          <div class="card-meta">After code done · QA hat</div>
+          <h4>run-testplan</h4>
+          <p>Run every TC command. PASS/FAIL each. Auto-file bugs on failure. Daily.</p>
+        </div>
+        <div class="card" style="border-left:4px solid var(--success)">
+          <div class="card-icon">08</div>
+          <div class="card-meta">After tests pass · QA→PM</div>
+          <h4>close-out-story</h4>
+          <p>Run DoD checklist. Flip to done. Update MONITOR + dashboard. Daily.</p>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-label">The other six prompts</div>
+        <strong>01</strong> draft OKRs (quarterly) · <strong>02</strong> draft Epic (when a new strategic bet appears) · <strong>03</strong> split Epic into Features (after 02) · <strong>04</strong> split Feature into Stories + Testplans (after 03) · <strong>09</strong> weekly monitor update (Friday) · <strong>10</strong> monthly retro (1st Monday).
+      </div>
+    </section>
+
+    <!-- ==================== 3 ==================== -->
+    <section id="s3" class="section">
+      <div class="section-num">03 · Worked example</div>
+      <h2>End-to-end: "add a wishlist feature"</h2>
+      <p class="lede">One new requirement, all six steps, exactly what you type at each one.</p>
+
+      <ol class="stepper">
+
+        <li>
+          <div class="step-head"><h4>Capture</h4><span class="step-time">30 sec</span><span class="step-hat pm">any hat</span></div>
+          <p>You're in the middle of something else. An idea hits. Open Claude:</p>
+          <div class="you-type">Capture this in the Inbox: customers can save items to a wishlist.</div>
+          <div class="claude-does">Creates <code>10-Inbox/INBOX-NNNN-customer-wishlist.md</code> with <code>status: not-started</code>. You go back to what you were doing.</div>
+        </li>
+
+        <li>
+          <div class="step-head"><h4>Friday refinement</h4><span class="step-time">30 min</span><span class="step-hat pm">PM hat</span></div>
+          <p>Friday afternoon. Paste <strong>prompt 05</strong> (<code>refine-backlog-to-ready.md</code>).</p>
+          <div class="claude-does">
+            Lists 5 unrefined items. For each, asks: "What OKR does this serve? What's the acceptance criteria?" If approved, promotes:
+            <ul style="margin-top:0.5rem;">
+              <li>Writes a new <strong>Epic</strong> (or links to existing)</li>
+              <li>Drafts <strong>Features</strong> under it</li>
+              <li>Drafts <strong>Stories</strong> with paired <strong>Testplans</strong></li>
+            </ul>
+            <p style="margin-top:0.5rem; margin-bottom:0;">Each new artefact starts <code>not-started</code>; must pass DoR to become <code>ready</code>.</p>
+          </div>
+        </li>
+
+        <li>
+          <div class="step-head"><h4>Monday: pull one to work</h4><span class="step-time">10 min</span><span class="step-hat dev">Dev hat</span></div>
+          <p>Open Claude. Quick orientation:</p>
+          <div class="you-type">What's ready to pull?</div>
+          <div class="claude-does">Reads <code>DASHBOARD.html</code>, lists Ready stories. You pick one — say <code>STORY-12.3.04-wishlist-add-button</code>.</div>
+          <p>Then paste <strong>prompt 06</strong> with the story path.</p>
+          <div class="claude-does">
+            <ul style="margin:0;">
+              <li>Verifies DoR is met</li>
+              <li>Flips <code>status: in-progress</code>, sets <code>started_at</code></li>
+              <li>Reads existing patterns from your codebase, writes the component</li>
+              <li>Hits a decision (e.g. <em>"Firestore subcollection or separate collection?"</em>) → STOPS, creates <code>ADR-NNNN-wishlist-storage.md</code>, picks an option, continues</li>
+              <li>Ticks AC checkboxes as completed</li>
+            </ul>
+          </div>
+          <p>2–3 hours later: code done. Claude flips to <code>in-review</code>.</p>
+        </li>
+
+        <li>
+          <div class="step-head"><h4>Verify</h4><span class="step-time">15 min</span><span class="step-hat qa">QA hat</span></div>
+          <p>Same day or next morning. Paste <strong>prompt 07</strong> with the testplan path.</p>
+          <div class="claude-does">
+            <ul style="margin:0;">
+              <li>Runs every TC's <code>Command:</code> against your actual code</li>
+              <li>Updates each TC's <code>Result:</code> line with PASS or FAIL</li>
+              <li>On any FAIL → automatically files <code>BUG-YYYYMMDD-NN-*.md</code> with repro steps + first analysis + fix direction</li>
+              <li>All PASS → reports green, recommends prompt 08</li>
+            </ul>
+          </div>
+        </li>
+
+        <li>
+          <div class="step-head"><h4>Close out</h4><span class="step-time">5 min</span><span class="step-hat qa">QA → PM</span></div>
+          <p>Paste <strong>prompt 08</strong>.</p>
+          <div class="claude-does">
+            Runs full DoD checklist (lint, tests, build, ADR present, MONITOR updated, dashboard regenerated). If anything fails — stops and asks. If all pass:
+            <ul style="margin-top:0.5rem; margin-bottom:0;">
+              <li>Flips <code>status: done</code>, sets <code>completed_at</code></li>
+              <li>Updates <code>42-Monitor/MONITOR.md</code> revision history</li>
+              <li>Runs <code>npm run pm:dash</code></li>
+            </ul>
+          </div>
+          <p>Refresh <code>DASHBOARD.html</code> in your browser — wishlist story green, metrics tick up.</p>
+        </li>
+
+        <li>
+          <div class="step-head"><h4>Friday again</h4><span class="step-time">30 min</span><span class="step-hat pm">PM hat</span></div>
+          <p>Paste <strong>prompt 09</strong> (<code>weekly-monitor-update.md</code>).</p>
+          <div class="claude-does">Summarises the week, updates MONITOR with revision history, regenerates dashboard, flags stalled stories.</div>
+        </li>
+
+      </ol>
+    </section>
+
+    <!-- ==================== 4 ==================== -->
+    <section id="s4" class="section">
+      <div class="section-num">04 · Rhythm</div>
+      <h2>A realistic week</h2>
+      <p class="lede">Total process overhead: ~2 hours/week. Everything else is actual building.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Day</th><th>Time</th><th>What you do</th><th>Cadence</th></tr></thead>
+          <tbody>
+            <tr><td>Mon 9:00</td><td class="time-col">10 min</td><td>Open dashboard. Paste <strong>prompt 06</strong> with a Ready story. Start work.</td><td><span class="pill daily">daily</span></td></tr>
+            <tr><td>Mon 12:00</td><td class="time-col">5 min</td><td>Story done? Paste <strong>prompt 07</strong> (test), then <strong>prompt 08</strong> (close-out).</td><td><span class="pill daily">daily</span></td></tr>
+            <tr><td>Mon 13:00</td><td class="time-col">10 min</td><td>Paste <strong>prompt 06</strong> with next story.</td><td><span class="pill daily">daily</span></td></tr>
+            <tr><td>Tue–Thu</td><td class="time-col">varies</td><td>Same loop. Capture random ideas to Inbox with one-liner "Capture this: …"</td><td><span class="pill daily">daily</span></td></tr>
+            <tr><td>Fri 16:00</td><td class="time-col">30 min</td><td>Paste <strong>prompt 05</strong> (refine 5 backlog). Paste <strong>prompt 09</strong> (weekly summary).</td><td><span class="pill weekly">weekly</span></td></tr>
+            <tr><td>1st Mon of month</td><td class="time-col">60 min</td><td>Paste <strong>prompt 10</strong> (monthly retro). Review month. Set one change for next month.</td><td><span class="pill monthly">monthly</span></td></tr>
+            <tr><td>Quarter start</td><td class="time-col">2 hr</td><td>Paste <strong>prompt 01</strong> (draft OKRs from North Star). Review strategy.</td><td><span class="pill quarterly">quarterly</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><div class="metric-value">10 min</div><div class="metric-label">Daily check-in</div></div>
+        <div class="metric"><div class="metric-value">30 min</div><div class="metric-label">Weekly review</div></div>
+        <div class="metric"><div class="metric-value">60 min</div><div class="metric-label">Monthly retro</div></div>
+        <div class="metric"><div class="metric-value">2 hr</div><div class="metric-label">Quarterly strategy</div></div>
+        <div class="metric"><div class="metric-value">~2 hr</div><div class="metric-label">Total weekly tax</div></div>
+      </div>
+    </section>
+
+    <!-- ==================== 5 ==================== -->
+    <section id="s5" class="section">
+      <div class="section-num">05 · Surfaces</div>
+      <h2>Where you "live" day-to-day</h2>
+      <p class="lede">Two surfaces. Almost never anywhere else.</p>
+
+      <div class="card-grid grid-2">
+        <div class="card" style="border-left:4px solid var(--olive)">
+          <div class="card-meta">Input surface</div>
+          <h4>Claude Code session</h4>
+          <p>Where you paste prompts. Claude reads/writes markdown, runs tests, regenerates the dashboard.</p>
+        </div>
+        <div class="card" style="border-left:4px solid var(--info)">
+          <div class="card-meta">Output surface</div>
+          <h4>DASHBOARD.html (browser tab)</h4>
+          <p>Live view of every artefact. Click rows to see body. Always one refresh away from current state.</p>
+        </div>
+      </div>
+
+      <div class="callout success">
+        <div class="callout-label">Why this matters</div>
+        You almost never open a markdown file directly. Claude reads and writes them; the dashboard renders them. The markdown is the <em>storage</em>; the dashboard is the <em>interface</em>.
+      </div>
+    </section>
+
+    <!-- ==================== 6 ==================== -->
+    <section id="s6" class="section">
+      <div class="section-num">06 · Sizing</div>
+      <h2>Sizing a new requirement</h2>
+      <p class="lede">When something new comes in, decide its size. That determines which prompt to use.</p>
+
+      <div class="decision-tree">
+        <div class="dt-row">
+          <div class="dt-size">One-line idea</div>
+          <div class="dt-where">→ Inbox · single sentence to Claude</div>
+          <div class="dt-prompt">(no prompt)</div>
+        </div>
+        <div class="dt-row">
+          <div class="dt-size">1–2 hour fix</div>
+          <div class="dt-where">→ Backlog → straight to Ready in next Friday refinement</div>
+          <div class="dt-prompt">prompt 05</div>
+        </div>
+        <div class="dt-row">
+          <div class="dt-size">1–2 day feature</div>
+          <div class="dt-where">→ New Story under existing Feature (with paired testplan)</div>
+          <div class="dt-prompt">prompt 04</div>
+        </div>
+        <div class="dt-row">
+          <div class="dt-size">1–2 week feature</div>
+          <div class="dt-where">→ New Feature (and its stories) under existing Epic</div>
+          <div class="dt-prompt">03 → 04</div>
+        </div>
+        <div class="dt-row">
+          <div class="dt-size">Strategic bet</div>
+          <div class="dt-where">→ New Epic, with features and stories</div>
+          <div class="dt-prompt">02 → 03 → 04</div>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-label">Don't know the size? Ask Claude.</div>
+        <div class="you-type" style="margin:0.75rem 0 0;">I want customers to be able to save items. Where does this fit — Story, Feature, or Epic? Propose the breakdown.</div>
+        <p style="margin-top:0.5rem; margin-bottom:0;">Claude reads your existing Epics, OKRs, relevant code, and proposes the right level. You approve or refine. That's the entire planning ceremony.</p>
+      </div>
+    </section>
+
+    <!-- ==================== 7 ==================== -->
+    <section id="s7" class="section">
+      <div class="section-num">07 · Bootstrap</div>
+      <h2>The first session after deployment</h2>
+      <p class="lede">Your very first time using the kit on a fresh project. ~3 hours start to first story pulled.</p>
+
+      <ol class="stepper">
+        <li><div class="step-head"><h4>Open the dashboard</h4><span class="step-time">1 min</span></div><p>Open <code>42-Monitor/DASHBOARD.html</code>. It shows "0 artefacts". Correct.</p></li>
+        <li><div class="step-head"><h4>Write the North Star</h4><span class="step-time">30 min</span><span class="step-hat founder">Founder hat</span></div><p>Open <code>00-Strategy/NORTH-STAR.md</code> or use prompt 01. One page.</p></li>
+        <li><div class="step-head"><h4>Write the OKRs</h4><span class="step-time">30 min</span><span class="step-hat founder">Founder hat</span></div><p>Use prompt 01. Three Objectives, 2–3 KRs each.</p></li>
+        <li><div class="step-head"><h4>Draft the first Epic</h4><span class="step-time">45 min</span><span class="step-hat pm">PM hat</span></div><p>Use prompt 02. Pick the highest-impact OKR. Let Claude draft.</p></li>
+        <li><div class="step-head"><h4>Split into Features</h4><span class="step-time">30 min</span><span class="step-hat pm">PM hat</span></div><p>Use prompt 03 on the Epic.</p></li>
+        <li><div class="step-head"><h4>Split first Feature into Stories</h4><span class="step-time">45 min</span><span class="step-hat pm">PM hat</span></div><p>Use prompt 04. Now you have Stories + paired Testplans.</p></li>
+        <li><div class="step-head"><h4>Refine top story to Ready</h4><span class="step-time">10 min</span><span class="step-hat pm">PM hat</span></div><p>Use prompt 05 on that one story.</p></li>
+        <li><div class="step-head"><h4>Pull it to work</h4><span class="step-time">go!</span><span class="step-hat dev">Dev hat</span></div><p>Use prompt 06. You're now operating the kit.</p></li>
+      </ol>
+    </section>
+
+    <!-- ==================== 8 ==================== -->
+    <section id="s8" class="section">
+      <div class="section-num">08 · Edge cases</div>
+      <h2>When a prompt doesn't fit</h2>
+      <p class="lede">The 10 prompts cover ~95% of moves. The other 5%:</p>
+
+      <div class="card-grid grid-2">
+        <div class="card">
+          <div class="card-meta">Edge case</div>
+          <h4>Spike / exploration</h4>
+          <p>No formal artefact yet — research only. Use a <code>BACKLOG-NNNN-spike-*.md</code> to capture the question + findings. Promote to a Story only when the spike answers something concrete.</p>
+        </div>
+        <div class="card">
+          <div class="card-meta">Edge case</div>
+          <h4>Hotfix in production</h4>
+          <p>Bypass the lifecycle. Fix the code. AFTER deploy, retroactively create a BUG file + a Story with <code>status: done</code> describing what was done. Don't skip — future Claude needs the trail.</p>
+        </div>
+        <div class="card">
+          <div class="card-meta">Edge case</div>
+          <h4>Refactor with no user-visible outcome</h4>
+          <p>File as a Backlog entry (<code>type_of_work: tech-debt</code>). Promote to a Story when scoped enough to estimate.</p>
+        </div>
+        <div class="card">
+          <div class="card-meta">Edge case</div>
+          <h4>Documentation-only work</h4>
+          <p>Story with <code>type_of_work: docs</code>. Testplan can be minimal — a TC that greps for the expected content.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 9 ==================== -->
+    <section id="s9" class="section">
+      <div class="section-num">09 · Hats</div>
+      <h2>Hat protocol — when to announce</h2>
+      <p class="lede">At the start of any substantive Claude session, state which hat. Mixing hats is the most common cause of scope drift solo.</p>
+
+      <div class="card-grid grid-2">
+        <div class="card" style="border-left:4px solid var(--sienna)">
+          <div class="card-icon">★</div>
+          <div class="card-meta">Strategy</div>
+          <h4>Founder hat</h4>
+          <p>Strategic decisions, OKRs, epic approvals, sunset calls.</p>
+        </div>
+        <div class="card" style="border-left:4px solid var(--info)">
+          <div class="card-icon">◇</div>
+          <div class="card-meta">Planning</div>
+          <h4>PM hat</h4>
+          <p>Refining backlog, drafting epics/features/stories, MONITOR updates.</p>
+        </div>
+        <div class="card" style="border-left:4px solid var(--olive)">
+          <div class="card-icon">▲</div>
+          <div class="card-meta">Execution</div>
+          <h4>Dev hat</h4>
+          <p>Executing stories, writing code, making implementation decisions (ADRs).</p>
+        </div>
+        <div class="card" style="border-left:4px solid var(--warn)">
+          <div class="card-icon">●</div>
+          <div class="card-meta">Quality</div>
+          <h4>QA hat</h4>
+          <p>Running testplans, filing bugs, signing off DoD.</p>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-label">Why announce</div>
+        It tells Claude which mode to optimise for. PM hat asks "is this scoped?". Dev hat asks "is this efficient?". They give different answers to the same question.
+      </div>
+    </section>
+
+    <!-- ==================== 10 ==================== -->
+    <section id="s10" class="section">
+      <div class="section-num">10 · Anti-patterns</div>
+      <h2>Six ways to break the system</h2>
+      <p class="lede">Avoid these.</p>
+
+      <div class="anti-grid">
+        <div class="anti"><h4>① Pulling work that isn't Ready</h4><p>If a story hasn't passed DoR, paste prompt 05 first. Don't skip.</p></div>
+        <div class="anti"><h4>② Closing without DoD</h4><p>"Tests are flaky so I'll skip them" → file a BUG instead. Leave story <code>in-review</code>.</p></div>
+        <div class="anti"><h4>③ Skipping ADRs</h4><p>Three months from now you won't remember why you picked option A. Future-Claude won't either.</p></div>
+        <div class="anti"><h4>④ Letting MONITOR drift</h4><p>If the dashboard hasn't been regenerated in a week, you've lost the operating signal. Run <code>npm run pm:all</code> every Friday minimum.</p></div>
+        <div class="anti"><h4>⑤ Hoarding Inbox items</h4><p>If something has been <code>not-started</code> for 90 days, archive it. Sunset rule (SOP §15).</p></div>
+        <div class="anti"><h4>⑥ Re-deriving conventions in chat</h4><p>If you find yourself explaining the same thing to Claude twice, it belongs in <code>PROJECT-CONTEXT.md</code>.</p></div>
+      </div>
+    </section>
+
+    <!-- ==================== 11 ==================== -->
+    <section id="s11" class="section">
+      <div class="section-num">11 · Phrases that work</div>
+      <h2>When in doubt, ask Claude</h2>
+      <p class="lede">These ad-hoc phrases work without any specific prompt.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>You type</th><th>Claude does</th></tr></thead>
+          <tbody>
+            <tr><td><em>"What's ready to pull?"</em></td><td>Lists Ready stories from the dashboard</td></tr>
+            <tr><td><em>"What's blocked and why?"</em></td><td>Lists <code>blocked</code> items with reasons</td></tr>
+            <tr><td><em>"What did we ship this week?"</em></td><td>Reads MONITOR revision history</td></tr>
+            <tr><td><em>"Where does X fit?"</em></td><td>Proposes Story/Feature/Epic level for a new idea</td></tr>
+            <tr><td><em>"Is the dashboard fresh?"</em></td><td>Compares MONITOR last-update to file timestamps; regens if stale</td></tr>
+            <tr><td><em>"Sunset stale work"</em></td><td>Finds 90+ day <code>not-started</code> items, proposes <code>wontfix</code> or <code>archived</code></td></tr>
+            <tr><td><em>"Show me the current WIP"</em></td><td>Lists everything <code>in-progress</code> + <code>in-review</code>, flags WIP-limit breaches</td></tr>
+            <tr><td><em>"Capture: …"</em></td><td>Drops a one-liner Inbox file</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== 12 ==================== -->
+    <section id="s12" class="section">
+      <div class="section-num">12 · Summary</div>
+      <h2>The single sentence</h2>
+      <div class="tldr" style="margin-top:1rem; padding:1.5rem 2rem;">
+        <div class="tldr-label" style="font-size:0.65rem;">The whole kit, in one line</div>
+        <p style="font-family:var(--serif); font-size:1.4rem; line-height:1.5; color:var(--ink); font-style:italic; margin:0;">Capture → Refine on Friday → Pull on Monday → Execute → Verify → Close → Repeat.</p>
+      </div>
+      <p style="margin-top:1.5rem; color:var(--ink-2);">Everything else in this kit exists to make that loop reliable.</p>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <em>Discipline without ceremony.</em>
+  <p>Daily Workflow · part of the PM Operating Kit · pair with <code>SOP.md</code> for the rules</p>
+  <p>Open <code>42-Monitor/DASHBOARD.html</code> for the live state of your project</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+*.log
+.env
+.env.local
+
+# Tandem public-release build output (scripts/release-tandem.js, ADR-0028)
+dist/
+# Generated demo dashboard rendered from the fixture during the build
+demo-fixture/_00-Project-Management/42-Monitor/DASHBOARD.html

@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tandem Command Center — fill in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+
+:root {
+  --cream:#f5efe6; --cream-2:#ede4d3; --surface:#fffaf3; --surface-2:#f9f3ea;
+  --ink:#2d2a26; --ink-2:#5d5449; --ink-3:#998c7d;
+  --olive:#556b3e; --olive-2:#3e5028; --olive-soft:#eef0e6;
+  --sienna:#8a4f1f; --sienna-soft:#f5e9dc;
+  --success:#3e7d4a; --success-soft:#e3f0e6;
+  --warn:#c4843c; --warn-soft:#f8eed8;
+  --danger:#a64236; --danger-soft:#f5dcd8;
+  --info:#3b6b8f; --info-soft:#e0ebf3;
+  --line:#d9cfc2; --line-soft:#ebe2d3;
+  --shadow:0 2px 8px rgba(45,42,38,0.07);
+  --shadow-lg:0 10px 30px rgba(45,42,38,0.15);
+  --r:10px; --r-sm:6px; --r-lg:14px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --mono:'JetBrains Mono',Consolas,monospace;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body { font-family:var(--sans); color:var(--ink); background:var(--cream); line-height:1.55; font-size:14.5px; -webkit-font-smoothing:antialiased; }
+
+header.app-header { background:linear-gradient(135deg,var(--ink) 0%,var(--olive-2) 100%); color:var(--cream); padding:1.25rem 2rem; position:sticky; top:0; z-index:50; box-shadow:var(--shadow); }
+.app-header-inner { max-width:1500px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:1.5rem; flex-wrap:wrap; }
+.app-title { font-family:var(--serif); font-size:1.6rem; font-weight:600; line-height:1.1; }
+.app-title small { display:block; font-family:var(--sans); font-size:0.75rem; font-weight:400; color:var(--cream-2); opacity:0.85; margin-top:0.15rem; letter-spacing:0.05em; text-transform:uppercase; }
+.header-metrics { display:flex; gap:1.75rem; flex-wrap:wrap; }
+.hm { text-align:right; }
+.hm-val { font-family:var(--serif); font-size:1.5rem; font-weight:600; line-height:1; color:var(--cream); }
+.hm-lab { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--cream-2); opacity:0.85; margin-top:0.15rem; }
+.app-meta { font-size:0.72rem; color:var(--cream-2); opacity:0.65; margin-top:0.5rem; font-family:var(--mono); }
+
+nav.tabs { background:var(--surface); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:40; box-shadow:0 1px 0 var(--line-soft); }
+.tabs-inner { max-width:1500px; margin:0 auto; padding:0 2rem; display:flex; gap:0; overflow-x:auto; }
+.tab { background:transparent; border:none; padding:0.85rem 1.15rem; cursor:pointer; font-family:var(--sans); font-size:0.85rem; color:var(--ink-2); border-bottom:2.5px solid transparent; white-space:nowrap; font-weight:500; transition:all 0.15s; }
+.tab:hover { color:var(--olive); background:var(--olive-soft); }
+.tab.active { color:var(--olive); border-bottom-color:var(--olive); background:var(--olive-soft); }
+.tab-count { display:inline-block; background:var(--cream-2); color:var(--ink-2); font-size:0.65rem; padding:0.05rem 0.4rem; border-radius:999px; margin-left:0.4rem; font-family:var(--mono); font-weight:500; }
+.tab.active .tab-count { background:var(--olive); color:var(--cream); }
+
+main { max-width:1500px; margin:0 auto; padding:1.5rem 2rem 4rem; }
+
+.controls { display:flex; gap:0.75rem; margin-bottom:1.25rem; align-items:center; flex-wrap:wrap; padding:1rem 1.25rem; background:var(--surface); border-radius:var(--r); border:1px solid var(--line-soft); }
+.search { flex:1; min-width:200px; padding:0.55rem 0.85rem; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--cream); font-family:var(--sans); font-size:0.9rem; color:var(--ink); }
+.search:focus { outline:none; border-color:var(--olive); background:var(--surface); }
+.filter-group { display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center; }
+.filter-label { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-3); margin-right:0.25rem; }
+
+.pill { display:inline-block; padding:0.15rem 0.55rem; border-radius:999px; font-size:0.7rem; font-family:var(--mono); font-weight:500; letter-spacing:0.02em; white-space:nowrap; cursor:default; user-select:none; line-height:1.5; }
+.pill.filterable { cursor:pointer; }
+.pill.filterable.off { opacity:0.35; }
+.pill[data-status="not-started"] { background:var(--cream-2); color:var(--ink-2); }
+.pill[data-status="ready"] { background:var(--info-soft); color:var(--info); }
+.pill[data-status="in-progress"] { background:var(--warn-soft); color:var(--warn); }
+.pill[data-status="in-review"] { background:var(--sienna-soft); color:var(--sienna); }
+.pill[data-status="done"] { background:var(--success-soft); color:var(--success); }
+.pill[data-status="blocked"] { background:var(--danger-soft); color:var(--danger); }
+.pill[data-status="wontfix"] { background:var(--cream-2); color:var(--ink-3); text-decoration:line-through; }
+.pill[data-status="duplicate"] { background:var(--cream-2); color:var(--ink-3); }
+.pill[data-status="archived"] { background:var(--cream-2); color:var(--ink-3); opacity:0.7; }
+
+.sev-pill { display:inline-block; padding:0.1rem 0.5rem; border-radius:4px; font-size:0.7rem; font-family:var(--mono); }
+.sev-pill.critical { background:var(--danger); color:white; }
+.sev-pill.high { background:var(--danger-soft); color:var(--danger); }
+.sev-pill.medium { background:var(--warn-soft); color:var(--warn); }
+.sev-pill.low { background:var(--cream-2); color:var(--ink-2); }
+
+.section { display:none; }
+.section.active { display:block; }
+
+.table-wrap { background:var(--surface); border-radius:var(--r); border:1px solid var(--line-soft); overflow:hidden; box-shadow:var(--shadow); }
+table { width:100%; border-collapse:collapse; font-size:0.875rem; }
+th, td { padding:0.7rem 1rem; text-align:left; border-bottom:1px solid var(--line-soft); vertical-align:middle; }
+th { background:var(--cream-2); font-family:var(--sans); font-weight:600; color:var(--ink); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; }
+tbody tr { cursor:pointer; transition:background 0.1s; }
+tbody tr:hover { background:var(--surface-2); }
+tbody tr:last-child td { border-bottom:none; }
+td.id-col { font-family:var(--mono); font-size:0.75rem; color:var(--olive); font-weight:600; white-space:nowrap; }
+td.title-col { color:var(--ink); }
+td.age-col { font-family:var(--mono); font-size:0.75rem; color:var(--ink-3); text-align:right; white-space:nowrap; }
+td.meta-col { font-family:var(--mono); font-size:0.7rem; color:var(--ink-3); }
+
+.empty-state { padding:3rem 2rem; text-align:center; color:var(--ink-3); background:var(--surface); border-radius:var(--r); border:1px dashed var(--line); }
+.empty-state h3 { font-family:var(--serif); color:var(--ink-2); margin-bottom:0.5rem; }
+
+/* Overview */
+.metric-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:0.75rem; margin-bottom:1.5rem; }
+.metric-card { background:var(--surface); border-radius:var(--r); padding:1rem 1.25rem; border:1px solid var(--line-soft); box-shadow:var(--shadow); }
+.metric-card.accent { border-left:4px solid var(--olive); }
+.metric-card.warn { border-left:4px solid var(--warn); }
+.metric-card.danger { border-left:4px solid var(--danger); }
+.metric-card.success { border-left:4px solid var(--success); }
+.metric-val { font-family:var(--serif); font-size:2.1rem; font-weight:600; line-height:1; color:var(--ink); }
+.metric-lab { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-3); margin-top:0.3rem; }
+.metric-sub { font-size:0.75rem; color:var(--ink-2); margin-top:0.25rem; }
+
+.progress-bar { height:8px; background:var(--cream-2); border-radius:999px; overflow:hidden; margin-top:0.4rem; }
+.progress-fill { height:100%; background:var(--olive); border-radius:999px; transition:width 0.3s; }
+
+.status-bars { background:var(--surface); border-radius:var(--r); padding:1.25rem; border:1px solid var(--line-soft); margin-bottom:1.25rem; }
+.status-bars h3 { font-family:var(--serif); font-size:1.1rem; margin-bottom:0.85rem; color:var(--ink); }
+.sb-row { display:grid; grid-template-columns:140px 1fr 50px; gap:0.85rem; align-items:center; margin-bottom:0.4rem; font-size:0.8rem; }
+.sb-bar { background:var(--cream-2); height:18px; border-radius:4px; overflow:hidden; display:flex; }
+.sb-seg { height:100%; transition:width 0.3s; }
+
+.section-title { font-family:var(--serif); font-size:1.35rem; color:var(--ink); margin-bottom:0.5rem; }
+.section-desc { font-size:0.875rem; color:var(--ink-3); margin-bottom:1.25rem; }
+
+/* Drawer */
+.drawer-mask { position:fixed; inset:0; background:rgba(45,42,38,0.4); opacity:0; pointer-events:none; transition:opacity 0.2s; z-index:90; }
+.drawer-mask.open { opacity:1; pointer-events:auto; }
+.drawer { position:fixed; right:0; top:0; bottom:0; width:min(720px,90vw); background:var(--surface); box-shadow:var(--shadow-lg); transform:translateX(100%); transition:transform 0.25s ease; z-index:100; display:flex; flex-direction:column; }
+.drawer.open { transform:translateX(0); }
+.drawer-head { padding:1.25rem 1.5rem; border-bottom:1px solid var(--line); background:var(--surface-2); display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; }
+.drawer-head h2 { font-family:var(--serif); font-size:1.35rem; color:var(--ink); line-height:1.25; margin-bottom:0.3rem; }
+.drawer-head .drawer-id { font-family:var(--mono); font-size:0.75rem; color:var(--olive); font-weight:600; }
+.drawer-close { background:transparent; border:none; font-size:1.5rem; color:var(--ink-2); cursor:pointer; padding:0.25rem 0.5rem; line-height:1; }
+.drawer-close:hover { color:var(--ink); }
+.drawer-meta { padding:0.85rem 1.5rem; border-bottom:1px solid var(--line-soft); background:var(--cream); display:flex; flex-wrap:wrap; gap:0.5rem 1.5rem; font-size:0.78rem; }
+.drawer-meta-item { display:flex; gap:0.4rem; align-items:center; }
+.drawer-meta-key { color:var(--ink-3); text-transform:uppercase; font-size:0.65rem; letter-spacing:0.08em; }
+.drawer-meta-val { color:var(--ink); font-family:var(--mono); font-size:0.75rem; }
+.drawer-body { padding:1.5rem; overflow-y:auto; flex:1; }
+.drawer-body h1,.drawer-body h2,.drawer-body h3,.drawer-body h4 { font-family:var(--serif); color:var(--ink); margin:1.25rem 0 0.5rem; line-height:1.2; }
+.drawer-body h1 { font-size:1.5rem; }
+.drawer-body h2 { font-size:1.25rem; }
+.drawer-body h3 { font-size:1.1rem; }
+.drawer-body h4 { font-size:1rem; font-family:var(--sans); }
+.drawer-body p { margin-bottom:0.75rem; line-height:1.6; }
+.drawer-body ul,.drawer-body ol { margin:0.5rem 0 0.75rem 1.5rem; }
+.drawer-body li { margin-bottom:0.2rem; }
+.drawer-body code { background:var(--cream-2); padding:0.1rem 0.35rem; border-radius:3px; font-family:var(--mono); font-size:0.85em; color:var(--sienna); }
+.drawer-body pre { background:var(--surface-2); padding:0.85rem 1rem; border-radius:var(--r-sm); overflow-x:auto; margin:0.5rem 0; border-left:3px solid var(--olive); }
+.drawer-body pre code { background:transparent; padding:0; color:var(--ink); font-size:0.78rem; }
+.drawer-body a { color:var(--olive); text-decoration:none; border-bottom:1px dotted var(--olive); }
+.drawer-body hr { border:none; border-top:1px solid var(--line); margin:1rem 0; }
+.drawer-body strong { font-weight:600; color:var(--ink); }
+.drawer-foot { padding:0.85rem 1.5rem; border-top:1px solid var(--line-soft); background:var(--cream); font-family:var(--mono); font-size:0.75rem; color:var(--ink-3); }
+
+/* Footer */
+footer { padding:2rem 2rem; text-align:center; color:var(--ink-3); font-size:0.78rem; background:var(--cream-2); }
+footer code { background:var(--cream); padding:0.15rem 0.45rem; border-radius:3px; color:var(--ink-2); }
+
+@media (max-width:800px) {
+  .header-metrics { gap:1rem; }
+  .hm-val { font-size:1.1rem; }
+  .app-title { font-size:1.2rem; }
+  th, td { padding:0.55rem 0.7rem; font-size:0.8rem; }
+  .tab { padding:0.6rem 0.8rem; font-size:0.78rem; }
+  main { padding:1rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <div>
+      <div class="app-title">
+        <span id="hdr-project-name">Project</span>
+        <small id="hdr-project-meta">Dashboard</small>
+      </div>
+      <div class="app-meta" id="hdr-generated">generated …</div>
+    </div>
+    <div class="header-metrics" id="hdr-metrics"></div>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <div class="tabs-inner" id="tabs-inner"></div>
+</nav>
+
+<main>
+  <div id="section-overview" class="section active">
+    <div class="metric-grid" id="overview-cards"></div>
+    <div class="status-bars" id="overview-status-bars">
+      <h3>Status distribution by artefact type</h3>
+      <div id="overview-bars-list"></div>
+    </div>
+    <div class="status-bars" id="overview-attention">
+      <h3>Attention</h3>
+      <div id="overview-attention-list"></div>
+    </div>
+  </div>
+
+  <div id="section-epic" class="section">
+    <div class="section-title">Epics</div>
+    <div class="section-desc">Strategic bets. Each epic must link to an OKR or PRD section.</div>
+    <div class="controls">
+      <input type="search" class="search" id="search-epic" placeholder="Search epics…" />
+      <div class="filter-group" data-filter-for="epic"></div>
+    </div>
+    <div class="table-wrap" id="table-epic"></div>
+  </div>
+
+  <div id="section-feature" class="section">
+    <div class="section-title">Features</div>
+    <div class="section-desc">Slices of an Epic. Each Feature decomposes into Stories.</div>
+    <div class="controls">
+      <input type="search" class="search" id="search-feature" placeholder="Search features…" />
+      <div class="filter-group" data-filter-for="feature"></div>
+    </div>
+    <div class="table-wrap" id="table-feature"></div>
+  </div>
+
+  <div id="section-story" class="section">
+    <div class="section-title">Stories</div>
+    <div class="section-desc">The atomic unit of work. WIP-limited.</div>
+    <div class="controls">
+      <input type="search" class="search" id="search-story" placeholder="Search stories…" />
+      <div class="filter-group" data-filter-for="story"></div>
+    </div>
+    <div class="table-wrap" id="table-story"></div>
+  </div>
+
+  <div id="section-testplan" class="section">
+    <div class="section-title">Testplans</div>
+    <div class="section-desc">One per story. Every TC is Claude-runnable.</div>
+    <div class="controls">
+      <input type="search" class="search" id="search-testplan" placeholder="Search testplans…" />
+      <div class="filter-group" data-filter-for="testplan"></div>
+    </div>
+    <div class="table-wrap" id="table-testplan"></div>
+  </div>
+
+  <div id="section-bug" class="section">
+    <div class="section-title">Bugs</div>
+    <div class="section-desc">Filed automatically on test failure or observed defect.</div>
+    <div class="controls">
+      <input type="search" class="search" id="search-bug" placeholder="Search bugs…" />
+      <div class="filter-group" data-filter-for="bug"></div>
+    </div>
+    <div class="table-wrap" id="table-bug"></div>
+  </div>
+
+  <div id="section-backlog" class="section">
+    <div class="section-title">Backlog</div>
+    <div class="section-desc">Refined ideas not yet promoted to Stories.</div>
+    <div class="controls">
+      <input type="search" class="search" id="search-backlog" placeholder="Search backlog…" />
+      <div class="filter-group" data-filter-for="backlog"></div>
+    </div>
+    <div class="table-wrap" id="table-backlog"></div>
+  </div>
+
+  <div id="section-adr" class="section">
+    <div class="section-title">Decisions (ADRs)</div>
+    <div class="section-desc">Created on-the-spot when non-obvious choices are made.</div>
+    <div class="controls">
+      <input type="search" class="search" id="search-adr" placeholder="Search decisions…" />
+      <div class="filter-group" data-filter-for="adr"></div>
+    </div>
+    <div class="table-wrap" id="table-adr"></div>
+  </div>
+
+  <div id="section-release" class="section">
+    <div class="section-title">Releases</div>
+    <div class="section-desc">Bundled milestones.</div>
+    <div class="controls">
+      <input type="search" class="search" id="search-release" placeholder="Search releases…" />
+      <div class="filter-group" data-filter-for="release"></div>
+    </div>
+    <div class="table-wrap" id="table-release"></div>
+  </div>
+
+  <div id="section-retro" class="section">
+    <div class="section-title">Retrospectives</div>
+    <div class="section-desc">Monthly reflection. One change per period.</div>
+    <div class="controls">
+      <input type="search" class="search" id="search-retro" placeholder="Search retros…" />
+      <div class="filter-group" data-filter-for="retro"></div>
+    </div>
+    <div class="table-wrap" id="table-retro"></div>
+  </div>
+</main>
+
+<div class="drawer-mask" id="drawer-mask"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div>
+      <div class="drawer-id" id="drawer-id"></div>
+      <h2 id="drawer-title"></h2>
+    </div>
+    <button class="drawer-close" id="drawer-close" aria-label="Close">×</button>
+  </div>
+  <div class="drawer-meta" id="drawer-meta"></div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-foot" id="drawer-foot"></div>
+</aside>
+
+<footer>
+  Regenerate with <code>npm run pm:dash</code> · validate with <code>npm run pm:lint</code>
+</footer>
+
+<script>const __DATA = {"all":{"epic":[],"feature":[],"story":[],"testplan":[],"bug":[],"adr":[],"backlog":[],"release":[],"retro":[]},"metrics":{"counts":{"epic":0,"feature":0,"story":0,"testplan":0,"bug":0,"adr":0,"backlog":0,"release":0,"retro":0},"statusByType":{"epic":{},"feature":{},"story":{},"testplan":{},"bug":{},"adr":{},"backlog":{},"release":{},"retro":{}},"wip":{"in-progress":0,"in-review":0,"blocked":0},"stories":{"total":0,"done":0,"in_progress":0,"ready":0,"blocked":0},"bugs":{"total":0,"open":0,"fixed":0,"by_severity":{"critical":0,"high":0,"medium":0,"low":0}},"epics":{"total":0,"with_okr":0,"without_okr":0},"velocity":{"stories_shipped_30d":0,"bugs_filed_30d":0,"bugs_fixed_30d":0},"cycle_time":{"story_avg_days":null,"sample_size":0},"shipped_pct":0},"projectContext":{"name":"fill in","client":"fill in","stage":"pre-launch | beta | production"},"generatedAt":"2026-05-20T23:00:36.123Z"};</script>
+<script>
+
+'use strict';
+
+const STATUS_ORDER = ["in-progress","in-review","ready","blocked","not-started","done","wontfix","duplicate","archived"];
+const TAB_DEFS = [
+  { key:'overview', label:'Overview', count:null },
+  { key:'epic', label:'Epics' },
+  { key:'feature', label:'Features' },
+  { key:'story', label:'Stories' },
+  { key:'testplan', label:'Testplans' },
+  { key:'bug', label:'Bugs' },
+  { key:'backlog', label:'Backlog' },
+  { key:'adr', label:'Decisions' },
+  { key:'release', label:'Releases' },
+  { key:'retro', label:'Retros' },
+];
+const FILTER_STATE = {};
+const SEARCH_STATE = {};
+
+function $(sel, root=document) { return root.querySelector(sel); }
+function $$(sel, root=document) { return Array.from(root.querySelectorAll(sel)); }
+
+function pill(status) {
+  return '<span class="pill" data-status="' + status + '">' + status + '</span>';
+}
+
+function fmtAge(d) {
+  if (d == null) return '—';
+  if (d === 0) return 'today';
+  if (d === 1) return '1d';
+  if (d < 30) return d + 'd';
+  if (d < 365) return Math.round(d/30) + 'mo';
+  return Math.round(d/365) + 'y';
+}
+
+function renderTabs() {
+  const root = $('#tabs-inner');
+  root.innerHTML = TAB_DEFS.map(t => {
+    const count = t.key === 'overview' ? '' :
+      '<span class="tab-count">' + (__DATA.all[t.key]?.length || 0) + '</span>';
+    return '<button class="tab" data-tab="' + t.key + '">' + t.label + count + '</button>';
+  }).join('');
+  $$('.tab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+  switchTab('overview');
+}
+
+function switchTab(key) {
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === key));
+  $$('.section').forEach(s => s.classList.toggle('active', s.id === 'section-' + key));
+  history.replaceState(null, '', '#' + key);
+}
+
+function renderHeader() {
+  const pc = __DATA.projectContext;
+  const m = __DATA.metrics;
+  $('#hdr-project-name').textContent = pc.name || 'Project';
+  $('#hdr-project-meta').textContent = [pc.client, pc.stage].filter(Boolean).join(' · ') || 'Tandem Command Center';
+  $('#hdr-generated').textContent = 'generated ' + new Date(__DATA.generatedAt).toLocaleString();
+  $('#hdr-metrics').innerHTML = [
+    { v: m.counts.epic || 0, l: 'Epics' },
+    { v: m.counts.feature || 0, l: 'Features' },
+    { v: m.stories.done + '/' + m.stories.total, l: 'Stories shipped' },
+    { v: m.shipped_pct + '%', l: 'Progress' },
+    { v: m.bugs.open, l: 'Open bugs' },
+  ].map(o => '<div class="hm"><div class="hm-val">' + o.v + '</div><div class="hm-lab">' + o.l + '</div></div>').join('');
+}
+
+function renderOverview() {
+  const m = __DATA.metrics;
+  const cards = [
+    { v: m.stories.in_progress, l: 'In progress', sub: 'limit 2', cls: m.stories.in_progress > 2 ? 'warn' : 'accent' },
+    { v: m.wip['in-review'] || 0, l: 'In review', sub: 'limit 3', cls: (m.wip['in-review']||0) > 3 ? 'warn' : 'accent' },
+    { v: m.stories.blocked, l: 'Blocked', sub: 'limit 5', cls: m.stories.blocked > 5 ? 'danger' : (m.stories.blocked > 0 ? 'warn' : 'accent') },
+    { v: m.stories.ready, l: 'Ready to pull', sub: 'in backlog', cls: 'accent' },
+    { v: m.velocity.stories_shipped_30d, l: 'Shipped (30d)', sub: 'stories', cls: 'success' },
+    { v: m.velocity.bugs_filed_30d, l: 'Bugs filed (30d)', sub: m.velocity.bugs_fixed_30d + ' fixed', cls: 'warn' },
+    { v: m.cycle_time.story_avg_days ?? '—', l: 'Avg cycle days', sub: 'n=' + (m.cycle_time.sample_size||0), cls: 'accent' },
+    { v: m.epics.without_okr, l: 'Epics w/o OKR', sub: m.epics.with_okr + ' linked', cls: m.epics.without_okr > 0 ? 'warn' : 'success' },
+  ];
+  $('#overview-cards').innerHTML = cards.map(c => (
+    '<div class="metric-card ' + c.cls + '">' +
+    '<div class="metric-val">' + c.v + '</div>' +
+    '<div class="metric-lab">' + c.l + '</div>' +
+    '<div class="metric-sub">' + c.sub + '</div>' +
+    '</div>'
+  )).join('');
+
+  const total = m.stories.total || 1;
+  const progress = '<div class="metric-card success" style="grid-column: 1 / -1;">' +
+    '<div class="metric-val">' + m.stories.done + ' / ' + m.stories.total + ' stories shipped (' + m.shipped_pct + '%)</div>' +
+    '<div class="progress-bar"><div class="progress-fill" style="width: ' + m.shipped_pct + '%;"></div></div>' +
+    '</div>';
+  $('#overview-cards').insertAdjacentHTML('afterbegin', progress);
+
+  // Status distribution bars
+  const types = ['epic','feature','story','testplan','bug','backlog'];
+  const colorByStatus = {
+    'not-started':'#d9cfc2', 'ready':'#3b6b8f', 'in-progress':'#c4843c',
+    'in-review':'#8a4f1f', 'done':'#3e7d4a', 'blocked':'#a64236',
+    'wontfix':'#998c7d', 'duplicate':'#998c7d', 'archived':'#998c7d',
+  };
+  $('#overview-bars-list').innerHTML = types.map(t => {
+    const arr = __DATA.all[t] || [];
+    if (!arr.length) return '';
+    const counts = STATUS_ORDER.map(s => ({ s, n: arr.filter(a => a.status === s).length })).filter(x => x.n);
+    const total = counts.reduce((sum, c) => sum + c.n, 0);
+    const bars = counts.map(c => '<div class="sb-seg" style="background:' + colorByStatus[c.s] + ';width:' + (c.n/total*100) + '%;" title="' + c.s + ': ' + c.n + '"></div>').join('');
+    return '<div class="sb-row"><div>' + t + 's</div><div class="sb-bar">' + bars + '</div><div style="text-align:right; font-family:var(--mono);">' + total + '</div></div>';
+  }).join('') || '<div style="color:var(--ink-3); font-size:0.85rem; padding:0.5rem 0;">No artefacts yet. Run prompt 02 (draft Epic) to start.</div>';
+
+  // Attention: stalled stories, blocked, no-OKR epics
+  const attention = [];
+  for (const s of (__DATA.all.story || [])) {
+    if (s.status === 'in-progress' && s.started_at) {
+      const days = Math.floor((Date.now() - Date.parse(s.started_at)) / 86400000);
+      if (days > 5) attention.push({ icon:'⏱', text: s.id + ' — in-progress ' + days + ' days', file: s.file });
+    }
+    if (s.status === 'blocked') attention.push({ icon:'⛔', text: s.id + ' — blocked', file: s.file });
+  }
+  for (const e of (__DATA.all.epic || [])) {
+    if (!e.okr && !e.prd_section) attention.push({ icon:'⚠', text: e.id + ' — missing OKR / PRD linkage', file: e.file });
+  }
+  $('#overview-attention-list').innerHTML = attention.length
+    ? attention.map(a => '<div class="sb-row" style="grid-template-columns:30px 1fr auto; padding:0.35rem 0;"><div>' + a.icon + '</div><div>' + a.text + '</div><div style="font-family:var(--mono); font-size:0.7rem; color:var(--ink-3);">' + a.file + '</div></div>').join('')
+    : '<div style="color:var(--success); font-size:0.85rem;">✓ Nothing demanding attention.</div>';
+}
+
+function renderTable(type) {
+  const items = __DATA.all[type] || [];
+  const search = (SEARCH_STATE[type] || '').toLowerCase();
+  const offStatuses = FILTER_STATE[type] || new Set();
+
+  let filtered = items.filter(it => !offStatuses.has(it.status));
+  if (search) {
+    filtered = filtered.filter(it =>
+      (it.id || '').toLowerCase().includes(search) ||
+      (it.title || '').toLowerCase().includes(search) ||
+      (it.body_html || '').toLowerCase().includes(search) ||
+      (it.status || '').toLowerCase().includes(search) ||
+      (it.epic || '').toLowerCase().includes(search) ||
+      (it.feature || '').toLowerCase().includes(search)
+    );
+  }
+
+  const root = $('#table-' + type);
+  if (!items.length) {
+    root.outerHTML = '<div class="empty-state" id="table-' + type + '"><h3>No ' + type + 's yet</h3><p>Use the relevant prompt to draft your first one.</p></div>';
+    return;
+  }
+  if (!filtered.length) {
+    root.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--ink-3);">No matches.</div>';
+    return;
+  }
+
+  const cols = colDefsFor(type);
+  const head = '<thead><tr>' + cols.map(c => '<th>' + c.label + '</th>').join('') + '</tr></thead>';
+  const body = '<tbody>' + filtered.map(it => {
+    return '<tr data-type="' + type + '" data-id="' + it.id + '">' +
+      cols.map(c => c.render(it)).join('') +
+    '</tr>';
+  }).join('') + '</tbody>';
+  root.innerHTML = '<table>' + head + body + '</table>';
+
+  $$('tbody tr', root).forEach(tr => {
+    tr.addEventListener('click', () => openDrawer(tr.dataset.type, tr.dataset.id));
+  });
+}
+
+function colDefsFor(type) {
+  const idCol = { label:'ID', render: it => '<td class="id-col">' + it.id + '</td>' };
+  const titleCol = { label:'Title', render: it => '<td class="title-col">' + escapeHtml(it.title) + '</td>' };
+  const statusCol = { label:'Status', render: it => '<td>' + pill(it.status) + '</td>' };
+  const ageCol = { label:'Age', render: it => '<td class="age-col">' + fmtAge(it.age_days) + '</td>' };
+
+  switch(type) {
+    case 'epic': return [
+      idCol, titleCol, statusCol,
+      { label:'OKR / PRD', render: it => '<td class="meta-col">' + escapeHtml(it.okr || it.prd_section || '—') + '</td>' },
+      { label:'Features', render: it => '<td class="meta-col">' + featuresForEpic(it.id) + '</td>' },
+      ageCol,
+    ];
+    case 'feature': return [
+      idCol, titleCol, statusCol,
+      { label:'Epic', render: it => '<td class="meta-col">' + escapeHtml(it.epic || '—') + '</td>' },
+      { label:'Stories', render: it => '<td class="meta-col">' + storiesForFeature(it.id) + '</td>' },
+      ageCol,
+    ];
+    case 'story': return [
+      idCol, titleCol, statusCol,
+      { label:'Est', render: it => '<td class="meta-col">' + (it.estimate || '—') + '</td>' },
+      { label:'Feature', render: it => '<td class="meta-col">' + escapeHtml(it.feature || '—') + '</td>' },
+      ageCol,
+    ];
+    case 'testplan': return [
+      idCol, titleCol, statusCol,
+      { label:'Story', render: it => '<td class="meta-col">' + escapeHtml(it.story || '—') + '</td>' },
+      ageCol,
+    ];
+    case 'bug': return [
+      idCol, titleCol, statusCol,
+      { label:'Severity', render: it => '<td>' + (it.severity ? '<span class="sev-pill ' + it.severity + '">' + it.severity + '</span>' : '—') + '</td>' },
+      { label:'Story', render: it => '<td class="meta-col">' + escapeHtml(it.story || '—') + '</td>' },
+      ageCol,
+    ];
+    case 'backlog': return [
+      idCol, titleCol, statusCol,
+      { label:'Type', render: it => '<td class="meta-col">' + (it.type_of_work || '—') + '</td>' },
+      { label:'Est', render: it => '<td class="meta-col">' + (it.estimate || '—') + '</td>' },
+      ageCol,
+    ];
+    case 'adr': return [
+      idCol, titleCol,
+      { label:'ADR status', render: it => '<td>' + (it.adr_status ? '<span class="pill" data-status="' + (it.adr_status === 'accepted' ? 'done' : it.adr_status === 'proposed' ? 'in-review' : 'archived') + '">' + it.adr_status + '</span>' : '—') + '</td>' },
+      ageCol,
+    ];
+    case 'release': return [
+      idCol, titleCol, statusCol, ageCol,
+    ];
+    case 'retro': return [
+      idCol, titleCol, statusCol, ageCol,
+    ];
+    default: return [idCol, titleCol, statusCol, ageCol];
+  }
+}
+
+function featuresForEpic(epicId) {
+  const feats = (__DATA.all.feature || []).filter(f => f.epic === epicId);
+  if (!feats.length) return '0';
+  const done = feats.filter(f => f.status === 'done').length;
+  return done + '/' + feats.length;
+}
+function storiesForFeature(featId) {
+  const stories = (__DATA.all.story || []).filter(s => s.feature === featId);
+  if (!stories.length) return '0';
+  const done = stories.filter(s => s.status === 'done').length;
+  return done + '/' + stories.length;
+}
+
+function renderFilters(type) {
+  const items = __DATA.all[type] || [];
+  if (!items.length) return;
+  const root = document.querySelector('[data-filter-for="' + type + '"]');
+  if (!root) return;
+  const statuses = STATUS_ORDER.filter(s => items.some(it => it.status === s));
+  root.innerHTML = '<span class="filter-label">Status:</span>' + statuses.map(s =>
+    '<span class="pill filterable" data-status="' + s + '" data-filter="' + s + '">' + s + '</span>'
+  ).join('');
+  $$('.pill.filterable', root).forEach(p => {
+    p.addEventListener('click', () => {
+      const off = FILTER_STATE[type] = FILTER_STATE[type] || new Set();
+      const s = p.dataset.filter;
+      if (off.has(s)) { off.delete(s); p.classList.remove('off'); }
+      else { off.add(s); p.classList.add('off'); }
+      renderTable(type);
+    });
+  });
+}
+
+function wireSearches() {
+  TAB_DEFS.filter(t => t.key !== 'overview').forEach(t => {
+    const input = $('#search-' + t.key);
+    if (input) {
+      input.addEventListener('input', () => {
+        SEARCH_STATE[t.key] = input.value;
+        renderTable(t.key);
+      });
+    }
+  });
+}
+
+function openDrawer(type, id) {
+  const items = __DATA.all[type] || [];
+  const it = items.find(x => x.id === id);
+  if (!it) return;
+  $('#drawer-id').textContent = it.id + ' · ' + type;
+  $('#drawer-title').textContent = it.title;
+  $('#drawer-body').innerHTML = it.body_html || '<p style="color:var(--ink-3); font-style:italic;">No body content.</p>';
+  $('#drawer-foot').textContent = it.file;
+  const meta = [
+    ['Status', '<span class="pill" data-status="' + it.status + '">' + it.status + '</span>'],
+    it.epic ? ['Epic', it.epic] : null,
+    it.feature ? ['Feature', it.feature] : null,
+    it.story ? ['Story', it.story] : null,
+    it.testplan ? ['Testplan', it.testplan] : null,
+    it.okr ? ['OKR', it.okr] : null,
+    it.estimate ? ['Estimate', it.estimate] : null,
+    it.priority ? ['Priority', it.priority] : null,
+    it.severity ? ['Severity', '<span class="sev-pill ' + it.severity + '">' + it.severity + '</span>'] : null,
+    it.created_at ? ['Created', it.created_at] : null,
+    it.started_at ? ['Started', it.started_at] : null,
+    it.completed_at ? ['Completed', it.completed_at] : null,
+  ].filter(Boolean);
+  $('#drawer-meta').innerHTML = meta.map(([k,v]) =>
+    '<div class="drawer-meta-item"><span class="drawer-meta-key">' + k + '</span><span class="drawer-meta-val">' + v + '</span></div>'
+  ).join('');
+  $('#drawer').classList.add('open');
+  $('#drawer-mask').classList.add('open');
+}
+function closeDrawer() {
+  $('#drawer').classList.remove('open');
+  $('#drawer-mask').classList.remove('open');
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderHeader();
+  renderTabs();
+  renderOverview();
+  ['epic','feature','story','testplan','bug','backlog','adr','release','retro'].forEach(t => {
+    renderFilters(t);
+    renderTable(t);
+  });
+  wireSearches();
+  $('#drawer-close').addEventListener('click', closeDrawer);
+  $('#drawer-mask').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+  // Initial tab from hash
+  const hash = location.hash.slice(1);
+  if (hash && TAB_DEFS.some(t => t.key === hash)) switchTab(hash);
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="EXPLORATION.template.html (SOP §11.1 / STORY-01.1.03) — extends HTML-ARTEFACT.template.html">
+<meta name="robots" content="noindex">
+<title>Exploration — side-by-side approach comparison (replace this)</title>
+<style>
+/* ============================================================
+   EXPLORATION reference template
+   - Pure HTML/CSS/SVG/JS. No CDN, no framework, no web fonts. Fully offline (file://).
+   - Design tokens copied from HTML-ARTEFACT.template.html / 42-Monitor/DASHBOARD.html
+     for visual consistency (see "/* from HTML-ARTEFACT */" markers below).
+   - Purpose: compare 6+ candidate approaches side by side at planning time, then
+     radio-select the winner and "Export selected → ADR options block" as paste-ready
+     markdown for 40-Decisions/ADR-NNNN's "Alternatives considered" section.
+   - Drop-in: copy to 41-Reports/EXPLORATION-YYYY-MM-DD-<slug>.html, fill each option.
+   - Light + dark via [data-theme]. Toggle persisted to localStorage.
+   ============================================================ */
+:root {
+  /* from HTML-ARTEFACT --bg/--fg/--accent token set */
+  --cream:#F5F0E8; --cream-2:#EBE5D8;
+  --surface:#FAF8F4; --surface-2:#F1ECE3;
+  --ink:#1A1714; --ink-2:#3D3831; --ink-3:#6B6358; --ink-faint:#9E9589;
+  --border:#DDD6C8;
+  --red:#D63031;     --red-soft:#F8E0E0;
+  --yellow:#F0B429;  --yellow-soft:#FAE9C0;
+  --blue:#2D6CDF;    --blue-soft:#DCE7F8;
+  --teal:#0D9488;    --teal-soft:#CFEAE6;
+  --r:12px; --r-sm:10px; --r-lg:16px; --r-pill:100px;
+  --shadow-sm:0 1px 2px rgba(26,23,20,0.06);
+  --shadow:0 4px 14px rgba(26,23,20,0.08);
+  --serif:Georgia, 'Times New Roman', serif;
+  --sans:-apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono:Consolas, 'JetBrains Mono', ui-monospace, monospace;
+  --ease:cubic-bezier(0.16, 1, 0.3, 1);
+  --dur:280ms;
+  --focus-ring:rgba(214,48,49,0.45);
+}
+html[data-theme="dark"] {
+  --cream:#15120F; --cream-2:#1C1814;
+  --surface:#1A1612; --surface-2:#221D17;
+  --ink:#F1ECE3; --ink-2:#D8CFC0; --ink-3:#9E9589; --ink-faint:#6B6358;
+  --border:#312A22;
+  --red:#E25558;     --red-soft:rgba(226,85,88,0.16);
+  --yellow:#F2C24A;  --yellow-soft:rgba(242,194,74,0.16);
+  --blue:#5B8DE8;    --blue-soft:rgba(91,141,232,0.18);
+  --teal:#2BB3A6;    --teal-soft:rgba(43,179,166,0.18);
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.35);
+  --shadow:0 6px 18px rgba(0,0,0,0.45);
+  --focus-ring:rgba(226,85,88,0.5);
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body {
+  font-family:var(--sans);
+  color:var(--ink);
+  background:var(--cream);
+  line-height:1.55;
+  font-size:15px;
+  -webkit-font-smoothing:antialiased;
+  transition:background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+:focus-visible { outline:none; box-shadow:0 0 0 3px var(--focus-ring); border-radius:var(--r-sm); }
+::selection { background:var(--yellow); color:var(--ink); }
+
+a { color:var(--blue); text-decoration:none; }
+a:hover { text-decoration:underline; }
+code, kbd, pre { font-family:var(--mono); font-size:0.875em; }
+pre {
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  border-radius:var(--r-sm);
+  padding:0.85rem 1rem;
+  overflow-x:auto;
+}
+
+/* Layout */
+.shell { max-width:1280px; margin:0 auto; padding:1.5rem 1.25rem 3rem; }
+
+/* Header */
+.art-header {
+  display:flex; align-items:flex-end; justify-content:space-between;
+  gap:1rem; flex-wrap:wrap;
+  padding-bottom:1.25rem;
+  border-bottom:1px solid var(--border);
+  margin-bottom:1.5rem;
+}
+.art-title { font-family:var(--serif); font-weight:400; font-size:2rem; line-height:1.15; letter-spacing:-0.01em; }
+.art-title em { color:var(--red); font-style:italic; }
+.art-sub { color:var(--ink-3); font-size:0.78rem; letter-spacing:0.14em; text-transform:uppercase; margin-top:0.4rem; }
+.art-meta { color:var(--ink-3); font-family:var(--mono); font-size:0.78rem; }
+.theme-btn {
+  background:transparent; border:1px solid var(--border); color:var(--ink-2);
+  padding:0.4rem 0.75rem; border-radius:var(--r-pill); cursor:pointer;
+  font-family:var(--sans); font-size:0.78rem;
+  transition:all 160ms var(--ease);
+}
+.theme-btn:hover { background:var(--surface-2); border-color:var(--ink-faint); color:var(--ink); }
+
+/* Banner (retrofit / context note) */
+.banner {
+  background:var(--yellow-soft); border:1px solid var(--yellow);
+  border-radius:var(--r-sm); padding:0.75rem 1rem; margin-bottom:1.5rem;
+  font-size:0.86rem; color:var(--ink-2);
+}
+.banner strong { color:var(--ink); }
+
+/* Tabs */
+.tabs { display:flex; gap:0.25rem; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:1.5rem; }
+.tab {
+  background:transparent; border:none; border-bottom:2px solid transparent;
+  color:var(--ink-3); padding:0.65rem 1rem; font-size:0.92rem; font-family:var(--sans);
+  cursor:pointer; transition:all 160ms var(--ease);
+  border-radius:var(--r-sm) var(--r-sm) 0 0;
+}
+.tab:hover { color:var(--ink); background:var(--surface-2); }
+.tab[aria-selected="true"] { color:var(--red); border-bottom-color:var(--red); background:transparent; }
+.panel { display:none; }
+.panel[data-active="true"] { display:block; animation:fade 240ms var(--ease); }
+@keyframes fade { from { opacity:0; transform:translateY(2px); } to { opacity:1; transform:none; } }
+
+/* Cards & sections */
+.card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:1.25rem 1.5rem;
+  box-shadow:var(--shadow-sm);
+  margin-bottom:1.25rem;
+}
+.card h2 { font-family:var(--serif); font-weight:400; font-size:1.4rem; margin-bottom:0.5rem; }
+.card h3 { font-size:1.05rem; font-weight:600; margin:1.1rem 0 0.5rem; color:var(--ink-2); }
+.card p, .card li { margin-bottom:0.5rem; }
+.card ul, .card ol { padding-left:1.25rem; }
+
+/* Option grid — the comparison surface */
+.option-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));
+  gap:1rem;
+}
+.option {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:1.1rem 1.25rem;
+  box-shadow:var(--shadow-sm);
+  display:flex; flex-direction:column; gap:0.5rem;
+  transition:border-color 160ms var(--ease), box-shadow 160ms var(--ease);
+}
+.option:has(input[type="radio"]:checked) {
+  border-color:var(--red);
+  box-shadow:0 0 0 2px var(--red-soft), var(--shadow);
+}
+.option-head { display:flex; align-items:flex-start; gap:0.6rem; }
+.option-head input[type="radio"] {
+  margin-top:0.3rem; width:1.05rem; height:1.05rem; accent-color:var(--red); cursor:pointer; flex:0 0 auto;
+}
+.option-head label { cursor:pointer; flex:1 1 auto; }
+.option-name { font-family:var(--serif); font-size:1.15rem; color:var(--ink); display:block; }
+.option-slot-id { font-family:var(--mono); font-size:0.7rem; color:var(--ink-faint); letter-spacing:0.06em; }
+
+.option .sketch {
+  background:var(--surface-2);
+  border:1px dashed var(--border);
+  border-radius:var(--r-sm);
+  padding:0.6rem 0.75rem;
+  font-family:var(--mono); font-size:0.78rem; color:var(--ink-2);
+  white-space:pre-wrap; overflow-x:auto;
+}
+.option .sketch svg { display:block; width:100%; height:auto; }
+
+.proscons { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 0.85rem; }
+.proscons .pros h4, .proscons .cons h4 {
+  font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.25rem;
+}
+.proscons .pros h4 { color:var(--teal); }
+.proscons .cons h4 { color:var(--red); }
+.proscons ul { padding-left:1rem; margin:0; font-size:0.84rem; }
+.proscons li { margin-bottom:0.2rem; }
+
+.scores { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
+.best-fit {
+  background:var(--blue-soft); border-radius:var(--r-sm);
+  padding:0.5rem 0.7rem; font-size:0.82rem; color:var(--ink-2);
+}
+.best-fit strong { color:var(--blue); }
+
+/* Table */
+table.data {
+  width:100%; border-collapse:collapse; border-spacing:0;
+  background:var(--surface);
+  border:1px solid var(--border); border-radius:var(--r); overflow:hidden;
+  font-size:0.9rem;
+}
+table.data th, table.data td {
+  text-align:left; padding:0.7rem 0.9rem;
+  border-bottom:1px solid var(--border);
+}
+table.data thead th {
+  background:var(--surface-2);
+  color:var(--ink-2);
+  font-weight:600; font-size:0.78rem;
+  text-transform:uppercase; letter-spacing:0.05em;
+  position:sticky; top:0;
+}
+table.data tbody tr:last-child td { border-bottom:none; }
+table.data tbody tr:hover { background:var(--cream-2); }
+
+/* Pills */
+.pill { display:inline-flex; align-items:center; gap:0.3rem; padding:0.15rem 0.6rem; border-radius:var(--r-pill); font-size:0.74rem; font-weight:600; }
+.pill.ok    { background:var(--teal-soft);   color:var(--teal); }
+.pill.warn  { background:var(--yellow-soft); color:var(--yellow); }
+.pill.danger{ background:var(--red-soft);    color:var(--red); }
+.pill.info  { background:var(--blue-soft);   color:var(--blue); }
+.pill.score { background:var(--surface-2);   color:var(--ink-2); font-family:var(--mono); }
+
+/* Export controls */
+.export-bar { display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center; margin-bottom:1rem; }
+.btn {
+  background:var(--red); color:#fff; border:1px solid var(--red);
+  padding:0.55rem 1rem; border-radius:var(--r-pill); cursor:pointer;
+  font-family:var(--sans); font-size:0.86rem; font-weight:600;
+  transition:all 160ms var(--ease);
+}
+.btn:hover { filter:brightness(1.08); }
+.btn.secondary { background:transparent; color:var(--ink-2); border-color:var(--border); }
+.btn.secondary:hover { background:var(--surface-2); border-color:var(--ink-faint); color:var(--ink); }
+.btn:disabled { opacity:0.5; cursor:not-allowed; filter:none; }
+.export-status { font-size:0.82rem; color:var(--ink-3); }
+.export-status.ok { color:var(--teal); }
+.export-status.err { color:var(--red); }
+textarea.export-out {
+  width:100%; min-height:280px;
+  background:var(--surface-2); color:var(--ink);
+  border:1px solid var(--border); border-radius:var(--r-sm);
+  padding:0.85rem 1rem; font-family:var(--mono); font-size:0.82rem; line-height:1.5;
+  resize:vertical;
+}
+
+/* SVG container (reused region from HTML-ARTEFACT, data-slot="svg") */
+.svg-wrap {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:1.25rem;
+  box-shadow:var(--shadow-sm);
+}
+.svg-wrap svg { display:block; width:100%; height:auto; max-width:100%; }
+
+/* Footer */
+.art-footer {
+  margin-top:2rem; padding-top:1rem; border-top:1px solid var(--border);
+  color:var(--ink-3); font-size:0.78rem; display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .shell { padding:1rem 0.85rem 2rem; }
+  .art-title { font-size:1.55rem; }
+  .card, .option { padding:1rem; }
+  .tab { padding:0.55rem 0.75rem; font-size:0.86rem; }
+  .proscons { grid-template-columns:1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+}
+</style>
+</head>
+<body>
+<main class="shell" id="top">
+
+  <!-- ============================== Header ============================== -->
+  <header class="art-header">
+    <div>
+      <h1 class="art-title">Exploration — <em>&lt;decision title&gt;</em></h1>
+      <div class="art-sub">EXPLORATION template · side-by-side approach comparison · v1.0</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+      <span class="art-meta">Generated · YYYY-MM-DD</span>
+      <button class="theme-btn" type="button" id="theme-toggle" aria-label="Toggle dark mode">Dark mode</button>
+    </div>
+  </header>
+
+  <!-- Optional context banner. Delete if this is a live (not retrofitted) exploration. -->
+  <div class="banner" id="context-banner">
+    <strong>Context:</strong> replace with the question being decided, the stakes, and (if retrofitted)
+    a note that this artefact was reconstructed after the fact to validate the template.
+  </div>
+
+  <!-- ============================== Tabs ============================== -->
+  <nav class="tabs" role="tablist" aria-label="Exploration sections">
+    <button class="tab" role="tab" aria-selected="true"  aria-controls="panel-options" id="tab-options" data-target="panel-options">Options</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="panel-matrix"  id="tab-matrix"  data-target="panel-matrix">Score matrix</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="panel-export"  id="tab-export"  data-target="panel-export">Export → ADR</button>
+  </nav>
+
+  <!-- ============================== Panel: Options ============================== -->
+  <section class="panel" role="tabpanel" id="panel-options" aria-labelledby="tab-options" data-active="true">
+    <div class="card">
+      <h2>Candidate approaches</h2>
+      <p>Fill in each option slot below. Select the recommended approach with its radio button, then use the
+        <strong>Export → ADR</strong> tab to generate a paste-ready "Alternatives considered" block.
+        Six slots are provided (matches the blog's "6+ distinct approaches" framing) — delete any unused slots,
+        or copy an <code>&lt;article class="option" …&gt;</code> block to add more.</p>
+    </div>
+
+    <!-- Each .option is one slot. data-option="N" + class="option" markers are how the
+         exporter and TC-01 discover slots. Keep data-name / data-complexity / data-fit
+         attributes in sync with the visible text — the exporter reads the attributes. -->
+    <form id="option-form">
+    <div class="option-grid">
+
+      <!-- ===== Option 1 ===== -->
+      <article class="option" data-option="1"
+               data-name="Option A name"
+               data-complexity="2"
+               data-fit="5"
+               data-rejected="why this was not chosen (one line)">
+        <div class="option-head">
+          <input type="radio" name="selected-option" id="opt-1" value="1" checked>
+          <label for="opt-1">
+            <span class="option-name" data-field="name">Option A name</span>
+            <span class="option-slot-id">slot 1</span>
+          </label>
+        </div>
+        <div class="sketch" data-field="sketch">{{ ASCII / text sketch or inline &lt;svg&gt; of the approach }}</div>
+        <div class="proscons">
+          <div class="pros"><h4>Pros</h4><ul data-field="pros">
+            <li>Pro one</li>
+            <li>Pro two</li>
+          </ul></div>
+          <div class="cons"><h4>Cons</h4><ul data-field="cons">
+            <li>Con one</li>
+            <li>Con two</li>
+          </ul></div>
+        </div>
+        <div class="scores">
+          <span class="pill score" title="Implementation complexity, 1=trivial 5=hard">complexity <strong data-field="complexity">2</strong>/5</span>
+          <span class="pill score" title="Fit with our stack/constraints, 1=poor 5=ideal">stack-fit <strong data-field="stack-fit">5</strong>/5</span>
+        </div>
+        <div class="best-fit"><strong>Best fit when:</strong> <span data-field="best-fit-when">the condition under which this option is the right call</span></div>
+      </article>
+
+      <!-- ===== Option 2 ===== -->
+      <article class="option" data-option="2"
+               data-name="Option B name"
+               data-complexity="3"
+               data-fit="4"
+               data-rejected="why this was not chosen (one line)">
+        <div class="option-head">
+          <input type="radio" name="selected-option" id="opt-2" value="2">
+          <label for="opt-2">
+            <span class="option-name" data-field="name">Option B name</span>
+            <span class="option-slot-id">slot 2</span>
+          </label>
+        </div>
+        <div class="sketch" data-field="sketch">{{ sketch }}</div>
+        <div class="proscons">
+          <div class="pros"><h4>Pros</h4><ul data-field="pros"><li>Pro one</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul data-field="cons"><li>Con one</li></ul></div>
+        </div>
+        <div class="scores">
+          <span class="pill score">complexity <strong data-field="complexity">3</strong>/5</span>
+          <span class="pill score">stack-fit <strong data-field="stack-fit">4</strong>/5</span>
+        </div>
+        <div class="best-fit"><strong>Best fit when:</strong> <span data-field="best-fit-when">…</span></div>
+      </article>
+
+      <!-- ===== Option 3 ===== -->
+      <article class="option" data-option="3"
+               data-name="Option C name"
+               data-complexity="3"
+               data-fit="3"
+               data-rejected="why this was not chosen (one line)">
+        <div class="option-head">
+          <input type="radio" name="selected-option" id="opt-3" value="3">
+          <label for="opt-3">
+            <span class="option-name" data-field="name">Option C name</span>
+            <span class="option-slot-id">slot 3</span>
+          </label>
+        </div>
+        <div class="sketch" data-field="sketch">{{ sketch }}</div>
+        <div class="proscons">
+          <div class="pros"><h4>Pros</h4><ul data-field="pros"><li>Pro one</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul data-field="cons"><li>Con one</li></ul></div>
+        </div>
+        <div class="scores">
+          <span class="pill score">complexity <strong data-field="complexity">3</strong>/5</span>
+          <span class="pill score">stack-fit <strong data-field="stack-fit">3</strong>/5</span>
+        </div>
+        <div class="best-fit"><strong>Best fit when:</strong> <span data-field="best-fit-when">…</span></div>
+      </article>
+
+      <!-- ===== Option 4 ===== -->
+      <article class="option" data-option="4"
+               data-name="Option D name"
+               data-complexity="4"
+               data-fit="2"
+               data-rejected="why this was not chosen (one line)">
+        <div class="option-head">
+          <input type="radio" name="selected-option" id="opt-4" value="4">
+          <label for="opt-4">
+            <span class="option-name" data-field="name">Option D name</span>
+            <span class="option-slot-id">slot 4</span>
+          </label>
+        </div>
+        <div class="sketch" data-field="sketch">{{ sketch }}</div>
+        <div class="proscons">
+          <div class="pros"><h4>Pros</h4><ul data-field="pros"><li>Pro one</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul data-field="cons"><li>Con one</li></ul></div>
+        </div>
+        <div class="scores">
+          <span class="pill score">complexity <strong data-field="complexity">4</strong>/5</span>
+          <span class="pill score">stack-fit <strong data-field="stack-fit">2</strong>/5</span>
+        </div>
+        <div class="best-fit"><strong>Best fit when:</strong> <span data-field="best-fit-when">…</span></div>
+      </article>
+
+      <!-- ===== Option 5 ===== -->
+      <article class="option" data-option="5"
+               data-name="Option E name"
+               data-complexity="4"
+               data-fit="2"
+               data-rejected="why this was not chosen (one line)">
+        <div class="option-head">
+          <input type="radio" name="selected-option" id="opt-5" value="5">
+          <label for="opt-5">
+            <span class="option-name" data-field="name">Option E name</span>
+            <span class="option-slot-id">slot 5</span>
+          </label>
+        </div>
+        <div class="sketch" data-field="sketch">{{ sketch }}</div>
+        <div class="proscons">
+          <div class="pros"><h4>Pros</h4><ul data-field="pros"><li>Pro one</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul data-field="cons"><li>Con one</li></ul></div>
+        </div>
+        <div class="scores">
+          <span class="pill score">complexity <strong data-field="complexity">4</strong>/5</span>
+          <span class="pill score">stack-fit <strong data-field="stack-fit">2</strong>/5</span>
+        </div>
+        <div class="best-fit"><strong>Best fit when:</strong> <span data-field="best-fit-when">…</span></div>
+      </article>
+
+      <!-- ===== Option 6 ===== -->
+      <article class="option" data-option="6"
+               data-name="Option F name"
+               data-complexity="5"
+               data-fit="1"
+               data-rejected="why this was not chosen (one line)">
+        <div class="option-head">
+          <input type="radio" name="selected-option" id="opt-6" value="6">
+          <label for="opt-6">
+            <span class="option-name" data-field="name">Option F name</span>
+            <span class="option-slot-id">slot 6</span>
+          </label>
+        </div>
+        <div class="sketch" data-field="sketch">{{ sketch }}</div>
+        <div class="proscons">
+          <div class="pros"><h4>Pros</h4><ul data-field="pros"><li>Pro one</li></ul></div>
+          <div class="cons"><h4>Cons</h4><ul data-field="cons"><li>Con one</li></ul></div>
+        </div>
+        <div class="scores">
+          <span class="pill score">complexity <strong data-field="complexity">5</strong>/5</span>
+          <span class="pill score">stack-fit <strong data-field="stack-fit">1</strong>/5</span>
+        </div>
+        <div class="best-fit"><strong>Best fit when:</strong> <span data-field="best-fit-when">…</span></div>
+      </article>
+
+    </div>
+    </form>
+  </section>
+
+  <!-- ============================== Panel: Score matrix ============================== -->
+  <section class="panel" role="tabpanel" id="panel-matrix" aria-labelledby="tab-matrix">
+    <div class="card">
+      <h2>Score matrix</h2>
+      <p>Auto-built from the option slots on load. Complexity is "lower is easier"; stack-fit is "higher is better".</p>
+      <table class="data" id="matrix-table">
+        <thead>
+          <tr><th>#</th><th>Approach</th><th>Complexity</th><th>Stack-fit</th><th>Selected</th></tr>
+        </thead>
+        <tbody><!-- populated by script --></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================== Panel: Export → ADR ============================== -->
+  <section class="panel" role="tabpanel" id="panel-export" aria-labelledby="tab-export">
+    <div class="card">
+      <h2>Export selected → ADR options block</h2>
+      <p>Generates a paste-ready <strong>"Alternatives considered"</strong> block matching
+        <code>91-Templates/ADR.template.md</code>. The radio-selected option becomes the
+        <em>(chosen)</em> decision; the rest are listed with their one-line rejection reason.
+        Paste into your new <code>40-Decisions/ADR-NNNN-*.md</code> and add
+        <code>exploration_html:</code> frontmatter pointing back at this file.</p>
+      <div class="export-bar">
+        <button class="btn" type="button" id="export-btn">Export selected → ADR options block</button>
+        <button class="btn secondary" type="button" id="copy-btn">Copy to clipboard</button>
+        <span class="export-status" id="export-status" role="status" aria-live="polite"></span>
+      </div>
+      <textarea class="export-out" id="export-out" readonly
+                aria-label="Generated ADR markdown — select and Ctrl+C if the copy button is blocked"
+                placeholder="Click “Export selected → ADR options block” to generate markdown here…"></textarea>
+    </div>
+  </section>
+
+  <!-- ============================== Footer ============================== -->
+  <footer class="art-footer">
+    <span>EXPLORATION template — copy to 41-Reports/, rename, fill each option, select, export.</span>
+    <span>SOP §11.1 · STORY-01.1.03 · extends HTML-ARTEFACT.template.html</span>
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ----- Theme toggle (persists across reloads) — from HTML-ARTEFACT ----- */
+  var root = document.documentElement;
+  var btn  = document.getElementById('theme-toggle');
+  var KEY  = 'exploration-theme';
+
+  function applyTheme(t) {
+    root.setAttribute('data-theme', t);
+    if (btn) btn.textContent = (t === 'dark') ? 'Light mode' : 'Dark mode';
+  }
+  try {
+    var saved = localStorage.getItem(KEY);
+    if (saved === 'light' || saved === 'dark') applyTheme(saved);
+  } catch (e) { /* storage blocked — silent ok */ }
+
+  if (btn) {
+    btn.addEventListener('click', function () {
+      var next = (root.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
+      applyTheme(next);
+      try { localStorage.setItem(KEY, next); } catch (e) {}
+    });
+  }
+
+  /* ----- Tabs — from HTML-ARTEFACT ----- */
+  var tabs   = Array.prototype.slice.call(document.querySelectorAll('.tab[role="tab"]'));
+  var panels = Array.prototype.slice.call(document.querySelectorAll('.panel[role="tabpanel"]'));
+
+  function selectTab(targetId) {
+    tabs.forEach(function (t) {
+      t.setAttribute('aria-selected', t.getAttribute('data-target') === targetId ? 'true' : 'false');
+    });
+    panels.forEach(function (p) {
+      p.setAttribute('data-active', (p.id === targetId) ? 'true' : 'false');
+    });
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { selectTab(t.getAttribute('data-target')); });
+    t.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      e.preventDefault();
+      var idx  = tabs.indexOf(t);
+      var next = (e.key === 'ArrowRight') ? (idx + 1) % tabs.length : (idx - 1 + tabs.length) % tabs.length;
+      tabs[next].focus();
+      selectTab(tabs[next].getAttribute('data-target'));
+    });
+  });
+
+  /* ----- Helpers: read a single option slot's fields ----- */
+  function textOf(el, sel) {
+    var node = el.querySelector(sel);
+    return node ? node.textContent.replace(/\s+/g, ' ').trim() : '';
+  }
+  function listOf(el, sel) {
+    var ul = el.querySelector(sel);
+    if (!ul) return [];
+    return Array.prototype.slice.call(ul.querySelectorAll('li')).map(function (li) {
+      return li.textContent.replace(/\s+/g, ' ').trim();
+    }).filter(Boolean);
+  }
+  function readOption(art) {
+    return {
+      slot:        art.getAttribute('data-option') || '',
+      name:        textOf(art, '[data-field="name"]') || art.getAttribute('data-name') || '(unnamed)',
+      complexity:  textOf(art, '[data-field="complexity"]') || art.getAttribute('data-complexity') || '?',
+      fit:         textOf(art, '[data-field="stack-fit"]') || art.getAttribute('data-fit') || '?',
+      bestFit:     textOf(art, '[data-field="best-fit-when"]'),
+      rejected:    art.getAttribute('data-rejected') || '',
+      pros:        listOf(art, '[data-field="pros"]'),
+      cons:        listOf(art, '[data-field="cons"]'),
+      selected:    !!art.querySelector('input[type="radio"]:checked')
+    };
+  }
+  function allOptions() {
+    return Array.prototype.slice.call(document.querySelectorAll('.option[data-option]')).map(readOption);
+  }
+
+  /* ----- Build the score matrix table on load ----- */
+  (function buildMatrix() {
+    var tbody = document.querySelector('#matrix-table tbody');
+    if (!tbody) return;
+    allOptions().forEach(function (o) {
+      var tr = document.createElement('tr');
+      var cells = [o.slot, o.name, o.complexity + '/5', o.fit + '/5', o.selected ? '✔' : ''];
+      cells.forEach(function (c) {
+        var td = document.createElement('td');
+        td.textContent = c;            /* textContent, never innerHTML — no injection */
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  })();
+
+  /* ----- Export selected → ADR "Alternatives considered" markdown ----- */
+  function buildMarkdown() {
+    var opts = allOptions();
+    var chosen = opts.filter(function (o) { return o.selected; })[0] || null;
+    var lines = [];
+    lines.push('## Alternatives considered');
+    lines.push('');
+    var n = 0;
+    opts.forEach(function (o) {
+      n += 1;
+      if (o.selected) {
+        lines.push(n + '. **' + o.name + ' (chosen)** — complexity ' + o.complexity +
+                   '/5, stack-fit ' + o.fit + '/5.' + (o.bestFit ? ' Best fit when ' + o.bestFit + '.' : ''));
+      } else {
+        var why = o.rejected || 'not chosen';
+        lines.push(n + '. **' + o.name + '** — ' + why +
+                   ' (complexity ' + o.complexity + '/5, stack-fit ' + o.fit + '/5).');
+      }
+    });
+    lines.push('');
+    lines.push('<!-- Exported from the EXPLORATION HTML artefact. Add to the new ADR frontmatter:');
+    lines.push('     exploration_html: \'_00-Project-Management/41-Reports/EXPLORATION-YYYY-MM-DD-<slug>.html\' -->');
+    if (chosen) {
+      lines.push('');
+      lines.push('**Decision:** ' + chosen.name + '.');
+    }
+    return lines.join('\n');
+  }
+
+  var exportBtn = document.getElementById('export-btn');
+  var copyBtn   = document.getElementById('copy-btn');
+  var out       = document.getElementById('export-out');
+  var status    = document.getElementById('export-status');
+
+  function setStatus(msg, cls) {
+    if (!status) return;
+    status.textContent = msg;
+    status.className = 'export-status' + (cls ? ' ' + cls : '');
+  }
+
+  if (exportBtn && out) {
+    exportBtn.addEventListener('click', function () {
+      out.value = buildMarkdown();
+      setStatus('Generated. Review, then Copy or Ctrl+C.', 'ok');
+    });
+  }
+
+  if (copyBtn && out) {
+    copyBtn.addEventListener('click', function () {
+      if (!out.value) { out.value = buildMarkdown(); }       /* allow copy without explicit export first */
+      /* Primary path: Clipboard API (requires user gesture + secure context). */
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(out.value).then(function () {
+          setStatus('Copied to clipboard.', 'ok');
+        }).catch(function () {
+          fallbackCopy();
+        });
+      } else {
+        fallbackCopy();
+      }
+    });
+  }
+
+  /* Fallback for file:// / browsers without Clipboard API: select + execCommand, then ask for Ctrl+C. */
+  function fallbackCopy() {
+    out.focus();
+    out.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    setStatus(ok ? 'Copied (fallback).' : 'Clipboard blocked — text selected, press Ctrl+C.', ok ? 'ok' : 'err');
+  }
+})();
+</script>
+</body>
+</html>

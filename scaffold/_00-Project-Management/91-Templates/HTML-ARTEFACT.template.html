@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="HTML-ARTEFACT.template.html (SOP §11.1 / CLAUDE-CODE-CONFIG §2.8)">
+<meta name="robots" content="noindex">
+<title>Artefact title — replace this</title>
+<style>
+/* ============================================================
+   HTML-ARTEFACT reference template
+   - Pure HTML/CSS/SVG. No CDN, no framework, no fonts off the web.
+   - Mirrors 42-Monitor/DASHBOARD.html design tokens for visual consistency.
+   - Drop-in: rename, replace placeholder content, add tabs as needed.
+   - Light + dark via [data-theme]. Toggle persisted to localStorage.
+   ============================================================ */
+:root {
+  --cream:#F5F0E8; --cream-2:#EBE5D8;
+  --surface:#FAF8F4; --surface-2:#F1ECE3;
+  --ink:#1A1714; --ink-2:#3D3831; --ink-3:#6B6358; --ink-faint:#9E9589;
+  --border:#DDD6C8;
+  --red:#D63031;     --red-soft:#F8E0E0;
+  --yellow:#F0B429;  --yellow-soft:#FAE9C0;
+  --blue:#2D6CDF;    --blue-soft:#DCE7F8;
+  --teal:#0D9488;    --teal-soft:#CFEAE6;
+  --r:12px; --r-sm:10px; --r-lg:16px; --r-pill:100px;
+  --shadow-sm:0 1px 2px rgba(26,23,20,0.06);
+  --shadow:0 4px 14px rgba(26,23,20,0.08);
+  --serif:Georgia, 'Times New Roman', serif;
+  --sans:-apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono:Consolas, 'JetBrains Mono', ui-monospace, monospace;
+  --ease:cubic-bezier(0.16, 1, 0.3, 1);
+  --dur:280ms;
+  --focus-ring:rgba(214,48,49,0.45);
+}
+html[data-theme="dark"] {
+  --cream:#15120F; --cream-2:#1C1814;
+  --surface:#1A1612; --surface-2:#221D17;
+  --ink:#F1ECE3; --ink-2:#D8CFC0; --ink-3:#9E9589; --ink-faint:#6B6358;
+  --border:#312A22;
+  --red:#E25558;     --red-soft:rgba(226,85,88,0.16);
+  --yellow:#F2C24A;  --yellow-soft:rgba(242,194,74,0.16);
+  --blue:#5B8DE8;    --blue-soft:rgba(91,141,232,0.18);
+  --teal:#2BB3A6;    --teal-soft:rgba(43,179,166,0.18);
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.35);
+  --shadow:0 6px 18px rgba(0,0,0,0.45);
+  --focus-ring:rgba(226,85,88,0.5);
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body {
+  font-family:var(--sans);
+  color:var(--ink);
+  background:var(--cream);
+  line-height:1.55;
+  font-size:15px;
+  -webkit-font-smoothing:antialiased;
+  transition:background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+:focus-visible { outline:none; box-shadow:0 0 0 3px var(--focus-ring); border-radius:var(--r-sm); }
+::selection { background:var(--yellow); color:var(--ink); }
+
+a { color:var(--blue); text-decoration:none; }
+a:hover { text-decoration:underline; }
+code, kbd, pre { font-family:var(--mono); font-size:0.875em; }
+pre {
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  border-radius:var(--r-sm);
+  padding:0.85rem 1rem;
+  overflow-x:auto;
+}
+
+/* Layout */
+.shell { max-width:1200px; margin:0 auto; padding:1.5rem 1.25rem 3rem; }
+
+/* Header */
+.art-header {
+  display:flex; align-items:flex-end; justify-content:space-between;
+  gap:1rem; flex-wrap:wrap;
+  padding-bottom:1.25rem;
+  border-bottom:1px solid var(--border);
+  margin-bottom:1.5rem;
+}
+.art-title { font-family:var(--serif); font-weight:400; font-size:2rem; line-height:1.15; letter-spacing:-0.01em; }
+.art-title em { color:var(--red); font-style:italic; }
+.art-sub { color:var(--ink-3); font-size:0.78rem; letter-spacing:0.14em; text-transform:uppercase; margin-top:0.4rem; }
+.art-meta { color:var(--ink-3); font-family:var(--mono); font-size:0.78rem; }
+.theme-btn {
+  background:transparent; border:1px solid var(--border); color:var(--ink-2);
+  padding:0.4rem 0.75rem; border-radius:var(--r-pill); cursor:pointer;
+  font-family:var(--sans); font-size:0.78rem;
+  transition:all 160ms var(--ease);
+}
+.theme-btn:hover { background:var(--surface-2); border-color:var(--ink-faint); color:var(--ink); }
+
+/* Tabs */
+.tabs { display:flex; gap:0.25rem; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:1.5rem; }
+.tab {
+  background:transparent; border:none; border-bottom:2px solid transparent;
+  color:var(--ink-3); padding:0.65rem 1rem; font-size:0.92rem; font-family:var(--sans);
+  cursor:pointer; transition:all 160ms var(--ease);
+  border-radius:var(--r-sm) var(--r-sm) 0 0;
+}
+.tab:hover { color:var(--ink); background:var(--surface-2); }
+.tab[aria-selected="true"] { color:var(--red); border-bottom-color:var(--red); background:transparent; }
+.panel { display:none; }
+.panel[data-active="true"] { display:block; animation:fade 240ms var(--ease); }
+@keyframes fade { from { opacity:0; transform:translateY(2px); } to { opacity:1; transform:none; } }
+
+/* Cards & sections */
+.card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:1.25rem 1.5rem;
+  box-shadow:var(--shadow-sm);
+  margin-bottom:1.25rem;
+}
+.card h2 { font-family:var(--serif); font-weight:400; font-size:1.4rem; margin-bottom:0.5rem; }
+.card h3 { font-size:1.05rem; font-weight:600; margin:1.1rem 0 0.5rem; color:var(--ink-2); }
+.card p, .card li { margin-bottom:0.5rem; }
+.card ul, .card ol { padding-left:1.25rem; }
+
+/* Table */
+table.data {
+  width:100%; border-collapse:collapse; border-spacing:0;
+  background:var(--surface);
+  border:1px solid var(--border); border-radius:var(--r); overflow:hidden;
+  font-size:0.92rem;
+}
+table.data th, table.data td {
+  text-align:left; padding:0.7rem 0.9rem;
+  border-bottom:1px solid var(--border);
+}
+table.data thead th {
+  background:var(--surface-2);
+  color:var(--ink-2);
+  font-weight:600; font-size:0.78rem;
+  text-transform:uppercase; letter-spacing:0.05em;
+  position:sticky; top:0;
+}
+table.data tbody tr:last-child td { border-bottom:none; }
+table.data tbody tr:hover { background:var(--cream-2); }
+
+/* Pills */
+.pill { display:inline-flex; align-items:center; gap:0.3rem; padding:0.15rem 0.6rem; border-radius:var(--r-pill); font-size:0.74rem; font-weight:600; }
+.pill.ok    { background:var(--teal-soft);   color:var(--teal); }
+.pill.warn  { background:var(--yellow-soft); color:var(--yellow); }
+.pill.danger{ background:var(--red-soft);    color:var(--red); }
+.pill.info  { background:var(--blue-soft);   color:var(--blue); }
+
+/* SVG container */
+.svg-wrap {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:1.25rem;
+  box-shadow:var(--shadow-sm);
+}
+.svg-wrap svg { display:block; width:100%; height:auto; max-width:100%; }
+.svg-wrap .legend {
+  display:flex; gap:1rem; flex-wrap:wrap; margin-top:0.85rem;
+  font-size:0.78rem; color:var(--ink-3);
+}
+.svg-wrap .legend span { display:inline-flex; align-items:center; gap:0.35rem; }
+.svg-wrap .legend i { width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+/* Two-up grid for cards */
+.grid-2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1rem; }
+
+/* Footer */
+.art-footer {
+  margin-top:2rem; padding-top:1rem; border-top:1px solid var(--border);
+  color:var(--ink-3); font-size:0.78rem; display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .shell { padding:1rem 0.85rem 2rem; }
+  .art-title { font-size:1.55rem; }
+  .card { padding:1rem; }
+  .tab { padding:0.55rem 0.75rem; font-size:0.86rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+}
+</style>
+</head>
+<body>
+<main class="shell" id="top">
+
+  <!-- ============================== Header ============================== -->
+  <header class="art-header">
+    <div>
+      <h1 class="art-title">Artefact <em>title</em> — replace this</h1>
+      <div class="art-sub">HTML-Artefact reference template · v1.0</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+      <span class="art-meta">Generated · YYYY-MM-DD</span>
+      <button class="theme-btn" type="button" id="theme-toggle" aria-label="Toggle dark mode">Dark mode</button>
+    </div>
+  </header>
+
+  <!-- ============================== Tabs ============================== -->
+  <nav class="tabs" role="tablist" aria-label="Artefact sections">
+    <button class="tab" role="tab" aria-selected="true"  aria-controls="panel-overview"  id="tab-overview"  data-target="panel-overview">Overview</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="panel-table"     id="tab-table"     data-target="panel-table">Table view</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="panel-diagram"   id="tab-diagram"   data-target="panel-diagram">Diagram</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="panel-notes"     id="tab-notes"     data-target="panel-notes">Notes</button>
+  </nav>
+
+  <!-- ============================== Panel: Overview ============================== -->
+  <section class="panel" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview" data-active="true">
+    <div class="card">
+      <h2>Overview</h2>
+      <p>Replace this placeholder content with the artefact's high-level summary. Use the <strong>Table view</strong> tab for structured data, the <strong>Diagram</strong> tab for SVG illustrations, and the <strong>Notes</strong> tab for free-form analysis.</p>
+      <h3>When to use this template</h3>
+      <ul>
+        <li>Artefact would exceed <code>~100 lines</code> of markdown.</li>
+        <li>Document benefits from navigation, side-by-side comparison, or embedded diagrams.</li>
+        <li>Output is intended for non-developer stakeholders.</li>
+      </ul>
+      <h3>How to use it</h3>
+      <ol>
+        <li>Copy this file to <code>41-Reports/</code>, <code>20-Requirements/</code>, or wherever it belongs.</li>
+        <li>Rename per the artefact's slug (e.g. <code>EXPLORATION-2026-05-22-foo.html</code>).</li>
+        <li>Link it from the parent Epic / Feature via the <code>html_artefacts:</code> frontmatter field.</li>
+        <li>Validator R15 will fail the build if the path doesn't resolve.</li>
+      </ol>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Strengths</h3>
+        <ul>
+          <li>Inline SVG, sticky table headers, tabs that work without JavaScript frameworks.</li>
+          <li>Dark / light mode via <code>[data-theme]</code>, persisted to localStorage.</li>
+          <li>System font stack — no Google Fonts, no CDN, fully offline.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Status pills</h3>
+        <p>
+          <span class="pill ok">OK</span>
+          <span class="pill info">Info</span>
+          <span class="pill warn">Warn</span>
+          <span class="pill danger">Danger</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Panel: Table ============================== -->
+  <section class="panel" role="tabpanel" id="panel-table" aria-labelledby="tab-table">
+    <div class="card">
+      <h2>Table view</h2>
+      <p>Use a table when you have ≥3 rows of structured comparison. The header is sticky inside the card.</p>
+      <table class="data">
+        <thead>
+          <tr><th>Option</th><th>Cost</th><th>Effort</th><th>Risk</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Option A</td><td>Low</td><td>S</td><td>Low</td><td><span class="pill ok">Recommended</span></td></tr>
+          <tr><td>Option B</td><td>Medium</td><td>M</td><td>Medium</td><td><span class="pill info">Consider</span></td></tr>
+          <tr><td>Option C</td><td>High</td><td>L</td><td>High</td><td><span class="pill warn">Defer</span></td></tr>
+          <tr><td>Option D</td><td>—</td><td>—</td><td>Unknown</td><td><span class="pill danger">Reject</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================== Panel: Diagram ============================== -->
+  <section class="panel" role="tabpanel" id="panel-diagram" aria-labelledby="tab-diagram">
+    <div class="card">
+      <h2>Diagram (inline SVG)</h2>
+      <p>SVG sits inline with prose so reflow and dark-mode colours are automatic. Replace this placeholder with the real diagram for the artefact.</p>
+      <!-- SVG SLOT (named region) · per ADR-0005 + DIAGRAM-CHEATSHEET §5.
+           Reused by exploration / annotated-diff templates that follow.
+           Drop a themed <svg> in here (colour with var(--…) tokens); keep the
+           data-slot="svg" marker so downstream templates can target this region. -->
+      <div class="svg-wrap" data-slot="svg">
+        <svg id="diagram-svg" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg" aria-labelledby="diag-title" role="img">
+          <title id="diag-title">Example flow diagram (inbox → backlog → ready → active → done)</title>
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <g font-family="var(--sans)" font-size="13" fill="var(--ink)" color="var(--ink-2)">
+            <rect x="10"  y="80" width="100" height="60" rx="8" ry="8" fill="var(--blue-soft)"   stroke="var(--blue)"   stroke-width="1.5"/>
+            <text x="60"  y="115" text-anchor="middle">Inbox</text>
+            <rect x="140" y="80" width="100" height="60" rx="8" ry="8" fill="var(--yellow-soft)" stroke="var(--yellow)" stroke-width="1.5"/>
+            <text x="190" y="115" text-anchor="middle">Backlog</text>
+            <rect x="270" y="80" width="100" height="60" rx="8" ry="8" fill="var(--teal-soft)"   stroke="var(--teal)"   stroke-width="1.5"/>
+            <text x="320" y="115" text-anchor="middle">Ready</text>
+            <rect x="400" y="80" width="100" height="60" rx="8" ry="8" fill="var(--red-soft)"    stroke="var(--red)"    stroke-width="1.5"/>
+            <text x="450" y="115" text-anchor="middle">Active</text>
+            <line x1="110" y1="110" x2="140" y2="110" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <line x1="240" y1="110" x2="270" y2="110" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <line x1="370" y1="110" x2="400" y2="110" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <text x="305" y="40" text-anchor="middle" font-size="11" fill="var(--ink-3)">Example only — replace with real diagram</text>
+          </g>
+        </svg>
+        <div class="legend">
+          <span><i style="background:var(--blue);"></i> Inbox</span>
+          <span><i style="background:var(--yellow);"></i> Backlog</span>
+          <span><i style="background:var(--teal);"></i> Ready</span>
+          <span><i style="background:var(--red);"></i> Active</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Panel: Notes ============================== -->
+  <section class="panel" role="tabpanel" id="panel-notes" aria-labelledby="tab-notes">
+    <div class="card">
+      <h2>Notes / free-form analysis</h2>
+      <p>Use this tab for things that don't fit a table or a diagram — decisions in progress, unresolved questions, references.</p>
+      <pre><code>// Embedded code block — Consolas / JetBrains Mono if installed,
+// otherwise the browser falls back to its default mono face.
+function example() {
+  return 'no syntax highlighter, but readable enough for inline samples';
+}</code></pre>
+      <h3>References</h3>
+      <ul>
+        <li>SOP §11.1 — output format selection</li>
+        <li>CLAUDE-CODE-CONFIG.md §2.8 — HTML artefact pattern</li>
+        <li>Validator R15 — <code>html_artefacts:</code> path existence</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================== Footer ============================== -->
+  <footer class="art-footer">
+    <span>HTML-Artefact reference template — copy, rename, fill in.</span>
+    <span>SOP §11.1 · CCC §2.8 · Validator R15</span>
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // ----- Theme toggle (persists across reloads) -----
+  var root = document.documentElement;
+  var btn  = document.getElementById('theme-toggle');
+  var KEY  = 'html-artefact-theme';
+
+  function applyTheme(t) {
+    root.setAttribute('data-theme', t);
+    if (btn) btn.textContent = (t === 'dark') ? 'Light mode' : 'Dark mode';
+  }
+  try {
+    var saved = localStorage.getItem(KEY);
+    if (saved === 'light' || saved === 'dark') applyTheme(saved);
+  } catch (e) { /* storage blocked — silent ok */ }
+
+  if (btn) {
+    btn.addEventListener('click', function () {
+      var next = (root.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
+      applyTheme(next);
+      try { localStorage.setItem(KEY, next); } catch (e) {}
+    });
+  }
+
+  // ----- Tabs -----
+  var tabs   = Array.prototype.slice.call(document.querySelectorAll('.tab[role="tab"]'));
+  var panels = Array.prototype.slice.call(document.querySelectorAll('.panel[role="tabpanel"]'));
+
+  function selectTab(targetId) {
+    tabs.forEach(function (t) {
+      var on = t.getAttribute('data-target') === targetId;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panels.forEach(function (p) {
+      p.setAttribute('data-active', (p.id === targetId) ? 'true' : 'false');
+    });
+  }
+
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { selectTab(t.getAttribute('data-target')); });
+    t.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      e.preventDefault();
+      var idx  = tabs.indexOf(t);
+      var next = (e.key === 'ArrowRight') ? (idx + 1) % tabs.length : (idx - 1 + tabs.length) % tabs.length;
+      tabs[next].focus();
+      selectTab(tabs[next].getAttribute('data-target'));
+    });
+  });
+})();
+</script>
+</body>
+</html>

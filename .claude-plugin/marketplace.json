@@ -1,0 +1,28 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "DATA-AI-XYZ",
+  "description": "Tandem — a governed PM operating system for building software with Claude Code.",
+  "owner": {
+    "name": "DATA-AI-XYZ",
+    "email": "hello@dataxyzconnect.com"
+  },
+  "plugins": [
+    {
+      "name": "Tandem",
+      "source": "./",
+      "description": "Tandem turns ad-hoc AI planning into a governed, repo-native delivery lifecycle for Claude Code. Drive work from North Star → OKRs → PRD → Epic → Feature → Story → Testplan → ship, with a closed-set status enum, mandatory Story↔Testplan pairing, Definition-of-Ready/Done gates, automatic ADRs on every decision, auto-filed bugs on test failure, and a self-generating interactive Command Center. Stack-agnostic across web, mobile, CLI, library, backend, data-pipeline, Power Platform, and automation projects.",
+      "version": "1.0.0",
+      "tags": [
+        "project-management",
+        "workflow",
+        "scaffolding",
+        "governance"
+      ],
+      "license": "MIT",
+      "author": {
+        "name": "DATA-AI-XYZ",
+        "email": "hello@dataxyzconnect.com"
+      }
+    }
+  ]
+}

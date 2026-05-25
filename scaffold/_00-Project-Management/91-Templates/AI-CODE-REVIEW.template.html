@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="AI-CODE-REVIEW.template.html (SOP §7 / §11.1 · extends HTML-ARTEFACT.template.html)">
+<meta name="robots" content="noindex">
+<title>AI Code Review — STORY-NN.M.PP</title>
+<!--
+   AI-CODE-REVIEW reference template — annotated-diff output for the R14 AI-code-review pass.
+   - Pure HTML/CSS/JS. No CDN, no framework, no fonts off the web. Mirrors HTML-ARTEFACT base tokens.
+   - Two-pane layout: diff viewer (left) + annotation panel (right). Mirrors EXPLORATION's export pattern.
+   - 4-level severity rubric (SOP §7): blocker (red) / critical (orange) / warning (yellow) / nit (green).
+   - Drop-in: the close-out-story skill copies this to
+       41-Reports/AI-CODE-REVIEW-<story-id>-<YYYY-MM-DD>.html
+     and interpolates the real diff + annotations at close-out time (Claude is the runtime — ADR-0013).
+   - Each annotation row carries data-* attributes (severity / file / line / category); the exporter
+     reads the attributes, so keep them in sync with the visible text.
+   - SECURITY: annotation reasoning + suggested-fix are rendered as TEXT (textContent / template literals
+     escaped), never innerHTML — keep it that way (TESTPLAN code-review checklist: XSS-safe).
+-->
+<style>
+/* ============================================================
+   Inherits the HTML-ARTEFACT design tokens (kept in sync by hand —
+   no shared stylesheet in this kit; templates are standalone files).
+   ============================================================ */
+:root {
+  --cream:#F5F0E8; --cream-2:#EBE5D8;
+  --surface:#FAF8F4; --surface-2:#F1ECE3;
+  --ink:#1A1714; --ink-2:#3D3831; --ink-3:#6B6358; --ink-faint:#9E9589;
+  --border:#DDD6C8;
+  --red:#D63031;     --red-soft:#F8E0E0;
+  --orange:#E8590C;  --orange-soft:#FBE3D2;
+  --yellow:#F0B429;  --yellow-soft:#FAE9C0;
+  --green:#2F9E44;   --green-soft:#D6EFD8;
+  --blue:#2D6CDF;    --blue-soft:#DCE7F8;
+  --teal:#0D9488;    --teal-soft:#CFEAE6;
+  --diff-add:#E6F4EA; --diff-del:#FBEAEA; --diff-gutter:#F1ECE3;
+  --r:12px; --r-sm:10px; --r-lg:16px; --r-pill:100px;
+  --shadow-sm:0 1px 2px rgba(26,23,20,0.06);
+  --shadow:0 4px 14px rgba(26,23,20,0.08);
+  --serif:Georgia, 'Times New Roman', serif;
+  --sans:-apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono:Consolas, 'JetBrains Mono', ui-monospace, monospace;
+  --ease:cubic-bezier(0.16, 1, 0.3, 1);
+  --dur:280ms;
+  --focus-ring:rgba(214,48,49,0.45);
+}
+html[data-theme="dark"] {
+  --cream:#15120F; --cream-2:#1C1814;
+  --surface:#1A1612; --surface-2:#221D17;
+  --ink:#F1ECE3; --ink-2:#D8CFC0; --ink-3:#9E9589; --ink-faint:#6B6358;
+  --border:#312A22;
+  --red:#E25558;     --red-soft:rgba(226,85,88,0.16);
+  --orange:#F08043;  --orange-soft:rgba(240,128,67,0.16);
+  --yellow:#F2C24A;  --yellow-soft:rgba(242,194,74,0.16);
+  --green:#5FB868;   --green-soft:rgba(95,184,104,0.16);
+  --blue:#5B8DE8;    --blue-soft:rgba(91,141,232,0.18);
+  --teal:#2BB3A6;    --teal-soft:rgba(43,179,166,0.18);
+  --diff-add:rgba(95,184,104,0.14); --diff-del:rgba(226,85,88,0.14); --diff-gutter:#221D17;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.35);
+  --shadow:0 6px 18px rgba(0,0,0,0.45);
+  --focus-ring:rgba(226,85,88,0.5);
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body {
+  font-family:var(--sans); color:var(--ink); background:var(--cream);
+  line-height:1.55; font-size:15px; -webkit-font-smoothing:antialiased;
+  transition:background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+:focus-visible { outline:none; box-shadow:0 0 0 3px var(--focus-ring); border-radius:var(--r-sm); }
+::selection { background:var(--yellow); color:var(--ink); }
+a { color:var(--blue); text-decoration:none; }
+a:hover { text-decoration:underline; }
+code, kbd, pre { font-family:var(--mono); font-size:0.875em; }
+
+.shell { max-width:1320px; margin:0 auto; padding:1.5rem 1.25rem 3rem; }
+
+/* Header */
+.art-header {
+  display:flex; align-items:flex-end; justify-content:space-between;
+  gap:1rem; flex-wrap:wrap; padding-bottom:1.25rem;
+  border-bottom:1px solid var(--border); margin-bottom:1.25rem;
+}
+.art-title { font-family:var(--serif); font-weight:400; font-size:2rem; line-height:1.15; letter-spacing:-0.01em; }
+.art-title em { color:var(--red); font-style:italic; }
+.art-sub { color:var(--ink-3); font-size:0.78rem; letter-spacing:0.14em; text-transform:uppercase; margin-top:0.4rem; }
+.art-meta { color:var(--ink-3); font-family:var(--mono); font-size:0.78rem; }
+.theme-btn {
+  background:transparent; border:1px solid var(--border); color:var(--ink-2);
+  padding:0.4rem 0.75rem; border-radius:var(--r-pill); cursor:pointer;
+  font-family:var(--sans); font-size:0.78rem; transition:all 160ms var(--ease);
+}
+.theme-btn:hover { background:var(--surface-2); border-color:var(--ink-faint); color:var(--ink); }
+
+/* Verdict banner — blocker count gates the close-out (SOP §7) */
+.verdict {
+  display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+  padding:0.9rem 1.25rem; border-radius:var(--r); border:1px solid var(--border);
+  background:var(--surface); box-shadow:var(--shadow-sm); margin-bottom:1.25rem;
+}
+.verdict.blocked { border-color:var(--red); background:var(--red-soft); }
+.verdict.clear   { border-color:var(--green); background:var(--green-soft); }
+.verdict .v-label { font-weight:700; font-size:1.05rem; }
+.verdict .v-detail { color:var(--ink-2); font-size:0.9rem; }
+.count-strip { display:flex; gap:0.5rem; flex-wrap:wrap; margin-left:auto; }
+
+/* Severity tokens (4-level rubric — SOP §7) */
+.sev { display:inline-flex; align-items:center; gap:0.35rem; padding:0.15rem 0.6rem;
+       border-radius:var(--r-pill); font-size:0.72rem; font-weight:700;
+       text-transform:uppercase; letter-spacing:0.04em; }
+.sev::before { content:""; width:8px; height:8px; border-radius:50%; display:inline-block; }
+.severity-blocker  { background:var(--red-soft);    color:var(--red); }
+.severity-blocker::before  { background:var(--red); }
+.severity-critical { background:var(--orange-soft); color:var(--orange); }
+.severity-critical::before { background:var(--orange); }
+.severity-warning  { background:var(--yellow-soft); color:var(--yellow); }
+.severity-warning::before  { background:var(--yellow); }
+.severity-nit      { background:var(--green-soft);  color:var(--green); }
+.severity-nit::before      { background:var(--green); }
+
+/* Two-pane review layout: diff (left) + annotations (right) */
+.review-grid { display:grid; grid-template-columns:1.4fr 1fr; gap:1rem; align-items:start; }
+.pane {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--r);
+  box-shadow:var(--shadow-sm); overflow:hidden;
+}
+.pane > h2 {
+  font-family:var(--serif); font-weight:400; font-size:1.3rem;
+  padding:0.9rem 1.1rem; border-bottom:1px solid var(--border); background:var(--surface-2);
+}
+
+/* Diff viewer — pre-formatted text with line numbers (no diff2html dependency, SOP §11.1) */
+.diff { font-family:var(--mono); font-size:0.82rem; line-height:1.5; overflow-x:auto; }
+.diff .file-hunk { border-bottom:1px solid var(--border); }
+.diff .file-name { padding:0.5rem 1.1rem; background:var(--diff-gutter); color:var(--ink-2);
+                   font-weight:600; position:sticky; top:0; }
+.diff .row { display:grid; grid-template-columns:3.2rem 1fr; }
+.diff .ln  { text-align:right; padding:0 0.6rem; color:var(--ink-faint); user-select:none;
+             border-right:1px solid var(--border); }
+.diff .code { padding:0 0.8rem; white-space:pre; }
+.diff .row.add  { background:var(--diff-add); }
+.diff .row.del  { background:var(--diff-del); }
+.diff .row.anno { background:transparent; }
+.diff .row[data-anchor]:target .code { box-shadow:inset 3px 0 0 var(--blue); }
+.diff .anno-marker { cursor:pointer; font-weight:700; padding:0 0.3rem; border-radius:3px; }
+
+/* Annotation cards (right pane) */
+.annos { padding:0.75rem; display:flex; flex-direction:column; gap:0.75rem; max-height:78vh; overflow-y:auto; }
+.anno-card {
+  border:1px solid var(--border); border-left-width:4px; border-radius:var(--r-sm);
+  padding:0.75rem 0.9rem; background:var(--cream); scroll-margin-top:1rem;
+}
+.anno-card.severity-blocker  { border-left-color:var(--red); }
+.anno-card.severity-critical { border-left-color:var(--orange); }
+.anno-card.severity-warning  { border-left-color:var(--yellow); }
+.anno-card.severity-nit      { border-left-color:var(--green); }
+.anno-card .head { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.4rem; }
+.anno-card .loc { font-family:var(--mono); font-size:0.78rem; color:var(--ink-2); }
+.anno-card .loc a { color:var(--blue); }
+.anno-card .cat { font-size:0.7rem; color:var(--ink-3); text-transform:uppercase; letter-spacing:0.05em;
+                  border:1px solid var(--border); border-radius:var(--r-pill); padding:0.05rem 0.5rem; }
+.anno-card .reasoning { font-size:0.9rem; color:var(--ink); margin-bottom:0.5rem; }
+.anno-card .fix-label { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-3); }
+.anno-card .fix { font-family:var(--mono); font-size:0.8rem; background:var(--surface-2);
+                  border:1px solid var(--border); border-radius:var(--r-sm); padding:0.5rem 0.7rem;
+                  white-space:pre-wrap; margin-top:0.25rem; }
+
+/* Filter chips */
+.filters { display:flex; gap:0.4rem; flex-wrap:wrap; padding:0.75rem 0.9rem 0; }
+.chip { background:transparent; border:1px solid var(--border); color:var(--ink-2);
+        padding:0.25rem 0.7rem; border-radius:var(--r-pill); cursor:pointer; font-size:0.76rem;
+        font-family:var(--sans); transition:all 160ms var(--ease); }
+.chip[aria-pressed="true"] { background:var(--ink-2); color:var(--surface); border-color:var(--ink-2); }
+.chip:hover { border-color:var(--ink-faint); }
+
+/* Export controls (mirrors EXPLORATION export pattern) */
+.export-bar { display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center; margin:1.25rem 0 1rem; }
+.btn {
+  background:var(--red); color:#fff; border:1px solid var(--red);
+  padding:0.55rem 1rem; border-radius:var(--r-pill); cursor:pointer;
+  font-family:var(--sans); font-size:0.86rem; font-weight:600; transition:all 160ms var(--ease);
+}
+.btn:hover { filter:brightness(1.08); }
+.btn.secondary { background:transparent; color:var(--ink-2); border-color:var(--border); }
+.btn.secondary:hover { background:var(--surface-2); border-color:var(--ink-faint); color:var(--ink); }
+.btn:disabled { opacity:0.5; cursor:not-allowed; filter:none; }
+.export-status { font-size:0.82rem; color:var(--ink-3); }
+.export-status.ok { color:var(--teal); }
+.export-status.err { color:var(--red); }
+textarea.export-out {
+  width:100%; min-height:240px; background:var(--surface-2); color:var(--ink);
+  border:1px solid var(--border); border-radius:var(--r-sm);
+  padding:0.85rem 1rem; font-family:var(--mono); font-size:0.82rem; line-height:1.5; resize:vertical;
+}
+
+.legend { display:flex; gap:1rem; flex-wrap:wrap; margin-top:0.85rem; font-size:0.78rem; color:var(--ink-3); }
+.legend span { display:inline-flex; align-items:center; gap:0.35rem; }
+.legend i { width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+.art-footer {
+  margin-top:2rem; padding-top:1rem; border-top:1px solid var(--border);
+  color:var(--ink-3); font-size:0.78rem; display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+}
+
+@media (max-width: 900px) {
+  .review-grid { grid-template-columns:1fr; }
+  .annos { max-height:none; }
+}
+@media (max-width: 640px) {
+  .shell { padding:1rem 0.85rem 2rem; }
+  .art-title { font-size:1.55rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+}
+</style>
+</head>
+<body>
+<main class="shell" id="top">
+
+  <!-- ============================== Header ============================== -->
+  <header class="art-header">
+    <div>
+      <h1 class="art-title">AI <em>code review</em> — STORY-NN.M.PP</h1>
+      <div class="art-sub">Annotated diff · R14 AI-code-review pass · SOP §7</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+      <span class="art-meta">Reviewed · YYYY-MM-DD</span>
+      <button class="theme-btn" type="button" id="theme-toggle" aria-label="Toggle dark mode">Dark mode</button>
+    </div>
+  </header>
+
+  <!-- ============================== Verdict banner ============================== -->
+  <!-- close-out-story sets class to `blocked` if any blocker annotations exist, else `clear`.
+       SOP §7: a non-zero blocker count must block the `status: done` flip. -->
+  <section class="verdict clear" id="verdict" role="status" aria-live="polite">
+    <span class="v-label" id="verdict-label">No blockers — clear to close</span>
+    <span class="v-detail" id="verdict-detail">All findings are critical-or-below. Resolve at the team's discretion.</span>
+    <div class="count-strip" id="count-strip">
+      <span class="sev severity-blocker"  id="count-blocker">0 blocker</span>
+      <span class="sev severity-critical" id="count-critical">0 critical</span>
+      <span class="sev severity-warning"  id="count-warning">0 warning</span>
+      <span class="sev severity-nit"      id="count-nit">0 nit</span>
+    </div>
+  </section>
+
+  <!-- ============================== Two-pane review ============================== -->
+  <div class="review-grid">
+
+    <!-- Left pane: diff viewer -->
+    <section class="pane">
+      <h2>Diff</h2>
+      <!-- DIFF SLOT · interpolate the unified diff here at close-out time.
+           One `.file-hunk` per file; one `.row` per line. Add the `add`/`del` class for
+           +/- lines. Where an annotation targets a line, give that row id="L<file>-<n>"
+           and a clickable `.anno-marker` that jumps to the matching `.anno-card`. -->
+      <div class="diff" id="diff" data-slot="diff">
+        <div class="file-hunk">
+          <div class="file-name">_00-Project-Management/93-Scripts/validate-frontmatter.js</div>
+          <div class="row" id="Lvalidate-264"><span class="ln">264</span><span class="code">  // R15b — ai_review_artefact presence + existence
+            <span class="anno-marker severity-blocker" data-jump="anno-1" title="Jump to annotation">●1</span></span></div>
+          <div class="row add"><span class="ln">265</span><span class="code">+ if (fm.ai_review_artefact) {</span></div>
+          <div class="row del"><span class="ln">266</span><span class="code">-   const ok = fs.existsSync(p)</span></div>
+          <div class="row"><span class="ln">267</span><span class="code">    // ... example only — replace with real diff</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right pane: annotation panel -->
+    <section class="pane">
+      <h2>Annotations</h2>
+      <div class="filters" role="group" aria-label="Filter annotations by severity">
+        <button class="chip" type="button" data-filter="all" aria-pressed="true">All</button>
+        <button class="chip" type="button" data-filter="severity-blocker"  aria-pressed="false">Blocker</button>
+        <button class="chip" type="button" data-filter="severity-critical" aria-pressed="false">Critical</button>
+        <button class="chip" type="button" data-filter="severity-warning"  aria-pressed="false">Warning</button>
+        <button class="chip" type="button" data-filter="severity-nit"      aria-pressed="false">Nit</button>
+      </div>
+      <!-- ANNOTATIONS SLOT · one `.anno-card` per finding. data-* attributes drive the
+           verdict counts, the filters, and the PR-comment exporter — keep them in sync
+           with the visible text. -->
+      <div class="annos" id="annos" data-slot="annotations">
+
+        <article class="anno-card severity-blocker" id="anno-1"
+                 data-severity="blocker" data-file="_00-Project-Management/93-Scripts/validate-frontmatter.js"
+                 data-line="265" data-category="correctness">
+          <div class="head">
+            <span class="sev severity-blocker">blocker</span>
+            <span class="loc"><a href="#Lvalidate-264">validate-frontmatter.js:265</a></span>
+            <span class="cat">correctness</span>
+          </div>
+          <p class="reasoning">Example annotation. Replace with the real finding's reasoning — what is
+            wrong and why it must be fixed before merge. Rendered as text (XSS-safe).</p>
+          <div class="fix-label">Suggested fix</div>
+          <div class="fix">// guard the existsSync against absolute / traversal paths first
+const abs = path.resolve(REPO_ROOT, p);</div>
+        </article>
+
+        <article class="anno-card severity-warning" id="anno-2"
+                 data-severity="warning" data-file="_00-Project-Management/93-Scripts/validate-frontmatter.js"
+                 data-line="270" data-category="style">
+          <div class="head">
+            <span class="sev severity-warning">warning</span>
+            <span class="loc"><a href="#Lvalidate-264">validate-frontmatter.js:270</a></span>
+            <span class="cat">style</span>
+          </div>
+          <p class="reasoning">Example warning-level annotation. Categories: security / correctness /
+            perf / style / dead-code.</p>
+          <div class="fix-label">Suggested fix</div>
+          <div class="fix">// consider extracting the path-safety check shared with R15</div>
+        </article>
+
+      </div>
+    </section>
+  </div>
+
+  <!-- ============================== Export → PR comment ============================== -->
+  <section style="margin-top:1.5rem;">
+    <div class="export-bar">
+      <button class="btn" type="button" id="export-btn">Export to PR comment</button>
+      <button class="btn secondary" type="button" id="copy-btn">Copy to clipboard</button>
+      <span class="export-status" id="export-status" role="status" aria-live="polite"></span>
+    </div>
+    <textarea class="export-out" id="export-out" readonly
+              aria-label="Generated PR-comment markdown — select and Ctrl+C if the copy button is blocked"
+              placeholder="Click “Export to PR comment” to generate one markdown block per annotation…"></textarea>
+    <div class="legend">
+      <span><i style="background:var(--red);"></i> blocker — must fix before merge</span>
+      <span><i style="background:var(--orange);"></i> critical — fix this PR</span>
+      <span><i style="background:var(--yellow);"></i> warning — fix or justify</span>
+      <span><i style="background:var(--green);"></i> nit — optional polish</span>
+    </div>
+  </section>
+
+  <!-- ============================== Footer ============================== -->
+  <footer class="art-footer">
+    <span>AI-CODE-REVIEW template — generated by the close-out-story skill at R14 review time.</span>
+    <span>SOP §7 · §11.1 · Validator R15b</span>
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ----- Theme toggle (persists across reloads) ----- */
+  var root = document.documentElement;
+  var btn  = document.getElementById('theme-toggle');
+  var KEY  = 'ai-code-review-theme';
+  function applyTheme(t) {
+    root.setAttribute('data-theme', t);
+    if (btn) btn.textContent = (t === 'dark') ? 'Light mode' : 'Dark mode';
+  }
+  try {
+    var saved = localStorage.getItem(KEY);
+    if (saved === 'light' || saved === 'dark') applyTheme(saved);
+  } catch (e) { /* storage blocked — silent ok */ }
+  if (btn) {
+    btn.addEventListener('click', function () {
+      var next = (root.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
+      applyTheme(next);
+      try { localStorage.setItem(KEY, next); } catch (e) {}
+    });
+  }
+
+  /* ----- Read annotations from the DOM (single source of truth) ----- */
+  function allAnnotations() {
+    var cards = Array.prototype.slice.call(document.querySelectorAll('.anno-card'));
+    return cards.map(function (c) {
+      var reasoningEl = c.querySelector('.reasoning');
+      var fixEl = c.querySelector('.fix');
+      return {
+        el: c,
+        severity: c.getAttribute('data-severity') || 'nit',
+        file: c.getAttribute('data-file') || '',
+        line: c.getAttribute('data-line') || '',
+        category: c.getAttribute('data-category') || '',
+        reasoning: reasoningEl ? reasoningEl.textContent.trim() : '',
+        fix: fixEl ? fixEl.textContent.trim() : ''
+      };
+    });
+  }
+
+  /* ----- Verdict + counts (blocker count gates the close-out, SOP §7) ----- */
+  var SEVS = ['blocker', 'critical', 'warning', 'nit'];
+  function refreshVerdict() {
+    var annos = allAnnotations();
+    var counts = { blocker:0, critical:0, warning:0, nit:0 };
+    annos.forEach(function (a) { if (counts[a.severity] != null) counts[a.severity] += 1; });
+    SEVS.forEach(function (s) {
+      var el = document.getElementById('count-' + s);
+      if (el) el.textContent = counts[s] + ' ' + s;
+    });
+    var verdict = document.getElementById('verdict');
+    var label = document.getElementById('verdict-label');
+    var detail = document.getElementById('verdict-detail');
+    if (!verdict) return;
+    if (counts.blocker > 0) {
+      verdict.className = 'verdict blocked';
+      if (label) label.textContent = counts.blocker + ' blocker' + (counts.blocker === 1 ? '' : 's') + ' — close-out blocked';
+      if (detail) detail.textContent = 'Resolve every blocker before flipping status: done (SOP §7).';
+    } else {
+      verdict.className = 'verdict clear';
+      if (label) label.textContent = 'No blockers — clear to close';
+      if (detail) detail.textContent = 'All findings are critical-or-below. Resolve at the team’s discretion.';
+    }
+    return counts;
+  }
+  refreshVerdict();
+
+  /* ----- Anchor jump from diff marker → annotation card ----- */
+  Array.prototype.slice.call(document.querySelectorAll('.anno-marker[data-jump]')).forEach(function (m) {
+    m.addEventListener('click', function () {
+      var target = document.getElementById(m.getAttribute('data-jump'));
+      if (target) { target.scrollIntoView({ behavior:'smooth', block:'center' }); }
+    });
+  });
+
+  /* ----- Severity filter chips ----- */
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-filter]'));
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var filter = chip.getAttribute('data-filter');
+      chips.forEach(function (c) { c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'); });
+      allAnnotations().forEach(function (a) {
+        a.el.style.display = (filter === 'all' || a.el.classList.contains(filter)) ? '' : 'none';
+      });
+    });
+  });
+
+  /* ----- Export → one PR-comment markdown block per annotation ----- */
+  var PREFIX = { blocker:'🔴 **BLOCKER**', critical:'🟠 **CRITICAL**',
+                 warning:'🟡 **WARNING**', nit:'🟢 **NIT**' };
+  var ORDER = { blocker:0, critical:1, warning:2, nit:3 };
+
+  function buildMarkdown() {
+    var annos = allAnnotations().slice().sort(function (a, b) {
+      return (ORDER[a.severity] - ORDER[b.severity]);
+    });
+    if (!annos.length) return '_No annotations recorded._';
+    var lines = [];
+    lines.push('### AI code review — ' + annos.length + ' finding' + (annos.length === 1 ? '' : 's'));
+    lines.push('');
+    annos.forEach(function (a) {
+      var prefix = PREFIX[a.severity] || ('**' + a.severity.toUpperCase() + '**');
+      var loc = a.file + (a.line ? ':' + a.line : '');
+      lines.push(prefix + ' · `' + loc + '`' + (a.category ? ' · _' + a.category + '_' : ''));
+      lines.push('');
+      lines.push(a.reasoning);
+      if (a.fix) {
+        lines.push('');
+        lines.push('```suggestion');
+        lines.push(a.fix);
+        lines.push('```');
+      }
+      lines.push('');
+      lines.push('---');
+      lines.push('');
+    });
+    return lines.join('\n').replace(/\n+---\n+$/, '\n');
+  }
+
+  var exportBtn = document.getElementById('export-btn');
+  var copyBtn   = document.getElementById('copy-btn');
+  var out       = document.getElementById('export-out');
+  var status    = document.getElementById('export-status');
+
+  function setStatus(msg, cls) {
+    if (!status) return;
+    status.textContent = msg;
+    status.className = 'export-status' + (cls ? ' ' + cls : '');
+  }
+  if (exportBtn && out) {
+    exportBtn.addEventListener('click', function () {
+      out.value = buildMarkdown();
+      setStatus('Generated. Review, then Copy or Ctrl+C.', 'ok');
+    });
+  }
+  if (copyBtn && out) {
+    copyBtn.addEventListener('click', function () {
+      if (!out.value) { out.value = buildMarkdown(); }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(out.value).then(function () {
+          setStatus('Copied to clipboard.', 'ok');
+        }).catch(function () { fallbackCopy(); });
+      } else {
+        fallbackCopy();
+      }
+    });
+  }
+  function fallbackCopy() {
+    out.focus(); out.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    setStatus(ok ? 'Copied (fallback).' : 'Clipboard blocked — text selected, press Ctrl+C.', ok ? 'ok' : 'err');
+  }
+})();
+</script>
+</body>
+</html>

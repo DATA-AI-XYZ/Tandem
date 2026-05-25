@@ -1,0 +1,35 @@
+#!/bin/sh
+# PM-KIT pre-commit hook — warns (never blocks) when a staged change adds a
+# package manifest in a directory that has no CLAUDE.md. ALWAYS exits 0:
+# this is a nudge, not a gate (it must never block a commit).
+#
+# Installed by: node _00-Project-Management/93-Scripts/install-hooks.js
+#
+# Portability: POSIX sh, no bashisms (runs under Git Bash on Windows).
+
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+detector="$repo_root/_00-Project-Management/93-Scripts/lib/detect-boundaries.js"
+[ -f "$detector" ] || exit 0
+command -v node >/dev/null 2>&1 || exit 0
+
+# Manifests that signal a boundary. THIS LIST IS KEPT IN SYNC BY HAND with the
+# MANIFESTS array in _00-Project-Management/93-Scripts/lib/detect-boundaries.js
+# (plus *.csproj). If you add a manifest type there, add it here too.
+staged=$(git diff --cached --name-only --diff-filter=A 2>/dev/null \
+  | grep -E '(^|/)(package\.json|pyproject\.toml|setup\.py|Cargo\.toml|go\.mod|pom\.xml|build\.gradle|Gemfile|composer\.json|[^/]+\.csproj)$')
+
+[ -z "$staged" ] && exit 0
+
+warned=0
+for f in $staged; do
+  dir=$(dirname "$f")
+  if [ ! -f "$repo_root/$dir/CLAUDE.md" ]; then
+    if [ "$warned" = "0" ]; then
+      echo "⚠  PM-kit: new package boundaries without a CLAUDE.md:"
+      warned=1
+    fi
+    echo "     $dir  (run: npm run pm:claude-scaffold)"
+  fi
+done
+
+exit 0

@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); case \"$FILE\" in *_00-Project-Management/*) (cd \"$(jq -r '.cwd')\" && npm run --silent pm:lint 2>&1) ;; *) exit 0 ;; esac"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CWD=$(jq -r '.cwd'); cd \"$CWD\" && if git -C \"$CWD\" diff --name-only HEAD -- _00-Project-Management/ 2>/dev/null | grep -q . || git -C \"$CWD\" diff --cached --name-only -- _00-Project-Management/ 2>/dev/null | grep -q .; then npm run --silent pm:dash 2>&1; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
