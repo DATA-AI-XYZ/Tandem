@@ -27,7 +27,11 @@ const fs = require('fs');
 const path = require('path');
 
 const PM_ROOT = path.resolve(__dirname, '..');
-const MONITOR = path.join(PM_ROOT, '42-Monitor', 'MONITOR.md');
+// Resolve logical PM sub-folder names through the layout map (full / flattened /
+// custom). PATHS.<logical> → physical folder name for this project. See lib/pm-paths.js.
+const { loadPaths } = require('./lib/pm-paths');
+const PATHS = loadPaths(PM_ROOT).map;
+const MONITOR = path.join(PM_ROOT, PATHS.monitor, 'MONITOR.md');
 const CHANGELOG = path.join(PM_ROOT, '..', 'CHANGELOG.md');
 
 const TERMINAL = new Set(['done', 'wontfix', 'duplicate', 'archived']);
@@ -55,10 +59,30 @@ function parseFrontmatter(content) {
   const m = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   if (!m) return null;
   const fm = {};
+  // STORY-13.2.01: surface malformed frontmatter the same way the validator's R20 does
+  // (ADR-0041 flag-not-retain), instead of silently last-writing a duplicate top-level key
+  // or dropping a nested mapping while computing rollups — so pm:monitor and pm:lint agree.
+  // Ported in place rather than via a shared helper (ADR-0051) to avoid rollup-parser drift.
+  // _diagnostics is advisory only: value semantics below are unchanged (last write wins),
+  // so on the clean corpus the computed rollups — and MONITOR.md — are byte-identical.
+  fm._diagnostics = [];
+  const seenKeys = new Set();
   for (const line of m[1].split(/\r?\n/)) {
     if (!line.trim() || line.trim().startsWith('#')) continue;
+    // Nested mapping: 2+ leading spaces + a `key:` that is NOT a `- item` list row. The kit's
+    // frontmatter is deliberately flat; flag the nested key instead of silently swallowing it.
+    const nested = line.match(/^\s{2,}([A-Za-z_][\w-]*)\s*:\s/);
+    if (nested && !line.match(/^\s+-/)) {
+      fm._diagnostics.push({ type: 'nested-key', key: nested[1], line });
+      continue;
+    }
     const kv = line.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
-    if (kv) fm[kv[1]] = stripQuotes(kv[2].trim());
+    if (kv) {
+      const key = kv[1];
+      if (seenKeys.has(key)) fm._diagnostics.push({ type: 'duplicate-key', key });
+      seenKeys.add(key);
+      fm[key] = stripQuotes(kv[2].trim());
+    }
   }
   return fm;
 }
@@ -95,15 +119,15 @@ function bar(done, total) {
 // ---------- compute ----------
 
 function compute() {
-  const epics = readAll('30-Epics');
-  const features = readAll('31-Features');
-  const stories = readAll('32-Stories');
-  const testplans = readAll('33-Testplans');
-  const bugs = readAll('34-Bugs');
-  const adrs = readAll('40-Decisions');
-  const backlog = readAll('11-Backlog');
+  const epics = readAll(PATHS.epics);
+  const features = readAll(PATHS.features);
+  const stories = readAll(PATHS.stories);
+  const testplans = readAll(PATHS.testplans);
+  const bugs = readAll(PATHS.bugs);
+  const adrs = readAll(PATHS.decisions);
+  const backlog = readAll(PATHS.backlog);
   const releaseCount = countReleases();
-  const prds = walk(path.join(PM_ROOT, '20-Requirements')).filter(f => /PRD-/i.test(path.basename(f)));
+  const prds = walk(path.join(PM_ROOT, PATHS.requirements)).filter(f => /PRD-/i.test(path.basename(f)));
 
   const storyDone = stories.filter(s => s.fm.status === 'done').length;
   const storyTotal = stories.length;
@@ -161,7 +185,7 @@ function renderRollup(c) {
   for (const id of ids) {
     const r = c.byEpic.get(id);
     const title = r.epic.fm.title || id;
-    const link = `../30-Epics/${path.basename(r.epic.file)}`;
+    const link = `../${PATHS.epics}/${path.basename(r.epic.file)}`;
     rows.push(`| [${id} — ${title}](${link}) | ${epicStatusPill(r)} | ${r.feat} | ${r.story} | ${r.done} / ${r.story} stories | \`${bar(r.done, r.story)}\` |`);
   }
   return rows.join('\n');
@@ -215,8 +239,32 @@ function main() {
   text = upsert(text, 'counts', renderCounts(c));
   text = upsert(text, 'wip', renderWip(c));
   if (process.exitCode === 2) { console.error('✗ pm:monitor — aborted (missing markers); MONITOR.md unchanged.'); return; }
-  fs.writeFileSync(MONITOR, text);
+
+  // STORY-09.3.04: Write MONITOR atomically via a temp file + rename.
+  // This ensures a crash mid-write cannot leave MONITOR.md in a torn state.
+  const monitorDir = path.dirname(MONITOR);
+  const tempPath = `${MONITOR}.${process.pid}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, text);
+    fs.renameSync(tempPath, MONITOR);
+  } catch (err) {
+    // If write/rename fails, try to clean up the temp file and report the error.
+    try {
+      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+    } catch (_) {
+      // Ignore cleanup errors.
+    }
+    console.error(`✗ pm:monitor — failed to write MONITOR.md: ${err.message}`);
+    process.exit(2);
+  }
+
   console.log(`✓ pm:monitor — refreshed rollups: ${c.epics.length} epics, ${c.features.length} features, ${c.storyTotal} stories (${c.storyDone} done), ${c.testplans.length} testplans, ${c.bugs.length} bugs, ${c.adrs.length} ADRs.`);
 }
 
-main();
+// STORY-13.2.01: only auto-run when invoked directly (`node generate-monitor.js` / `npm run pm:monitor`).
+// When require()d (e.g. by test-monitor-parser.js), expose the parser without regenerating MONITOR.md.
+if (require.main === module) {
+  main();
+}
+
+module.exports = { parseFrontmatter, stripQuotes };

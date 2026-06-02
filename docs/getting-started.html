@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting started</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+:root {
+  /* Foundation */
+  --cream: #F5F0E8;
+  --cream-2: #EBE5D8;
+  --surface: #FAF8F4;
+  --surface-2: #F1ECE3;
+  --ink: #1A1714;
+  --ink-2: #3D3831;
+  --ink-3: #6B6358;
+  --ink-faint: #9E9589;
+  --border: #DDD6C8;
+  --line: #DDD6C8;
+
+  /* Brand accents */
+  --red: #D63031;
+  --red-soft: #F8E0E0;
+  --yellow: #F0B429;
+  --yellow-soft: #FAE9C0;
+  --blue: #2D6CDF;
+  --blue-soft: #DCE7F8;
+  --teal: #0D9488;
+  --teal-soft: #CFEAE6;
+
+  /* Semantic */
+  --success: var(--teal);
+  --success-soft: var(--teal-soft);
+  --warn: var(--yellow);
+  --warn-soft: var(--yellow-soft);
+  --danger: var(--red);
+  --danger-soft: var(--red-soft);
+
+  /* Shape */
+  --r: 12px;
+  --r-sm: 10px;
+  --r-lg: 16px;
+  --r-pill: 100px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(26,23,20,0.06);
+  --shadow: 0 4px 14px rgba(26,23,20,0.08);
+  --shadow-lg: 0 18px 40px rgba(26,23,20,0.16);
+
+  /* Type */
+  --serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --sans: 'Manrope', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+
+  /* Motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur: 320ms;
+
+  /* Focus */
+  --focus-ring: rgba(214,48,49,0.45);
+
+  /* Scrollbar */
+  --sb-thumb: #CFC6B7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cream: #15120F;
+    --cream-2: #1C1814;
+    --surface: #1A1612;
+    --surface-2: #221D17;
+    --ink: #F1ECE3;
+    --ink-2: #D8CFC0;
+    --ink-3: #9E9589;
+    --ink-faint: #6B6358;
+    --border: #312A22;
+    --line: #312A22;
+    --red: #E25558;
+    --red-soft: rgba(226,85,88,0.16);
+    --yellow: #F2C24A;
+    --yellow-soft: rgba(242,194,74,0.16);
+    --blue: #5B8DE8;
+    --blue-soft: rgba(91,141,232,0.18);
+    --teal: #2BB3A6;
+    --teal-soft: rgba(43,179,166,0.18);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+    --shadow: 0 6px 18px rgba(0,0,0,0.45);
+    --shadow-lg: 0 26px 50px rgba(0,0,0,0.55);
+    --focus-ring: rgba(226,85,88,0.5);
+    --sb-thumb: #2E2820;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--cream);
+  line-height: 1.65;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  padding: 0 1rem 4rem;
+}
+::selection { background: var(--yellow); color: var(--ink); }
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); border-radius: var(--r-sm); }
+
+/* Scrollbar */
+* { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--sb-thumb); border-radius: var(--r-pill); }
+
+/* Layout */
+.doc-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 3rem 0 2rem;
+}
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.75rem;
+  margin-bottom: 2.5rem;
+}
+.brand-mark {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.brand-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.brand-dot.r { background: var(--red); }
+.brand-dot.y { background: var(--yellow); }
+.brand-dot.b { background: var(--blue); }
+.doc-title {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.doc-subtitle {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Body content */
+.doc-body { }
+
+.doc-body h1 {
+  font-family: var(--serif);
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin: 2.5rem 0 0.75rem;
+  color: var(--ink);
+}
+.doc-body h2 {
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 2rem 0 0.6rem;
+  color: var(--ink);
+}
+.doc-body h3 {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 1.75rem 0 0.5rem;
+  color: var(--ink-faint);
+}
+.doc-body h4, .doc-body h5, .doc-body h6 {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.4rem;
+  color: var(--ink-2);
+}
+.doc-body p {
+  margin: 0 0 1rem;
+  color: var(--ink);
+}
+.doc-body ul, .doc-body ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+  color: var(--ink);
+}
+.doc-body li {
+  margin-bottom: 0.3rem;
+}
+.doc-body a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-decoration-color: rgba(45,108,223,0.35);
+  text-underline-offset: 2px;
+}
+.doc-body a:hover {
+  text-decoration-color: var(--blue);
+}
+.doc-body code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  color: var(--ink);
+}
+.doc-body pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+.doc-body pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+.doc-body blockquote {
+  border-left: 3px solid var(--border);
+  margin: 1rem 0;
+  padding: 0.4rem 0 0.4rem 1.1rem;
+  color: var(--ink-3);
+  font-style: italic;
+}
+.doc-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+/* Tables */
+.md-table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.md-table th {
+  background: var(--surface-2);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.md-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  vertical-align: top;
+}
+.md-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.md-table tbody tr:hover td {
+  background: var(--surface);
+}
+
+/* Footer */
+.doc-footer {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+  </style>
+</head>
+<body>
+  <div class="doc-wrap">
+    <header class="doc-header">
+      <div class="brand-mark">
+        <div class="brand-dot r"></div>
+        <div class="brand-dot y"></div>
+        <div class="brand-dot b"></div>
+      </div>
+      <h1 class="doc-title">Getting started</h1>
+      <span class="doc-subtitle">Tandem · PM Operating Kit</span>
+    </header>
+    <main class="doc-body">
+<h1 id="getting-started">Getting started</h1>
+<p>Tandem is a Claude Code plugin plus a <code>_00-Project-Management/</code> scaffold. Getting started means installing the plugin, dropping the scaffold into your project, wiring the <code>pm:*</code> scripts, and confirming the layout — after which the lifecycle skills are available as slash commands and the board renders to HTML.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><strong>Node.js ≥ 18</strong> — the <code>pm:*</code> scripts are dependency-free Node stdlib (no <code>npm install</code></li>
+<p>  step for the tooling itself).</p>
+<li><strong>Claude Code</strong> with plugin support — the skills are model-invoked and also work as explicit</li>
+<p>  slash commands.</p>
+<li><strong>A Chrome / Chromium / Edge binary and Node ≥ 22</strong> — *only* for the optional headless</li>
+<p>  dashboard smoke (<code>pm:smoke</code>). Everything else runs without a browser.</p>
+</ul>
+<p>There is no database, server, framework, or build toolchain to install. The &quot;application&quot; is the Markdown folder and the scripts that lint and render it.</p>
+<h2 id="install">Install</h2>
+<ol>
+<li><strong>Install the plugin</strong> from your Claude Code marketplace, or point Claude Code at a local</li>
+<p>   checkout for development (<code>claude --plugin-dir ./&lt;plugin-dir&gt;</code>).</p>
+<li>On first use the plugin <strong>drops the <code>_00-Project-Management/</code> scaffold</strong> into your project</li>
+<p>   root (if not already present), registers the lifecycle skills under the plugin&#39;s command    namespace, enables the two hooks (lint-on-edit, dashboard-on-stop), and inserts a slim PM    rules block into your root <code>CLAUDE.md</code>.</p>
+</ol>
+<h2 id="wire-and-verify">Wire and verify</h2>
+<p>Run these from your project root:</p>
+<pre><code class="lang-bash">npm run pm:install   # merge the pm:* scripts into your package.json + pin the folder layout
+npm run pm:doctor    # health check: PM folder present, scripts wired, layout resolved</code></pre>
+<p><code>pm:install</code> is idempotent — re-running it is safe. <code>pm:doctor</code> exits non-zero only on core wiring problems (a missing <code>pm:lint</code> or <code>pm:dash</code>), so it is a reliable gate in CI.</p>
+<h2 id="first-run">First run</h2>
+<p>Prove the kit is working by rendering the board:</p>
+<pre><code class="lang-bash">npm run pm:lint      # validate the frontmatter contract across every artefact
+npm run pm:dash      # render the Command Center to 42-Monitor/DASHBOARD.html</code></pre>
+<p>Open <code>42-Monitor/DASHBOARD.html</code> in a browser — that interactive board is the live view of the plan. From here, use the lifecycle skills in order: anchor a North Star and OKRs under <code>00-Strategy/</code>, draft a PRD, draft an epic, split it into features, split those into stories (with paired testplans), refine to <code>ready</code>, then execute and close. See the <a href="#">Command lifecycle</a> for the step-by-step order and <a href="#">Features</a> for what each skill does.</p>
+<h2 id="everyday-commands">Everyday commands</h2>
+<div class="md-table-wrap"><table class="md-table"><thead><tr><th>Command</th><th>What it does</th></tr></thead><tbody><tr><td><code>npm run pm:lint</code></td><td>Validate frontmatter across all artefacts (also runs on edit via a hook).</td></tr><tr><td><code>npm run pm:dash</code></td><td>Regenerate the interactive Command Center (<code>DASHBOARD.html</code>).</td></tr><tr><td><code>npm run pm:monitor</code></td><td>Recompute the board counts/rollups from real story statuses.</td></tr><tr><td><code>npm run pm:docs</code></td><td>Render this <code>documentation/</code> folder to HTML.</td></tr><tr><td><code>npm run pm:all</code></td><td><code>pm:lint</code> → <code>pm:monitor</code> → <code>pm:dash</code> → <code>pm:docs</code> in one pass.</td></tr><tr><td><code>npm run pm:doctor</code></td><td>Re-check wiring and layout health.</td></tr></tbody></table></div>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<ul>
+<li>**<code>command not found</code> / <code>npm: not recognized</code> when a <code>pm:*</code> script runs.** The Node install</li>
+<p>  directory may not be on the shell PATH (notably Git Bash and the default PowerShell session   on Windows, which omit <code>C:\Program Files\nodejs</code>). Put the runtime on PATH before re-running   — PowerShell: <code>$env:PATH = &#39;C:\Program Files\nodejs;&#39; + $env:PATH</code>; bash:   <code>export PATH=&quot;/c/Program Files/nodejs:$PATH&quot;</code> — or invoke the absolute binary.</p>
+<li><strong><code>pm:smoke</code> exits 2 (&quot;no browser found&quot; / &quot;needs Node ≥ 22&quot;).</strong> The headless smoke drives</li>
+<p>  an already-installed system Chrome/Chromium/Edge over the DevTools Protocol with zero npm   dependencies. It needs a browser binary (override with <code>SMOKE_CHROME=&lt;path&gt;</code>) and Node ≥ 22.   Exit 2 means *blocked*, not a render failure — which is why it is deliberately not chained   into <code>pm:all</code>. Run it as <code>npm run pm:dash &amp;&amp; npm run pm:smoke</code>.</p>
+<li><strong><code>pm:install</code> refuses to write.</strong> A present-but-malformed <code>.claude/settings.json</code> or</li>
+<p>  <code>.claude-pm-config.json</code> is refused rather than silently overwritten, to preserve your   <code>permissions.deny</code> baseline. Fix the JSON and re-run.</p>
+</ul>
+    </main>
+    <footer class="doc-footer">
+      Source: getting-started.md
+    </footer>
+  </div>
+</body>
+</html>

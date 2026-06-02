@@ -62,21 +62,27 @@ const R15B_PRESENCE_CUTOFF = '2026-05-24';
 // Resolve PM folder relative to this script's location.
 const PM_ROOT = path.resolve(__dirname, '..');
 
-const SCAN_DIRS = [
-  '11-Backlog',
-  '30-Epics',
-  '31-Features',
-  '32-Stories',
-  '33-Testplans',
-  '34-Bugs',
-  '40-Decisions',
-];
+// Resolve logical PM sub-folder names through the layout map (full / flattened /
+// custom). PATHS.<logical> → physical folder name for this project. See lib/pm-paths.js.
+const { loadPaths, SCAN_KEYS } = require('./lib/pm-paths');
+const PATHS = loadPaths(PM_ROOT).map;
+
+// Artefact-bearing folders the linter scans. Map the canonical SCAN_KEYS order
+// (backlog, epics, features, stories, testplans, bugs, decisions) through the layout
+// map so the full layout yields exactly the 7 historical names in the same order,
+// while a flattened/custom layout yields its own folder names. We map all 7 keys
+// (rather than using scanDirs, which drops non-existent dirs) so behaviour is
+// unchanged — walk() already skips folders that don't exist on disk.
+const SCAN_DIRS = SCAN_KEYS.map(k => PATHS[k]);
 
 // ---------- CLI args ----------
 // --fixtures-dir <path>  scan a flat fixtures dir instead of PM_ROOT; resolve
 //                        R15's html_artefacts paths relative to that dir
 //                        (lets tests stay self-contained, no real repo files).
+// --manifest-dir <path>  override the base dir for manifest-parity checks (version-parity gate).
+//                        If absent, uses repo root. Allows testing with fixture manifests.
 let FIXTURES_DIR = null;
+let MANIFEST_DIR = null;
 {
   const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
@@ -89,6 +95,13 @@ let FIXTURES_DIR = null;
         process.exit(2);
       }
       FIXTURES_DIR = path.resolve(val);
+    } else if (argv[i] === '--manifest-dir') {
+      const val = argv[i + 1];
+      if (!val || val.startsWith('--')) {
+        console.error('✗ --manifest-dir requires a directory path argument');
+        process.exit(2);
+      }
+      MANIFEST_DIR = path.resolve(val);
     }
   }
 }
@@ -131,6 +144,9 @@ function parseFrontmatter(content) {
   if (!m) return null;
   const block = m[1];
   const fm = {};
+  // STORY-09.3.03: Track diagnostics (duplicate keys, nested keys) to be surfaced as violations.
+  fm._diagnostics = [];
+
   // Small flat-YAML parser: key: value, with optional quoting and inline arrays.
   // Also supports multi-line list form (`key:` followed by `  - item` lines).
   // Frontmatter in this kit deliberately stays flat; nested mappings are not parsed.
@@ -141,6 +157,8 @@ function parseFrontmatter(content) {
   // prevents (a) a stray `- ` line attaching to an unrelated earlier key, and
   // (b) merging an inline array with subsequent block items.
   let listKey = null;
+  const seenKeys = new Set(); // STORY-09.3.03: track keys to detect duplicates
+
   for (const line of lines) {
     if (!line.trim() || line.trim().startsWith('#')) continue;
 
@@ -153,9 +171,27 @@ function parseFrontmatter(content) {
       continue;
     }
 
+    // STORY-09.3.03: detect nested mapping (indented key without `- item`).
+    // A line starting with 2+ spaces + a key pattern (not a list item) indicates a nested mapping.
+    const nestedMapping = line.match(/^\s{2,}([A-Za-z_][\w-]*)\s*:\s/);
+    if (nestedMapping && !line.match(/^\s+-/)) {
+      // This is a nested key under some parent; flag it.
+      const nestedKey = nestedMapping[1];
+      fm._diagnostics.push({ type: 'nested-key', key: nestedKey, line });
+      // Do not parse it into fm; just skip.
+      listKey = null;
+      continue;
+    }
+
     const kv = line.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
     if (kv) {
       const key = kv[1];
+      // STORY-09.3.03: detect duplicate top-level key.
+      if (seenKeys.has(key)) {
+        fm._diagnostics.push({ type: 'duplicate-key', key });
+      }
+      seenKeys.add(key);
+
       let value = stripQuotes(kv[2].trim());
       // Inline arrays: [a, b, c] — strip per-item quotes.
       if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
@@ -204,7 +240,7 @@ let _realStoryIds = null;
 function realStoryIds() {
   if (_realStoryIds) return _realStoryIds;
   _realStoryIds = new Set();
-  for (const f of walk(path.join(PM_ROOT, '32-Stories'))) {
+  for (const f of walk(path.join(PM_ROOT, PATHS.stories))) {
     const id = fileIdFromName(f);
     if (id && id.startsWith('STORY-')) _realStoryIds.add(id);
   }
@@ -265,6 +301,17 @@ function violate(file, rule, message) {
   violations.push({ file: rel(file), rule, message });
 }
 
+// Non-fatal warning channel (W-tier), kept deliberately separate from the fatal
+// violations[]/violate() path. A warn() never affects the exit code — only
+// violations.length decides exit 1. This is the kit's first soft-lint tier: it lets
+// new advisory checks accrue coverage over time without breaking the build for the
+// hundreds of artefacts that predate the field being checked. See STORY-14.2.03.
+const warnings = [];
+
+function warn(file, rule, message) {
+  warnings.push({ file: rel(file), rule, message });
+}
+
 function checkFile(filepath, allFilesByType) {
   const content = fs.readFileSync(filepath, 'utf8');
   const fm = parseFrontmatter(content);
@@ -273,6 +320,24 @@ function checkFile(filepath, allFilesByType) {
     violate(filepath, 'R0', 'Missing or malformed YAML frontmatter');
     return;
   }
+
+  // R20 — no duplicate top-level keys and no nested keys (STORY-09.3.03)
+  if (fm._diagnostics && Array.isArray(fm._diagnostics)) {
+    for (const diag of fm._diagnostics) {
+      if (diag.type === 'duplicate-key') {
+        violate(filepath, 'R20',
+          `Duplicate top-level key '${diag.key}' in frontmatter. ` +
+          `Remove the duplicate line (the last occurrence wins, but this is an error).`);
+      } else if (diag.type === 'nested-key') {
+        violate(filepath, 'R20',
+          `Unsupported nested key '${diag.key}' in frontmatter. ` +
+          `The kit's frontmatter is deliberately flat — nested mappings are not supported. ` +
+          `Promote the key to the top level or use an inline value/array.`);
+      }
+    }
+  }
+  // Clean up the internal diagnostics field so it doesn't leak into rule processing.
+  delete fm._diagnostics;
 
   // R1 — status in enum
   if (!fm.status) {
@@ -341,6 +406,16 @@ function checkFile(filepath, allFilesByType) {
     }
   }
 
+  // W1 (non-fatal) — a Story or Feature SHOULD carry a founder-facing "what you'll
+  // have" line. Routed through warn(), never the fatal path; its absence is optional,
+  // not a build break. Coverage accrues over time; see STORY-14.2.03 / STORY-14.2.04.
+  if ((fm.type === 'story' || fm.type === 'feature') &&
+      (!fm.outcome || String(fm.outcome).trim() === '')) {
+    warn(filepath, 'W1',
+      'Missing `outcome` — the founder-facing "what you\'ll have" line. ' +
+      'Optional (non-fatal); add it when you can.');
+  }
+
   // Type-specific rules
   switch (fm.type) {
     case 'epic':
@@ -354,8 +429,10 @@ function checkFile(filepath, allFilesByType) {
     case 'story':
       // R6 — Story has paired Testplan at mirrored path
       if (fm.id) {
+        const storiesRe = new RegExp(
+          '[\\\\/]' + PATHS.stories.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\\\/]');
         const mirroredTp = filepath
-          .replace(/[\\/]32-Stories[\\/]/, path.sep + '33-Testplans' + path.sep)
+          .replace(storiesRe, path.sep + PATHS.testplans + path.sep)
           .replace(/[\\/]STORY-/, path.sep + 'TESTPLAN-');
         // Need to glob — find any file in the testplan folder whose id matches.
         const tpId = fm.id.replace(/^STORY-/, 'TESTPLAN-');
@@ -445,8 +522,11 @@ function checkFile(filepath, allFilesByType) {
       // cheap to satisfy (create the depended-on story first). The entry must be a bare
       // STORY id (e.g. STORY-02.1.01). Resolved against the REAL corpus (realStoryIds),
       // not the scan set, so a fixture can legitimately depend on a real story.
-      if (Array.isArray(fm.depends_on)) {
-        for (const dep of fm.depends_on) {
+      // STORY-09.3.01: also validates bracket-less scalar `depends_on:` values, not just arrays.
+      if (fm.depends_on !== undefined && fm.depends_on !== '' && fm.depends_on !== null) {
+        // Normalize scalar to a single-element array for uniform processing.
+        const depsList = Array.isArray(fm.depends_on) ? fm.depends_on : [fm.depends_on];
+        for (const dep of depsList) {
           const depId = String(dep).trim();
           if (!depId) continue;
           if (!/^STORY-\d+\.\d+\.\d+$/.test(depId)) {
@@ -467,8 +547,11 @@ function checkFile(filepath, allFilesByType) {
       // R18 — every `files_touched:` entry must be a repo-relative path (no absolute, no
       // leading '/', no '..'). OPTIONAL field — fires only when present. Format-only:
       // does NOT require the file to exist (a story may create files that don't yet exist).
-      if (Array.isArray(fm.files_touched)) {
-        for (const entry of fm.files_touched) {
+      // STORY-09.3.01: also validates bracket-less scalar `files_touched:` values, not just arrays.
+      if (fm.files_touched !== undefined && fm.files_touched !== '' && fm.files_touched !== null) {
+        // Normalize scalar to a single-element array for uniform processing.
+        const touchedList = Array.isArray(fm.files_touched) ? fm.files_touched : [fm.files_touched];
+        for (const entry of touchedList) {
           checkFilesTouchedPath(filepath, entry);
         }
       }
@@ -549,6 +632,78 @@ function checkFile(filepath, allFilesByType) {
   }
 }
 
+// ---------- Version-parity gate (STORY-09.3.02) ----------
+// Checks that .claude-plugin/plugin.json, .claude-plugin/marketplace.json (Tandem entry),
+// and package.json all declare the same version.
+function checkVersionParity(baseDir) {
+  try {
+    const pluginPath = path.join(baseDir, '.claude-plugin', 'plugin.json');
+    const marketplacePath = path.join(baseDir, '.claude-plugin', 'marketplace.json');
+    const packagePath = path.join(baseDir, 'package.json');
+
+    // Read and parse manifests.
+    let pluginVersion = null;
+    let marketplaceVersion = null;
+    let packageVersion = null;
+
+    try {
+      if (fs.existsSync(pluginPath)) {
+        const pluginJson = JSON.parse(fs.readFileSync(pluginPath, 'utf8'));
+        pluginVersion = pluginJson.version;
+      }
+    } catch (e) {
+      violate(PM_ROOT, 'VERSION-PARITY',
+        `Failed to parse .claude-plugin/plugin.json: ${e.message}`);
+      return;
+    }
+
+    try {
+      if (fs.existsSync(marketplacePath)) {
+        const marketplaceJson = JSON.parse(fs.readFileSync(marketplacePath, 'utf8'));
+        // The Tandem entry is in the plugins array.
+        const entry = marketplaceJson.plugins && marketplaceJson.plugins.find(p => p.name === 'Tandem');
+        if (entry) {
+          marketplaceVersion = entry.version;
+        }
+      }
+    } catch (e) {
+      violate(PM_ROOT, 'VERSION-PARITY',
+        `Failed to parse .claude-plugin/marketplace.json: ${e.message}`);
+      return;
+    }
+
+    try {
+      if (fs.existsSync(packagePath)) {
+        const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+        packageVersion = packageJson.version;
+      }
+    } catch (e) {
+      violate(PM_ROOT, 'VERSION-PARITY',
+        `Failed to parse package.json: ${e.message}`);
+      return;
+    }
+
+    // Collect the versions into a set to detect divergence.
+    const versions = new Set();
+    if (pluginVersion !== null) versions.add(pluginVersion);
+    if (marketplaceVersion !== null) versions.add(marketplaceVersion);
+    if (packageVersion !== null) versions.add(packageVersion);
+
+    // If more than one distinct version, report a violation.
+    if (versions.size > 1) {
+      violate(PM_ROOT, 'VERSION-PARITY',
+        `Version mismatch across plugin manifests: ` +
+        `plugin.json=${pluginVersion}, ` +
+        `marketplace.json (plugins[Tandem])=${marketplaceVersion}, ` +
+        `package.json=${packageVersion}. All three must be identical.`);
+    }
+  } catch (e) {
+    // Unexpected error — surface it.
+    violate(PM_ROOT, 'VERSION-PARITY',
+      `Unexpected error during version-parity check: ${e.message}`);
+  }
+}
+
 // ---------- Main ----------
 
 function main() {
@@ -607,6 +762,34 @@ function main() {
           `WIP limit exceeded: ${count} stories in status='${status}' (max ${limit} per SOP §5). ` +
           `Close existing stories before starting/reviewing more.`);
       }
+    }
+  }
+
+  // Version-parity gate (STORY-09.3.02) — check that all three version manifests align.
+  // Runs whenever MANIFEST_DIR is set or in normal (non-fixtures) mode.
+  const manifestBaseDir = MANIFEST_DIR || (FIXTURES_DIR ? null : REPO_ROOT);
+  if (manifestBaseDir) {
+    checkVersionParity(manifestBaseDir);
+  }
+
+  // Warnings (W-tier) — printed but NON-FATAL: they never feed the exit code, which is
+  // decided solely by violations.length below. Reported before the violations summary so
+  // a warnings-only run still surfaces them while exiting 0. See STORY-14.2.03.
+  if (warnings.length > 0) {
+    console.log(`⚠ pm:lint — ${warnings.length} warning(s) (non-fatal):\n`);
+    const wByFile = new Map();
+    for (const w of warnings) {
+      if (!wByFile.has(w.file)) wByFile.set(w.file, []);
+      wByFile.get(w.file).push(w);
+    }
+    let wn = 0;
+    for (const [file, ws] of wByFile) {
+      console.log(`  ${file}`);
+      for (const w of ws) {
+        wn += 1;
+        console.log(`    ${String(wn).padStart(3)}. [${w.rule}] ${w.message}`);
+      }
+      console.log('');
     }
   }
 

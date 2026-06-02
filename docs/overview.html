@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+:root {
+  /* Foundation */
+  --cream: #F5F0E8;
+  --cream-2: #EBE5D8;
+  --surface: #FAF8F4;
+  --surface-2: #F1ECE3;
+  --ink: #1A1714;
+  --ink-2: #3D3831;
+  --ink-3: #6B6358;
+  --ink-faint: #9E9589;
+  --border: #DDD6C8;
+  --line: #DDD6C8;
+
+  /* Brand accents */
+  --red: #D63031;
+  --red-soft: #F8E0E0;
+  --yellow: #F0B429;
+  --yellow-soft: #FAE9C0;
+  --blue: #2D6CDF;
+  --blue-soft: #DCE7F8;
+  --teal: #0D9488;
+  --teal-soft: #CFEAE6;
+
+  /* Semantic */
+  --success: var(--teal);
+  --success-soft: var(--teal-soft);
+  --warn: var(--yellow);
+  --warn-soft: var(--yellow-soft);
+  --danger: var(--red);
+  --danger-soft: var(--red-soft);
+
+  /* Shape */
+  --r: 12px;
+  --r-sm: 10px;
+  --r-lg: 16px;
+  --r-pill: 100px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(26,23,20,0.06);
+  --shadow: 0 4px 14px rgba(26,23,20,0.08);
+  --shadow-lg: 0 18px 40px rgba(26,23,20,0.16);
+
+  /* Type */
+  --serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --sans: 'Manrope', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+
+  /* Motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur: 320ms;
+
+  /* Focus */
+  --focus-ring: rgba(214,48,49,0.45);
+
+  /* Scrollbar */
+  --sb-thumb: #CFC6B7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cream: #15120F;
+    --cream-2: #1C1814;
+    --surface: #1A1612;
+    --surface-2: #221D17;
+    --ink: #F1ECE3;
+    --ink-2: #D8CFC0;
+    --ink-3: #9E9589;
+    --ink-faint: #6B6358;
+    --border: #312A22;
+    --line: #312A22;
+    --red: #E25558;
+    --red-soft: rgba(226,85,88,0.16);
+    --yellow: #F2C24A;
+    --yellow-soft: rgba(242,194,74,0.16);
+    --blue: #5B8DE8;
+    --blue-soft: rgba(91,141,232,0.18);
+    --teal: #2BB3A6;
+    --teal-soft: rgba(43,179,166,0.18);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+    --shadow: 0 6px 18px rgba(0,0,0,0.45);
+    --shadow-lg: 0 26px 50px rgba(0,0,0,0.55);
+    --focus-ring: rgba(226,85,88,0.5);
+    --sb-thumb: #2E2820;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--cream);
+  line-height: 1.65;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  padding: 0 1rem 4rem;
+}
+::selection { background: var(--yellow); color: var(--ink); }
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); border-radius: var(--r-sm); }
+
+/* Scrollbar */
+* { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--sb-thumb); border-radius: var(--r-pill); }
+
+/* Layout */
+.doc-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 3rem 0 2rem;
+}
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.75rem;
+  margin-bottom: 2.5rem;
+}
+.brand-mark {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.brand-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.brand-dot.r { background: var(--red); }
+.brand-dot.y { background: var(--yellow); }
+.brand-dot.b { background: var(--blue); }
+.doc-title {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.doc-subtitle {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Body content */
+.doc-body { }
+
+.doc-body h1 {
+  font-family: var(--serif);
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin: 2.5rem 0 0.75rem;
+  color: var(--ink);
+}
+.doc-body h2 {
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 2rem 0 0.6rem;
+  color: var(--ink);
+}
+.doc-body h3 {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 1.75rem 0 0.5rem;
+  color: var(--ink-faint);
+}
+.doc-body h4, .doc-body h5, .doc-body h6 {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.4rem;
+  color: var(--ink-2);
+}
+.doc-body p {
+  margin: 0 0 1rem;
+  color: var(--ink);
+}
+.doc-body ul, .doc-body ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+  color: var(--ink);
+}
+.doc-body li {
+  margin-bottom: 0.3rem;
+}
+.doc-body a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-decoration-color: rgba(45,108,223,0.35);
+  text-underline-offset: 2px;
+}
+.doc-body a:hover {
+  text-decoration-color: var(--blue);
+}
+.doc-body code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  color: var(--ink);
+}
+.doc-body pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+.doc-body pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+.doc-body blockquote {
+  border-left: 3px solid var(--border);
+  margin: 1rem 0;
+  padding: 0.4rem 0 0.4rem 1.1rem;
+  color: var(--ink-3);
+  font-style: italic;
+}
+.doc-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+/* Tables */
+.md-table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.md-table th {
+  background: var(--surface-2);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.md-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  vertical-align: top;
+}
+.md-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.md-table tbody tr:hover td {
+  background: var(--surface);
+}
+
+/* Footer */
+.doc-footer {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+  </style>
+</head>
+<body>
+  <div class="doc-wrap">
+    <header class="doc-header">
+      <div class="brand-mark">
+        <div class="brand-dot r"></div>
+        <div class="brand-dot y"></div>
+        <div class="brand-dot b"></div>
+      </div>
+      <h1 class="doc-title">Overview</h1>
+      <span class="doc-subtitle">Tandem · PM Operating Kit</span>
+    </header>
+    <main class="doc-body">
+<h1 id="overview">Overview</h1>
+<p><strong>Tandem is your Claude Code co-pilot for shipping ideas without the chaos.</strong> It takes you from idea to production and makes sure nothing slips: no story goes in-progress without a testplan, no work ships without passing its gates, no decision disappears into the chat log. The result is a team-quality delivery rhythm, at solo-founder pace.</p>
+<p>Most &quot;AI project management&quot; is a chat log. Tandem is a contract. Under the hood it is a repo-native PM operating kit: the plan lives as plain Markdown under <code>_00-Project-Management/</code>, a set of slash-command skills create and advance those files under fixed gates, and a few stdlib-only Node scripts lint the plan and render it to an interactive Command Center and to these documentation pages. There is no app to deploy and no database to run.</p>
+<p>This page is the orientation. For how the pieces fit together see <a href="#">Architecture</a>; to get a project running see <a href="#">Getting started</a>; for the full capability list see <a href="#">Features</a>; for the record of why the kit is built the way it is see <a href="#">Decisions</a>.</p>
+<h2 id="who-it-is-for">Who it is for</h2>
+<p>A solo founder (or a small team) who works *with* Claude Code and wants the rigour of a real PM process without the overhead of a separate tracker. The kit is opinionated on purpose: it encodes one coherent way to go from a North Star down to shipped, verified work, and it makes Claude follow that way every session rather than improvising a new one each time.</p>
+<h2 id="what-you-get">What you get</h2>
+<ul>
+<li><strong>A numbered artefact store.</strong> Epics, features, stories, testplans, bugs, and decision</li>
+<p>  records each live in their own numbered folder, one Markdown file per artefact, stitched   together by frontmatter links. The Markdown is the single source of truth.</p>
+<li><strong>Lifecycle slash-command skills.</strong> Every step from drafting a PRD to closing a phase is a</li>
+<p>  skill that loads its own instructions on demand and acts as one PM &quot;hat&quot; (Founder, PM, Dev,   QA, Technical Writer). The skills enforce the gates so you do not have to remember them.</p>
+<li><strong>A live Command Center.</strong> <code>npm run pm:dash</code> renders the whole board to an interactive</li>
+<p>  <code>42-Monitor/DASHBOARD.html</code> — status pills, progress bars, an Implementation Strategy view,   an AI catalogue, and these docs.</p>
+<li><strong>Quality gates as scripts.</strong> <code>npm run pm:lint</code> validates the frontmatter contract;</li>
+<p>  <code>npm run pm:monitor</code> recomputes the board counts from the real story statuses; a mirror   check guards the live-vs-template split from drift.</p>
+<li><strong>Founder-facing outcomes.</strong> Each planning artefact carries a plain-English &quot;what you&#39;ll be</li>
+<p>  able to do&quot; line, authored automatically and surfaced on the board, so the plan reads in   business terms and not just technical scope.</p>
+</ul>
+<h2 id="how-the-work-flows">How the work flows</h2>
+<p>Strategy anchors everything. A North Star and quarterly OKRs justify each <strong>Epic</strong>; an epic is split into <strong>Features</strong>; each feature is split into <strong>Stories</strong>, and every story is created with its <strong>paired Testplan</strong> in the same step. A story is refined to <code>ready</code> through a Definition of Ready checklist, executed (alone or in a grouped &quot;chat&quot; batch), verified by running its testplan, and closed through a Definition of Done gate. Every status change writes back to the board. See the <a href="#">Command lifecycle</a> for the exact order.</p>
+<h2 id="core-rules-to-know">Core rules to know</h2>
+<ul>
+<li><strong>Status is a closed set of nine values</strong> — never invent new ones.</li>
+<li><strong>Stories never move folders</strong> — only their <code>status:</code> field changes.</li>
+<li><strong>Every story has a paired testplan</strong> — created together, one test case per acceptance</li>
+<p>  criterion.</p>
+<li><strong>Decisions are recorded on the spot</strong> as <code>ADR-NNNN</code> files, linked from the story.</li>
+<li><strong>A defect raises a BUG immediately</strong>, before it is reported anywhere else.</li>
+</ul>
+<h2 id="status">Status</h2>
+<p>Stable and actively maintained — stack-agnostic (web, mobile, CLI, library, backend, data-pipeline, Power Platform, and automation project types), with the full North Star → Done lifecycle shipped across 24 skills, a hardened release pipeline, and cross-project portability. Tandem dogfoods itself: this very documentation set is generated from Tandem&#39;s own board.</p>
+    </main>
+    <footer class="doc-footer">
+      Source: overview.md
+    </footer>
+  </div>
+</body>
+</html>

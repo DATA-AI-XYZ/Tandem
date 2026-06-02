@@ -6,6 +6,80 @@ All notable changes to `Tandem` are tracked here. Format loosely follows [Keep a
 
 ---
 
+## [2.5.0] — 2026-06-02
+
+**Founder-facing outcomes, a generated documentation set, and brand-aligned HTML surfaces.** Minor bump — all changes are additive; the frontmatter contract and shipped skill/command names are unchanged.
+
+### Added
+- **Founder-facing `outcome` lines across the planning tree** (EPIC-14; ADR-0059, ADR-0062). A shared, dispatch-only `write-outcomes` skill turns each artefact's technical scope into one plain-English "what you'll be able to do" line — authored automatically across the tree (PRD → feature → story → chat/phase strategy) with a `refine-backlog` fill-if-missing safety net, and rendered on the Command Center (chat-card lead, phase subtitle, artefact drawer).
+- **Documentation set via the `document` skill** — authors `overview`, `getting-started`, `architecture`, `decisions`, and `features` markdown from the project's own PM knowledge (PROJECT-CONTEXT, epics/features/stories, ADRs, codebase); `pm:docs` renders the folder to HTML.
+- **Non-fatal validator warning tier** (W-tier), separate from fatal violations, so advisory checks (e.g. a missing `outcome`) never block (ADR-0061).
+
+### Changed
+- **`pm:install` / `pm:doctor` canonicalised to `install.js` / `doctor.js`** (EPIC-12 FEAT-12.2, ADR-0054). The v2.4.0 spike files `pm-install.js` / `pm-doctor.js` are removed; the npm script names (`pm:install`, `pm:doctor`) are unchanged, so the operator command surface is stable. The installer now also takes a `--target <dir>` seam (with `--root` kept as an alias), writes the declared path map `90-Standards/pm-paths.json`, and **registers the Claude Code hooks into the target `.claude/settings.json` only when none exist** — a guarded write that avoids the hook double-fire risk (ADR-0055; BACKLOG-0055). A present-but-malformed `.claude/settings.json` / `.claude-pm-config.json` is now refused (never silently overwritten), preserving the user's `permissions.deny`.
+- **Brand-aligned HTML surfaces.** The documentation pages and the Daily Workflow standard now carry the brand palette and typography (Instrument Serif / Manrope / JetBrains Mono); the doc-page subtitle reads "Tandem · PM Operating Kit". Offline `file://` artefacts (the AI-code-review reports and HTML templates) intentionally keep their self-contained system-font stack and express the brand through palette only.
+
+### Fixed
+- **Skill-namespace consistency** — every skill is authored in the dev namespace and the release build rewrites it to the public namespace; `document` and `curate-toolkit` no longer hardcode the public prefix. The `write-outcomes` heading now carries the product name, so all skills are uniformly identifiable.
+
+---
+
+## [2.4.0] — 2026-05-27
+
+**Cross-project portability — the kit now adapts to a project's folder layout, self-wires, runs cross-platform, and enforces a tiered CLAUDE.md model.** Minor bump — all changes are additive; the frontmatter contract and shipped skill/command names are unchanged. Implements the four-phase portability recommendation (`docs/RECOMMENDATION-cross-project-portability.md`).
+
+### Added
+- **Configurable folder layout (`93-Scripts/lib/pm-paths.js`).** PM sub-folders are resolved through a logical→physical map with two presets — `full` (canonical `30-Epics`/`32-Stories`/…) and `flattened` (`01-EPIC`/`03-Stories`/…) — plus per-key `paths` overrides and auto-detection. Driven by `.claude-pm-config.json` (`layout` / `paths`). The generators and the frontmatter validator now read folder names from this map instead of hardcoding numbers, so the kit works for projects that don't use the canonical numbering.
+- **`pm:install` (`pm-install.js`).** One idempotent command that merges every `pm:*` script into the host root `package.json` and pins the layout in `.claude-pm-config.json`. Replaces the previous manual "wire these scripts by hand" bootstrap step.
+- **`pm:doctor` (`pm-doctor.js`).** Health check that verifies the PM folder + kit scripts, resolves the layout, lists which artefact folders exist, and reports whether the `pm:*` scripts are wired. Exits non-zero only on core wiring problems (missing `pm:lint`/`pm:dash`).
+- **Tiered / progressive CLAUDE.md model** baked into `fill-claude-md` (new "Tiered layout" guidance + a 4th content-economics test, "Reference, don't duplicate"), the `ROOT-CLAUDE`/`SUBDIR-CLAUDE` templates, and `claude-audit.js` (advisory per-file line-budget warnings; additive `warnings` field in `--json`).
+- **Layout question + `pm:install`/`pm:doctor` steps** in `BOOTSTRAP-PROMPT.md`; a "Folder layout" resolution rule in the `core` skill so skills resolve folder roles rather than assuming literal numbered paths.
+- **CLAUDE.md staleness nudge (opt-in).** Set `"claude_md_nudge": true` in `.claude-pm-config.json` and the Stop hook emits a one-line, warn-only nudge when a CLAUDE.md looks incomplete. Off by default; never blocks.
+
+### Changed
+- **Cross-platform hooks.** `hooks/hooks.json` now invokes a single bundled Node entrypoint (`_00-Project-Management/93-Scripts/hook.js`) via `${CLAUDE_PLUGIN_ROOT}` instead of bash + `jq`, so the PostToolUse frontmatter lint and Stop dashboard-refresh run identically on Windows, macOS, and Linux. Child scripts are spawned with the same Node binary (no `node`/`npm`/`jq` PATH dependency).
+
+---
+
+## [2.3.0] — 2026-05-27
+
+**Review & critique lifecycle, phase close-out, headless smoke harness, consistent command display, and a full plugin-hardening / release-readiness pass.** Bundles EPIC-04 (v1.1 public polish), EPIC-05 (review & critique), EPIC-06 (phase close-out), EPIC-07 (smoke harness), EPIC-08 (command display) and EPIC-09 (hardening + release-readiness). Minor bump — additive skills + hardening; the frontmatter contract and shipped skill/command names are unchanged. **The headline: the public-release scrub gate now scans 100% of files and is red-team-proven, so the next `build:tandem` ships clean.**
+
+### Added
+
+- **`/Tandem:peer-review` + `critique`** (EPIC-05) — two standalone review commands: on-demand severity-ranked code peer review, and advisory artefact-quality critique. Severity vocabulary mapping captured in [ADR-0035].
+- **`/Tandem:close-phase`** (EPIC-06) — closes a whole phase after a batch run: gates on every phase story `done`, compiles a phase retrospective, captures follow-ups, updates the board, runs a gated merge. Merge mechanism + report-home in [ADR-0036]/[ADR-0037].
+- **`npm run pm:smoke`** (EPIC-07) — zero-dependency headless Command-Center smoke test driving system Chrome/Chromium/Edge over the DevTools Protocol (no Puppeteer/Playwright). Exit 2 = BLOCKED on a browserless runner. See [ADR-0038].
+- **Version-parity gate** (EPIC-09 / [STORY-09.3.02]) — `pm:lint` fails if `plugin.json`, `marketplace.json` and `package.json` versions diverge (the 2.1.0-vs-2.2.0 drift can't recur).
+- **`mdToHtml` XSS sanitiser tests** (EPIC-09) — the dashboard's sole HTML sanitiser is now test-covered (escapes `<script>`/`on*=`, rewrites `javascript:` hrefs) behind a `require.main` export seam.
+- **Deployed-scaffold upgrade path** (EPIC-09) — `generate-docs.js` + `pm:docs` propagated into the scaffold, `PRD.template.md` propagated (closing a silent gap the new gate found), `check-mirror.js` made **bidirectional** (reports root-only divergence too), and a documented in-place upgrade procedure preserving local edits ([ADR-0044]).
+
+### Changed
+
+- **Release scrub gate hardened** (EPIC-09 / FEAT-09.1, [ADR-0040]) — inverted from a text-extension allow-list to a **binary-extension blocklist + NUL-byte sniff** (scans extensionless files, `.svg/.xml/.csv/.env`, dotfiles), **case-insensitive** denylist with an email-domain carve-out, **symlink reject** (fail-closed), UTF-16 BOM decode, and per-file skip logging. A red-team test plants secrets in every bypass channel and asserts the build fails.
+- **Validator gate robustness** (EPIC-09 / FEAT-09.3) — R17/R18 now validate bracket-less scalar `depends_on`/`files_touched`; the parser flags duplicate top-level keys and unsupported nested mappings as `[R20]` ([ADR-0041]); MONITOR is written atomically (temp-file + rename).
+- **Skill registration** (EPIC-09 / [ADR-0042]) — every `SKILL.md` now pins an explicit `name:` equal to its folder (7 folder-name-only skills back-filled); the auto-discovery model (no explicit `skills` array) is recorded, clarifying [ADR-0003].
+- **Dashboard panels → tile model** (EPIC-09) — Overview + Recent-decisions panels converted from the legacy `.rows` markup to the shared `.tile-grid`.
+- **Consistent slash-command display** (EPIC-08, [ADR-0039]).
+
+### Fixed
+
+- **Two scrub-gate leak blockers** caught by AI-code review during EPIC-09 and fixed before close: an over-broad email-domain carve-out that could let a bare org-name token slip through, and UTF-16 text misclassified as binary and skipped unscanned.
+- **`pm:smoke` CDP-hang + Windows process-orphaning** (EPIC-09 / [STORY-09.4.02]) — hard run-level watchdog + Windows process-tree teardown that kills **only the spawned child by PID** (never by image name).
+- **EPIC-04 AI-code review backfilled** across 14 code-touching stories (EPIC-09 / [STORY-09.5.02]); review surfaced one low-severity latent issue (BUG-20260527-01, overlay item-placement, fix-later).
+- **session-start guidance** — generalised a foreign precedent number ("224 stories") that didn't match this repo and would have shipped to client projects ([ADR-0043]).
+
+### Decisions captured
+
+- **[ADR-0040]** scrub-gate detection model (binary-blocklist + NUL sniff + symlink reject + case-fold carve-out) · **[ADR-0041]** validator flags nested mappings (flat-frontmatter contract) · **[ADR-0042]** skill auto-discovery + `name:`-equals-folder · **[ADR-0043]** session-start counts come from MONITOR · **[ADR-0044]** deployed-scaffold in-place upgrade preserving local edits.
+- Earlier in this release window: **[ADR-0035]** (peer-review severity), **[ADR-0036]/[ADR-0037]** (close-phase), **[ADR-0038]** (zero-dep CDP smoke), **[ADR-0039]** (command display).
+
+### Migration notes
+
+- **No breaking changes.** Frontmatter contract, shipped skill/command names, and hooks are unchanged. The new version-parity `pm:lint` rule only fires if the three manifests diverge (keep them in sync). `/plugin update` + session restart pulls the new skills.
+
+---
+
 ## [2.2.0] — 2026-05-24
 
 **PM dashboard upgrade — AI-catalogue depth + Implementation polish.** The generated dashboard (`pm:dash`) now surfaces what skills, sub-agents and plugins actually *do*: skill sub-commands, sub-agent trigger examples, and per-item descriptions inside plugins — all with in-drawer drill-down. The Implementation-strategy cards also get readable borders and fixed code-block wrapping. Folds in the previously-unreleased `.claude/settings.json` baseline and the `batch-plan → execution-strategist` rename. Minor bump — additive dashboard features; the frontmatter contract and skill APIs are unchanged.

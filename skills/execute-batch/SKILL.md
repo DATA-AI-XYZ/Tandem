@@ -52,8 +52,13 @@ out of scope. Then, **for each story in order**:
 3. **close-out-story** — run the DoD gate; flip to `done` (atomic + `completed_at`); update
    `MONITOR.md`; regenerate the dashboard (`npm run pm:dash`).
 4. **Finalise atomically before the next story.** Do not advance until the current story has flipped
-   to `done` AND MONITOR is updated AND the dashboard is regenerated. This is the load-bearing safety
-   property — it makes mid-batch failure recoverable.
+   to `done` AND MONITOR is updated (status flip + `completed_at` + revision-history line) AND a
+   per-story **commit** has landed. The commit is the load-bearing recovery checkpoint — it is what
+   makes mid-batch failure recoverable (a crashed batch leaves every completed story committed and
+   `done`). The **dashboard regen (`npm run pm:dash`) may be batched to once at batch end** rather
+   than run per story: it is a generated read-view (the Stop hook regenerates it anyway), and on a
+   large board a 9 MB `pm:dash` per story is wasteful churn. Refresh MONITOR's generated count blocks
+   cheaply per story with `npm run pm:monitor`; reserve the heavy `pm:dash` for the end.
 
 ### Context-budget guard
 
@@ -102,6 +107,8 @@ command and report its result.
 - Never execute an un-ready story (DoR precheck above).
 
 ## Next command
+
+Next: `/Tandem:run-testplan`
 
 `/Tandem:weekly-monitor` — after a chat closes, fold the delta into the Friday
 cadence. Or re-run `/Tandem:execute-batch <next-chat-id>` for the next chat in the

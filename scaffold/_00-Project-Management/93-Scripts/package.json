@@ -2,18 +2,21 @@
   "name": "pm-scripts",
   "version": "1.0.0",
   "private": true,
-  "description": "Validation and reporting scripts for the PM folder. Add the `pm:lint` and `pm:dash` scripts to the project's root package.json.",
+  "description": "Validation and reporting scripts for the PM folder. Run `node 93-Scripts/install.js` (or wire `pm:install`) ONCE to auto-add every pm:* script to the project's root package.json, write the path map, pin the folder layout, and register the Claude Code hooks (guarded); then `pm:doctor` verifies the wiring.",
   "scripts": {
     "pm:lint": "node validate-frontmatter.js",
     "pm:dash": "node generate-dashboard.js",
+    "pm:docs": "node generate-docs.js",
     "pm:monitor": "node generate-monitor.js",
     "pm:map": "node generate-codebase-map.js",
     "pm:board": "node generate-backlog-board.js",
     "pm:mirror": "node check-mirror.js",
+    "pm:doctor": "node doctor.js",
+    "pm:install": "node install.js",
     "pm:all": "node validate-frontmatter.js && node generate-monitor.js && node generate-dashboard.js",
     "pm:claude-scaffold": "node claude-scaffold.js",
     "pm:claude-audit": "node claude-audit.js",
     "pm:claude-hooks": "node install-hooks.js"
   },
-  "note": "These scripts are dependency-free (Node stdlib only). Wire into the project's root package.json: \"pm:lint\": \"node _00-Project-Management/93-Scripts/validate-frontmatter.js\", \"pm:dash\": \"node _00-Project-Management/93-Scripts/generate-dashboard.js\", \"pm:monitor\": \"node _00-Project-Management/93-Scripts/generate-monitor.js\", \"pm:map\": \"node _00-Project-Management/93-Scripts/generate-codebase-map.js\", \"pm:board\": \"node _00-Project-Management/93-Scripts/generate-backlog-board.js\", \"pm:all\": \"npm run pm:lint && npm run pm:monitor && npm run pm:dash\", \"pm:claude-scaffold\": \"node _00-Project-Management/93-Scripts/claude-scaffold.js\", \"pm:claude-audit\": \"node _00-Project-Management/93-Scripts/claude-audit.js\", \"pm:claude-hooks\": \"node _00-Project-Management/93-Scripts/install-hooks.js\". pm:board (STORY-01.1.06) generates the throwaway interactive backlog board at 41-Reports/BACKLOG-BOARD.html; pm:claude-audit/pm:claude-hooks (STORY-01.5.03) report CLAUDE.md coverage + install the warn-only pre-commit hook. pm:monitor (BUG-20260524-01) regenerates MONITOR.md's count rollups (overall bar, per-epic table, counts snapshot, WIP) between managed markers from live frontmatter — run it (or pm:all) after creating/deleting artefacts, not only on close-out. Optionally add a Husky pre-commit hook to run pm:all on every commit."
+  "note": "These scripts are dependency-free (Node stdlib only). FASTEST PATH: run `node _00-Project-Management/93-Scripts/install.js` once — it merges every pm:* script into the project's root package.json (idempotent) and pins the folder layout (full | flattened | auto-detected) in .claude-pm-config.json. Then `npm run pm:doctor` reports wiring health and exits non-zero if core scripts (pm:lint/pm:dash) are missing. The kit resolves PM sub-folder names through 93-Scripts/lib/pm-paths.js, so a project may use the canonical numbering (30-Epics, 32-Stories, …) OR a flattened layout (01-EPIC, 03-Stories, …) OR a custom `paths` map in .claude-pm-config.json. Manual wiring (if you prefer): \"pm:lint\": \"node _00-Project-Management/93-Scripts/validate-frontmatter.js\", \"pm:dash\": \"node _00-Project-Management/93-Scripts/generate-dashboard.js\", \"pm:monitor\": \"node _00-Project-Management/93-Scripts/generate-monitor.js\", \"pm:map\": \"node _00-Project-Management/93-Scripts/generate-codebase-map.js\", \"pm:board\": \"node _00-Project-Management/93-Scripts/generate-backlog-board.js\", \"pm:doctor\": \"node _00-Project-Management/93-Scripts/doctor.js\", \"pm:install\": \"node _00-Project-Management/93-Scripts/install.js\", \"pm:all\": \"npm run pm:lint && npm run pm:monitor && npm run pm:dash\", \"pm:claude-scaffold\": \"node _00-Project-Management/93-Scripts/claude-scaffold.js\", \"pm:claude-audit\": \"node _00-Project-Management/93-Scripts/claude-audit.js\", \"pm:claude-hooks\": \"node _00-Project-Management/93-Scripts/install-hooks.js\". pm:monitor regenerates MONITOR.md's count rollups between managed markers from live frontmatter — run it (or pm:all) after creating/deleting artefacts. Optionally add a Husky pre-commit hook to run pm:all on every commit."
 }

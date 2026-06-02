@@ -105,6 +105,8 @@ Quarterly config-review (SOP §4): disconnect any MCP server not used since last
 
 Default `type_of_work → sub-agent` mapping used by `execute-story` and `execution-strategist` to pick a specialist. **These are suggestions — tune to your installed agents.** A story may override a row with its own `suggested_agents:` frontmatter.
 
+> **Operator-editable.** Bootstrap prunes this table to the chosen project type (e.g. a `data-pipeline` project drops the `frontend` row and pre-fills the `data` row with a real specialist such as `data-engineer`, not the generic `general-purpose` placeholder). Any pruned row can be re-added by hand at any time without breaking the resolution chain — the map is advisory, not enforced. `general-purpose` remains the documented fallback so a missing or uninstalled specialist never hard-fails.
+
 | `type_of_work` | Preferred sub-agent(s) — edit to match your install |
 |---|---|
 | `frontend` | `frontend-developer` / `react-expert` (or your UI specialist) |
@@ -114,6 +116,19 @@ Default `type_of_work → sub-agent` mapping used by `execute-story` and `execut
 | `docs` | `technical-writer` (or `general-purpose`) |
 
 **Resolution order:** a story's `suggested_agents:` (if set) → this map for its `type_of_work` → discipline-only / `general-purpose` fallback. An agent named here (or in `suggested_agents`) that **isn't installed** never hard-fails — the executor degrades to the next step. Specialist needs beyond the five disciplines (e.g. security, performance) belong in a story's `suggested_agents:` (e.g. `security-engineer`, `performance-engineer`), not a new `type_of_work` value. See SOP §11.3 / ADR-0023.
+
+**Bootstrap pruning reference — produced map shapes by project type:**
+
+- **`data-pipeline`** — drops the `frontend` row (no UI surface); pre-fills the `data` row with a data/ETL specialist (e.g. `data-engineer`). Keeps `backend`, `infra`, `docs`.
+- **`web-app`** — all five rows kept; `frontend` and `backend` pre-filled with UI/server specialists.
+- **`backend-service`** — drops `frontend`; keeps `backend`, `infra`, `data`, `docs`.
+- **`cli`** — drops `frontend`; keeps `backend` (implementation), `infra` (release packaging), `docs`; `data` optional.
+- **`library`** — drops `frontend`; keeps `backend`, `docs`, `infra` (publishing); `data` optional.
+- **`mobile`** — keeps `frontend` (mobile UI), `backend`, `infra`; `data`/`docs` as needed.
+- **`power-platform`** — keeps `frontend` (Canvas/Model-driven), `backend`, `infra`, `docs`; `data` optional.
+- **`automation`** — drops `frontend`; keeps `backend`, `infra`, `docs`; `data` optional.
+
+The unbootstrapped scaffold ships all five rows above as defaults. Bootstrap edits this table in-place; the committed scaffold is never pre-pruned.
 
 ---
 
@@ -279,6 +294,9 @@ Skip if project type is not `cli`.
 Document anything that has bitten you and would bite a junior dev. Each entry: symptom → cause → fix.
 
 - _<symptom>_ — caused by _<root cause>_. Fix: _<commands or doc link>_.
+- `npm run pm:smoke` exits 2 / "no browser found" or "needs Node >=22" — the headless dashboard smoke (`93-Scripts/smoke-dashboard.js`) drives the **already-installed system Chrome/Chromium/Edge** over the DevTools Protocol with **zero npm dependencies** (no Puppeteer/Playwright — see [ADR-0038](../40-Decisions/ADR-0038-zero-dep-cdp-headless-smoke.md)). It needs (a) a Chrome/Chromium/Edge binary on the runner — override the path with `SMOKE_CHROME=<path>` — and (b) Node ≥22 (it uses the global `WebSocket`). On a browserless runner it exits **2 = BLOCKED** (not a render failure), which is why `pm:smoke` is deliberately **not** chained into `pm:all`. Run it as `npm run pm:dash && npm run pm:smoke`.
+- A test-command runtime (`node` / `npm` / a linter) may not be on the shell PATH the test runs under — notably **Git Bash on Windows**, whose PATH often omits the Node install dir. Symptom: `exit 127` / `command not found`. Fix: put the runtime on PATH (`export PATH="<node-install-dir>:$PATH"`) or invoke its absolute binary **before re-running** — never silently substitute a different command (a testplan `Command:` must run verbatim; resolving the runtime is environment setup, not improvising the command).
+- A doc that gets shipped must not relative-link a non-shipped artefact. If a build/packaging step ships only a subset of the repo (e.g. a `skills/` bundle **without** `_00-Project-Management/`), any doc in that subset must reference ADRs / reports by **ID in prose** (e.g. "ADR-0045"), not a relative path link into the non-shipped folder — the link dangles wherever the target file isn't present.
 
 Examples of what goes here (from prior projects, replace with actuals):
 - Node/npm not on PATH in bash sessions — bash PATH doesn't include `/c/Program Files/nodejs`. Fix: `export PATH="/c/Program Files/nodejs:$PATH"`.

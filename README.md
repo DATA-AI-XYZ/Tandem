@@ -2,11 +2,9 @@
 
 # Tandem
 
-**An opinionated project-management operating system for solo founders working with Claude Code.**
+**Your Claude Code co-pilot for shipping ideas without the chaos.**
 
-Closed-set status enum · Story↔Testplan pairing · DoR/DoD gates · ADR-on-the-spot · automatic bug-raising on test failure · a generated, interactive Command Center.
-
-[![version](https://img.shields.io/badge/version-1.0.0-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases)
+[![version](https://img.shields.io/badge/version-1.1.0-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases)
 [![license](https://img.shields.io/badge/license-MIT-2D6CDF)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D63031)](https://code.claude.com/docs/en/plugins)
 
@@ -16,15 +14,17 @@ Closed-set status enum · Story↔Testplan pairing · DoR/DoD gates · ADR-on-th
 
 ---
 
-## What is Tandem?
+Tandem is a Claude Code plugin that takes you from idea to production — without the chaos. You drive the whole plan with slash commands; Tandem makes sure nothing slips: no stories go in-progress without a testplan, no work ships without passing its gates, no decision disappears into the chat log. The result is a team-quality delivery rhythm, at solo-founder pace.
 
-Tandem turns the loose, ad-hoc way most people plan work with an AI assistant into a **governed lifecycle** that lives entirely in your repo as markdown. You drive the whole thing from slash commands — `North Star → OKRs → PRD → Epic → Feature → Story → Testplan → execute → close → monitor` — and Claude enforces the rules at every gate so plans can't silently rot.
+---
 
-It installs a `_00-Project-Management/` folder into your project, registers a set of `/Tandem:*` skills, and wires two hooks that keep everything honest: a linter that runs on every edit, and a generator that rebuilds an interactive HTML **Command Center** whenever your plan changes.
+## How it works
+
+Tandem installs a `_00-Project-Management/` scaffold into your project and registers a set of `/Tandem:*` skills that cover the full North Star → Done lifecycle. Two hooks keep everything honest: a linter that runs on every PM file edit, and a generator that rebuilds an interactive HTML **Command Center** whenever your plan changes.
 
 It's **stack-agnostic** — the bootstrap asks what you're building (web, mobile, CLI, library, backend, data-pipeline, Power Platform, or automation) and tailors the guidance to match.
 
-## Why it's different
+### Why it's different from "AI project management"
 
 Most "AI project management" is a chat log. Tandem is a contract:
 
@@ -134,7 +134,7 @@ Tandem/
 ## Contributing & security
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to propose changes.
-- [`SECURITY.md`](SECURITY.md) — threat model and responsible disclosure.
+- [`SECURITY.md`](SECURITY.md) — responsible disclosure.
 
 ## License
 

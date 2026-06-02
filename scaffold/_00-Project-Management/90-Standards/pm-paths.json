@@ -1,0 +1,24 @@
+{
+  "layout": "full",
+  "paths": {
+    "strategy": "00-Strategy",
+    "inbox": "10-Inbox",
+    "backlog": "11-Backlog",
+    "active": "12-Active",
+    "releases": "13-Releases",
+    "retros": "14-Retros",
+    "requirements": "20-Requirements",
+    "epics": "30-Epics",
+    "features": "31-Features",
+    "stories": "32-Stories",
+    "testplans": "33-Testplans",
+    "bugs": "34-Bugs",
+    "decisions": "40-Decisions",
+    "reports": "41-Reports",
+    "monitor": "42-Monitor",
+    "standards": "90-Standards",
+    "templates": "91-Templates",
+    "prompts": "92-Prompts",
+    "scripts": "93-Scripts"
+  }
+}

@@ -39,8 +39,12 @@ const path = require('path');
  * ============================================================ */
 
 const PM_ROOT = path.resolve(__dirname, '..');
-const BACKLOG_DIR = path.join(PM_ROOT, '11-Backlog');
-const OUT_FILE = path.join(PM_ROOT, '41-Reports', 'BACKLOG-BOARD.html');
+// Resolve logical PM sub-folder names through the layout map (full / flattened /
+// custom). PATHS.<logical> → physical folder name for this project. See lib/pm-paths.js.
+const { loadPaths } = require('./lib/pm-paths');
+const PATHS = loadPaths(PM_ROOT).map;
+const BACKLOG_DIR = path.join(PM_ROOT, PATHS.backlog);
+const OUT_FILE = path.join(PM_ROOT, PATHS.reports, 'BACKLOG-BOARD.html');
 
 // Priority enum used for the filter pills + colour mapping.
 const PRIORITY_ORDER = ['P0', 'P1', 'P2', 'P3'];
@@ -183,7 +187,7 @@ function patchContextFor(item) {
   // Offset: frontmatter lines start at file line 2 (line 1 is the opening `---`).
   const FM_LINE_OFFSET = 2;
   return {
-    file: '_00-Project-Management/11-Backlog/' + item.file,
+    file: '_00-Project-Management/' + PATHS.backlog + '/' + item.file,
     fmLines: item.fmLines,
     fmLineOffset: FM_LINE_OFFSET,
     priorityLineIdx: item.priorityLineIdx,

@@ -1,4 +1,5 @@
 ---
+name: weekly-monitor
 description: Weekly MONITOR update (Friday cadence). Use when the user asks for a weekly review, end-of-week summary, monitor update, or weekly cadence. Computes the 7-day delta, updates MONITOR.md with revision history, flags stalled/blocked stories, runs backlog hygiene, regenerates the dashboard.
 ---
 

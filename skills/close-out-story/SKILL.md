@@ -1,4 +1,5 @@
 ---
+name: close-out-story
 description: Close out a STORY through the Definition of Done gate. Use when the testplan is fully PASS, when the user asks to close a story, to finish a story, to mark a story done, or to run the DoD check. Runs the DoD checklist, flips status to done, updates MONITOR, regenerates the dashboard.
 ---
 
@@ -45,7 +46,7 @@ For each item, mark PASS / FAIL with evidence.
    - [ ] Build.
 4. [ ] No new errors in the error tracker after smoke run (if applicable).
 5. [ ] If UI: visual contract tests green (per `PROJECT-CONTEXT.md`).
-6. [ ] **AI-code review pass.** First, if the story's `html_context:` array is non-empty, `Read` each listed prior HTML artefact into context (see "Load into context" above) so the review runs against the same architectural reasoning the human reviewer had. Then spawn a fresh `code-reviewer` agent (or run a clean session) with the explicit prompt: "Review this diff for bugs, security issues, and divergence from PROJECT-CONTEXT.md conventions and the attached prior HTML context. Flag anything before merge." Capture findings in an **AI-CODE-REVIEW HTML artefact** (see "AI-code-review artefact" below), not just the story body.
+6. [ ] **AI-code review pass.** First, if the story's `html_context:` array is non-empty, `Read` each listed prior HTML artefact into context (see "Load into context" above) so the review runs against the same architectural reasoning the human reviewer had. Then **delegate the code review to `/Tandem:peer-review`** — the canonical, reusable six-dimension, severity-ranked (blocker / major / minor) review contract (FEAT-05.2). Run it against the story's diff plus the prior HTML context; `peer-review` reviews for correctness, security, performance, maintainability, test coverage, and error paths, and **emits the AI-CODE-REVIEW HTML artefact** (see "AI-code-review artefact" below) — one canonical review path whether the review is invoked ad-hoc or here at the DoD gate, so the standalone skill and this gate never drift. Close-out then records the outcome in frontmatter and enforces the blocker gate below; the findings live in the artefact, not just the story body.
 
    **When to run (closed list — both rules in force):**
    - **Always** if the story ships test code (any new `*.test.*` / `*.spec.*` / `tests/rules/*` file, OR new `describe(...)` / `test.describe(...)` block in an existing test file), regardless of net-line count. **Reason:** test code that ships without an independent review tends to contain mock-vs-real coverage gaps, duplicate structural blocks (precedent: STORY-00.4.01 close-out 2026-05-23 H1), and assertion-shape brittleness that the dev pass misses. Three close-outs over 2025-05-22..2026-05-23 each surfaced 1+ HIGH finding under this rule.
@@ -102,4 +103,11 @@ For each item, mark PASS / FAIL with evidence.
 - MONITOR updated: yes / no
 - Decisions captured: <list of ADRs>
 - Tech debt captured: <list of BACKLOG entries>
+- Uncommitted work: report the `git status --porcelain` line count; if > 0, note plainly that `done` means finished-and-verified-on-disk, NOT committed, and ask "commit now?". Do NOT auto-commit — commit only on explicit user request. (Stops `done` stories silently piling up uncommitted across back-to-back sessions.)
 - Next Ready story to pull: <suggestion>
+
+## Next command
+
+Next: `/Tandem:close-phase`
+
+When every story in the phase is `done`, close the whole phase (retrospective + gated merge).

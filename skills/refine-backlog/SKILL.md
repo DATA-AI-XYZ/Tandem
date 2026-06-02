@@ -34,7 +34,7 @@ Per SOP §6, a story is `ready` only when **all** of the following are true. The
 This skill **never silently promotes**. The contract:
 
 1. Walk the DoR checklist verbatim — every item gets PASS / FAIL with a one-line reason.
-2. If **all** items pass → flip the story (or BACKLOG entry, after conversion) `status: not-started` → `ready`. Atomic edit. Do **not** set `started_at` (that happens at `in-progress`, not `ready`). Show the user the result table.
+2. If **all** items pass → before flipping `status: not-started` → `ready`, perform a fill-if-missing check: if the story's `outcome:` frontmatter is empty or absent, dispatch a sub-agent with the `write-outcomes` skill to auto-generate exactly one plain-text line, then write that line into `outcome:` (fill-if-missing only — never overwrite an existing outcome). Then flip the story (or BACKLOG entry, after conversion) `status: not-started` → `ready`. Atomic edit. Do **not** set `started_at` (that happens at `in-progress`, not `ready`). Show the user the result table.
 3. If **any** item fails → **stop**. Do **not** flip status. Show the gap list and the smallest fix for each. Ask the user before patching — the skill never auto-completes the missing pieces (e.g. don't invent ACs, don't fabricate TCs, don't guess at risks).
 4. **Sunset check** — per SOP §15, if a story has been `not-started` > 90 days, propose `wontfix` or `archived` instead of refinement. Stale items rot; the kit prefers honest sunsetting over false hope.
 
@@ -105,6 +105,8 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
 - Top Ready candidate to pull next: STORY-NN.M.PP
 
 ## Next command
+
+Next: `/Tandem:execution-strategist`
 
 `/Tandem:split-into-stories <feature-path>` — if a refined item turned out to be feature-sized.
 

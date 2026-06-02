@@ -1,10 +1,19 @@
 ---
+name: core
 description: Core PM Operating Kit rules — closed-set status enum, frontmatter timestamps, Story-Testplan pairing, DoR/DoD gates, hat protocol, ADR-on-the-spot, bug-auto-raise. Use when working anywhere under _00-Project-Management/, when creating or modifying any artefact (epic/feature/story/testplan/bug/ADR), or when uncertain about the project's PM conventions.
 ---
 
 # Tandem — core PM rules
 
 You are working in a project that uses the Greenfield PM Operating Kit. These rules are mandatory whenever you touch anything under `_00-Project-Management/`.
+
+## Lifecycle command chain (canonical order — single source of truth)
+
+This is the **one** place the lifecycle command order is recorded (ADR-0047). Every per-command `Next:` pointer in the lifecycle skills must agree with this chain; if a pointer ever disagrees, **this record wins** and the pointer is the bug.
+
+`/Tandem:draft-okrs` → `/Tandem:draft-prd` → `/Tandem:draft-epic` → `/Tandem:split-into-features` → `/Tandem:split-into-stories` → `/Tandem:refine-backlog` → `/Tandem:execution-strategist` → `/Tandem:execute-batch` → `/Tandem:run-testplan` → `/Tandem:close-out-story` → `/Tandem:close-phase`
+
+`close-phase` is terminal (no `Next:` pointer). Cadence / utility skills (`weekly-monitor`, `monthly-retro`, `reflect`, `session-start`, `critique`, `peer-review`, `document`, `curate-toolkit`, `fill-claude-md`, `execute-story`) are **not** chain members; `execute-story` is the single-story alternative to `execute-batch`.
 
 ## Reference order — where to look
 
@@ -38,6 +47,16 @@ completed_at: ''    # set when status → done | wontfix | duplicate | archived
 `not-started | ready | in-progress | in-review | done | blocked | wontfix | duplicate | archived`
 
 Never invent values. Never use `open / shipped / completed / fixed / deferred / Planned`.
+
+## Folder layout (full | flattened | custom)
+
+The kit's skills and templates name PM sub-folders in the canonical **"full"** numbering: `30-Epics`, `31-Features`, `32-Stories`, `33-Testplans`, `34-Bugs`, `40-Decisions`, `42-Monitor`, `11-Backlog`, …
+
+A project may instead use a **"flattened"** layout (e.g. `01-EPIC`, `02-Features`, `03-Stories`, `05-Test`, `04-Bug`, `06-ADR`, `00-Monitor`) or a **custom** map.
+
+The scripts resolve the real folder names automatically via `_00-Project-Management/93-Scripts/lib/pm-paths.js`, driven by `.claude-pm-config.json` (`"layout": "full"|"flattened"` and/or a per-key `"paths"` override). `pm:install` pins this; `pm:doctor` reports it.
+
+**INSTRUCTION TO CLAUDE:** when a skill names a folder like `32-Stories`, do **not** assume that literal path — resolve it to the project's actual folder first (read `.claude-pm-config.json`, or list `_00-Project-Management/` and match by role: epics/features/stories/testplans/bugs/decisions/monitor/backlog). On a flattened project: `32-Stories`→`03-Stories`, `33-Testplans`→`05-Test`, `34-Bugs`→`04-Bug`, `40-Decisions`→`06-ADR`, `42-Monitor`→`00-Monitor`.
 
 ### Story → Testplan pairing — MANDATORY
 

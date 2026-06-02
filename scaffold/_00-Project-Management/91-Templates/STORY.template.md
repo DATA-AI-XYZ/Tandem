@@ -11,6 +11,10 @@ completed_at: ''
 estimate: XS | S | M | L         # XL means "split it"
 priority: P0 | P1 | P2 | P3
 type_of_work: frontend | backend | infra | data | docs
+outcome: ''                      # optional: founder-facing "what you'll have" once this
+                                 # story is done — one plain sentence about the capability,
+                                 # not the implementation. Never required; a missing outcome
+                                 # is nudged by a non-fatal pm:lint warning (W1), see ADR-0061.
 ai_review: pending               # pending | completed-YYYY-MM-DD | skipped-trivial | n-a
 ai_review_skip_reason: ''        # required only when ai_review = skipped-trivial
 ai_review_artefact: ''           # repo-relative path to the AI-CODE-REVIEW HTML artefact;

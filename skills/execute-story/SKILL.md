@@ -1,29 +1,34 @@
 ---
-description: Start work on a Ready STORY. Use when the user asks to begin a story, execute a story, pull a story, or work on a story file under _00-Project-Management/32-Stories/. Verifies Definition of Ready, flips status to in-progress, reads the paired testplan, implements ACs one at a time, files ADRs and BUGs as they arise.
+name: execute-story
+description: Start work on a Ready STORY. Use when the user asks to begin a story, execute a story, pull a story, or work on a story file under the project's stories folder. Verifies Definition of Ready, flips status to in-progress, reads the paired testplan, implements ACs one at a time, files ADRs and BUGs as they arise.
 ---
 
 # Tandem: execute-story (Dev hat)
 
 Operate as **Dev hat**. The user is pulling a Ready story into active work.
 
+## Pre-flight — refuse loudly if the kit isn't wired
+
+Before anything else, run the cheap wiring gate: `node _00-Project-Management/93-Scripts/doctor.js --gate` (npm: `npm run pm:doctor -- --gate`). It is **silent on success**; on an unwired project it exits non-zero and prints one line — **kit not wired — run `npm run pm:install`**. If it fails, **refuse and surface that message verbatim** rather than proceeding — a mis-wired kit must fail loudly, not silently no-op. (STORY-12.2.03)
+
 ## Inputs needed
 
-- Story file path — try canonical (`_00-Project-Management/32-Stories/EPIC-NN/FEAT-NN.M/STORY-NN.M.PP-*.md`) then flattened (`_00-Project-Management/03-Stories/EPIC-NN/FEAT-NN.M/STORY-NN.M.PP-*.md`).
+- Story file path — resolve the `stories` folder via the path map (`node _00-Project-Management/93-Scripts/lib/pm-paths.js resolve stories`; the config is `90-Standards/pm-paths.json`), then glob for `EPIC-NN/FEAT-NN.M/STORY-NN.M.PP-*.md` under it. (E.g., it resolves to `03-Stories` in a flattened layout.)
 - If the user didn't supply it, ask: "Which story file? Or want me to list Ready stories?"
 
 ## Load into context
 
-The canonical layout is the scaffold under `_00-Project-Management/` (12-Active, 32-Stories, 33-Testplans, 34-Bugs, 40-Decisions, 90-Standards, 91-Templates). Older / flattened repos may use alternate names — accept any of the below as a match. If NONE of the candidates exist for a given role, note it in the output (don't fabricate scaffolding) and degrade gracefully (e.g. redraft from in-context examples rather than from a templates file that doesn't exist; flag the gap in the end-of-session summary).
+Folder locations are resolved through the path map (`pm-paths.js` / `pm-paths.json`) rather than hardcoded, ensuring consistent references across all skills. Use the resolver script `node _00-Project-Management/93-Scripts/lib/pm-paths.js resolve <role>` to determine physical folders for logical roles such as stories, testplans, bugs, decisions, active, and templates. If NONE of the candidates exist for a given role, note it in the output (don't fabricate scaffolding) and degrade gracefully (e.g. redraft from in-context examples rather than from a templates file that doesn't exist; flag the gap in the end-of-session summary).
 
 - **Story file** — at the resolved path from "Inputs needed" above.
-- **Paired testplan** — under `_00-Project-Management/33-Testplans/...` (canonical) OR `_00-Project-Management/05-Test/...` (flattened).
-- **Parent feature + epic** — under `_00-Project-Management/22-Features/` + `21-Epics/` (canonical) OR `02-Features/` + `01-EPIC/` (flattened).
+- **Paired testplan** — resolve the `testplans` folder via the path map; glob for `EPIC-NN/FEAT-NN.M/TESTPLAN-NN.M.PP-*.md` under it.
+- **Parent feature + epic** — resolve the `features` and `epics` folders via the path map; read the parent FEAT file and its parent EPIC file.
 - **SOP / DoR / DoD reference** — `_00-Project-Management/90-Standards/SOP.md` if present. If absent, fall back to project-root `CLAUDE.md` for DoD-equivalent rules.
 - **Project-wide stack quirks** — `_00-Project-Management/90-Standards/PROJECT-CONTEXT.md` if present. If absent, infer from project-root `CLAUDE.md` + `package.json` scripts.
-- **Templates folder** — `_00-Project-Management/91-Templates/` (canonical or flattened — same name). If absent, file the gap as tech debt and redraft from sibling artefacts in the same EPIC/FEAT.
-- **ADR folder** — `_00-Project-Management/40-Decisions/` (canonical) OR `_00-Project-Management/06-ADR/` (flattened).
-- **Bugs folder** — `_00-Project-Management/34-Bugs/` (canonical) OR `_00-Project-Management/04-Bug/` (flattened).
-- **Active WIP index** — `_00-Project-Management/12-Active/ACTIVE.md` (canonical) OR `_00-Project-Management/00-Active/ACTIVE.md` (flattened). If neither exists, skip the WIP-removal step; the `status: in-progress` flip on the story file is the canonical source of WIP truth.
+- **Templates folder** — resolve via the path map. If absent, file the gap as tech debt and redraft from sibling artefacts in the same EPIC/FEAT.
+- **ADR folder** — resolve the `decisions` folder via the path map.
+- **Bugs folder** — resolve the `bugs` folder via the path map.
+- **Active WIP index** — resolve the `active` folder via the path map and read `ACTIVE.md` from it. If the file doesn't exist, skip the WIP-removal step; the `status: in-progress` flip on the story file is the canonical source of WIP truth.
 - **Project root `CLAUDE.md`** — always loaded for project-specific overrides.
 
 Use `Read` / `Glob` to detect existence rather than assuming; treat missing files as "not present" rather than throwing.

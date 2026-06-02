@@ -84,6 +84,8 @@ Wait for edits before saving.
 
 Write to `_00-Project-Management/20-Requirements/PRD-<slug>.md` using the template verbatim. Plain markdown — **no frontmatter** (matches the kit's existing PRD convention; validator does not scan `20-Requirements/`). Set the document `Status:` field at the top to `draft` and the `Date:` to today.
 
+**Auto-dispatch write-outcomes:** Before saving, spawn a sub-agent with the PRD's technical content (Problem through Open questions) plus the `write-outcomes` skill. Capture the returned single-line outcome (founder voice, no label or quotes) and insert it as a founder-facing summary immediately below the `Status:` line. It is one outcome sentence, not a re-digest of every section.
+
 ## Output rules
 
 - The 8 H2 section headings are **mandatory and fixed**. Do not rename, reorder, or omit them — the `draft-prd` testplan grep is exact-match, and downstream skills look for them by exact string.
@@ -108,4 +110,4 @@ Write to `_00-Project-Management/20-Requirements/PRD-<slug>.md` using the templa
 
 ## Next command
 
-`/Tandem:draft-epic` — turn this PRD into an Epic that commits the work.
+Next: `/Tandem:draft-epic` — turn this PRD into an Epic that commits the work.

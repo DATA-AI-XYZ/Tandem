@@ -1,26 +1,31 @@
 ---
-description: Run every test case in a TESTPLAN. Use when the user asks to run a testplan, execute tests, verify a story, or work with a testplan file under _00-Project-Management/33-Testplans/. Runs each TC's Command verbatim, marks PASS/FAIL, and auto-files BUG-YYYYMMDD-NN files for every failure before reporting in chat.
+name: run-testplan
+description: Run every test case in a TESTPLAN. Use when the user asks to run a testplan, execute tests, verify a story, or work with a testplan file under the project's testplans folder. Runs each TC's Command verbatim, marks PASS/FAIL, and auto-files BUG-YYYYMMDD-NN files for every failure before reporting in chat.
 ---
 
 # Tandem: run-testplan (QA hat)
 
 Operate as **QA hat**. A story has flipped to `in-review` and its paired testplan needs verification.
 
+## Pre-flight — refuse loudly if the kit isn't wired
+
+Before running any TC, run the cheap wiring gate: `node _00-Project-Management/93-Scripts/doctor.js --gate` (npm: `npm run pm:doctor -- --gate`). It is **silent on success**; on an unwired project it exits non-zero and prints one line — **kit not wired — run `npm run pm:install`**. If it fails, **refuse and surface that message verbatim** rather than proceeding — a mis-wired kit must fail loudly, not silently no-op. (STORY-12.2.03)
+
 ## Inputs needed
 
-- Testplan file path — try canonical (`_00-Project-Management/33-Testplans/EPIC-NN/FEAT-NN.M/TESTPLAN-NN.M.PP-*.md`) then flattened (`_00-Project-Management/05-Test/EPIC-NN/FEAT-NN.M/TESTPLAN-NN.M.PP-*.md`).
+- Testplan file path — resolve the `testplans` folder via the path map (`node _00-Project-Management/93-Scripts/lib/pm-paths.js resolve testplans`; the config is `90-Standards/pm-paths.json`), then glob for `EPIC-NN/FEAT-NN.M/TESTPLAN-NN.M.PP-*.md` under it. (E.g., it resolves to `05-Test` in a flattened layout.)
 - If the user didn't supply it, infer from a recently-completed story or ask.
 
 ## Load into context
 
-The canonical layout is the scaffold under `_00-Project-Management/` (32-Stories, 33-Testplans, 34-Bugs, 90-Standards, 91-Templates). Older / flattened repos may use alternate names — accept any of the below as a match. If NONE of the candidates exist for a given role, note it in the output (don't fabricate scaffolding) and degrade gracefully.
+Folder locations are resolved through the path map (`pm-paths.js` / `pm-paths.json`) rather than hardcoded, ensuring consistent references across all skills. Use the resolver script to determine physical folders for logical roles such as stories, testplans, bugs, and templates. If NONE of the candidates exist for a given role, note it in the output (don't fabricate scaffolding) and degrade gracefully.
 
 - **Testplan file** — at the resolved path from "Inputs needed".
-- **Paired story** — under `_00-Project-Management/32-Stories/...` (canonical) OR `_00-Project-Management/03-Stories/...` (flattened).
+- **Paired story** — resolve the `stories` folder via the path map and read the corresponding STORY file.
 - **SOP / DoD reference** — `_00-Project-Management/90-Standards/SOP.md` if present. If absent, fall back to project-root `CLAUDE.md`.
 - **Stack quirks** — `_00-Project-Management/90-Standards/PROJECT-CONTEXT.md` if present. If absent, infer from `package.json` + project-root `CLAUDE.md`.
-- **BUG template** — `_00-Project-Management/91-Templates/BUG.template.md` if present. If absent, redraft from a sibling BUG in the same FEAT folder.
-- **BUGs folder** (for filing new ones) — `_00-Project-Management/34-Bugs/` (canonical) OR `_00-Project-Management/04-Bug/` (flattened).
+- **BUG template** — resolve the `templates` folder via the path map and read `BUG.template.md` if present. If absent, redraft from a sibling BUG in the same FEAT folder.
+- **BUGs folder** (for filing new ones) — resolve the `bugs` folder via the path map.
 - **Project root `CLAUDE.md`** — always loaded.
 - **Prior HTML context (`html_context:`)** — if the testplan (or its paired story) frontmatter carries a non-empty `html_context:` array, `Read` every repo-relative path it lists (explorations, annotated diffs, options-comparisons) into context **before** executing the test cases, so test interpretation is grounded in the same architectural reasoning the human reviewer had. Skip entries that don't resolve (validator R16 already flags missing/traversal paths at `pm:lint` — don't double-report, just note the skip). Treat the SOP §11 50 KB guideline as advisory: summarise very large files rather than reading them whole.
 
@@ -36,6 +41,7 @@ Use `Read` / `Glob` to detect existence rather than assuming; treat missing file
 
 3. **Run every TC in order:**
    - Execute the `Command:` exactly as written. **No improvisation.** No "I'll try a slightly different command."
+     - **Runtime-on-PATH exception:** if a command fails only because its runtime isn't on the shell PATH (`exit 127` / "command not found" for `node`/`npm`/etc.), that's an environment gap, not a bad command — resolve it per `PROJECT-CONTEXT.md` "Known stack gotchas" (put the runtime on PATH or invoke its absolute binary), then re-run the **same** command verbatim. Resolving the runtime ≠ rewriting the `Command:`.
    - Compare actual output to `Expected:`.
    - Update the TC's `Result:` line:
      - `PASS — YYYY-MM-DD` on success.
@@ -78,3 +84,9 @@ Use `Read` / `Glob` to detect existence rather than assuming; treat missing file
 - Recommended next step:
   - All PASS → `/Tandem:close-out-story`
   - Any FAIL → assign bugs to Dev hat; re-run testplan after fixes
+
+## Next command
+
+Next: `/Tandem:close-out-story`
+
+When every TC PASSes, close the story through the Definition of Done gate.

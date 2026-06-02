@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+:root {
+  /* Foundation */
+  --cream: #F5F0E8;
+  --cream-2: #EBE5D8;
+  --surface: #FAF8F4;
+  --surface-2: #F1ECE3;
+  --ink: #1A1714;
+  --ink-2: #3D3831;
+  --ink-3: #6B6358;
+  --ink-faint: #9E9589;
+  --border: #DDD6C8;
+  --line: #DDD6C8;
+
+  /* Brand accents */
+  --red: #D63031;
+  --red-soft: #F8E0E0;
+  --yellow: #F0B429;
+  --yellow-soft: #FAE9C0;
+  --blue: #2D6CDF;
+  --blue-soft: #DCE7F8;
+  --teal: #0D9488;
+  --teal-soft: #CFEAE6;
+
+  /* Semantic */
+  --success: var(--teal);
+  --success-soft: var(--teal-soft);
+  --warn: var(--yellow);
+  --warn-soft: var(--yellow-soft);
+  --danger: var(--red);
+  --danger-soft: var(--red-soft);
+
+  /* Shape */
+  --r: 12px;
+  --r-sm: 10px;
+  --r-lg: 16px;
+  --r-pill: 100px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(26,23,20,0.06);
+  --shadow: 0 4px 14px rgba(26,23,20,0.08);
+  --shadow-lg: 0 18px 40px rgba(26,23,20,0.16);
+
+  /* Type */
+  --serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --sans: 'Manrope', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+
+  /* Motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur: 320ms;
+
+  /* Focus */
+  --focus-ring: rgba(214,48,49,0.45);
+
+  /* Scrollbar */
+  --sb-thumb: #CFC6B7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cream: #15120F;
+    --cream-2: #1C1814;
+    --surface: #1A1612;
+    --surface-2: #221D17;
+    --ink: #F1ECE3;
+    --ink-2: #D8CFC0;
+    --ink-3: #9E9589;
+    --ink-faint: #6B6358;
+    --border: #312A22;
+    --line: #312A22;
+    --red: #E25558;
+    --red-soft: rgba(226,85,88,0.16);
+    --yellow: #F2C24A;
+    --yellow-soft: rgba(242,194,74,0.16);
+    --blue: #5B8DE8;
+    --blue-soft: rgba(91,141,232,0.18);
+    --teal: #2BB3A6;
+    --teal-soft: rgba(43,179,166,0.18);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+    --shadow: 0 6px 18px rgba(0,0,0,0.45);
+    --shadow-lg: 0 26px 50px rgba(0,0,0,0.55);
+    --focus-ring: rgba(226,85,88,0.5);
+    --sb-thumb: #2E2820;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--cream);
+  line-height: 1.65;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  padding: 0 1rem 4rem;
+}
+::selection { background: var(--yellow); color: var(--ink); }
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); border-radius: var(--r-sm); }
+
+/* Scrollbar */
+* { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--sb-thumb); border-radius: var(--r-pill); }
+
+/* Layout */
+.doc-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 3rem 0 2rem;
+}
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.75rem;
+  margin-bottom: 2.5rem;
+}
+.brand-mark {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.brand-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.brand-dot.r { background: var(--red); }
+.brand-dot.y { background: var(--yellow); }
+.brand-dot.b { background: var(--blue); }
+.doc-title {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.doc-subtitle {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Body content */
+.doc-body { }
+
+.doc-body h1 {
+  font-family: var(--serif);
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin: 2.5rem 0 0.75rem;
+  color: var(--ink);
+}
+.doc-body h2 {
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 2rem 0 0.6rem;
+  color: var(--ink);
+}
+.doc-body h3 {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 1.75rem 0 0.5rem;
+  color: var(--ink-faint);
+}
+.doc-body h4, .doc-body h5, .doc-body h6 {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.4rem;
+  color: var(--ink-2);
+}
+.doc-body p {
+  margin: 0 0 1rem;
+  color: var(--ink);
+}
+.doc-body ul, .doc-body ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+  color: var(--ink);
+}
+.doc-body li {
+  margin-bottom: 0.3rem;
+}
+.doc-body a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-decoration-color: rgba(45,108,223,0.35);
+  text-underline-offset: 2px;
+}
+.doc-body a:hover {
+  text-decoration-color: var(--blue);
+}
+.doc-body code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  color: var(--ink);
+}
+.doc-body pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+.doc-body pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+.doc-body blockquote {
+  border-left: 3px solid var(--border);
+  margin: 1rem 0;
+  padding: 0.4rem 0 0.4rem 1.1rem;
+  color: var(--ink-3);
+  font-style: italic;
+}
+.doc-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+/* Tables */
+.md-table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.md-table th {
+  background: var(--surface-2);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.md-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  vertical-align: top;
+}
+.md-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.md-table tbody tr:hover td {
+  background: var(--surface);
+}
+
+/* Footer */
+.doc-footer {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+  </style>
+</head>
+<body>
+  <div class="doc-wrap">
+    <header class="doc-header">
+      <div class="brand-mark">
+        <div class="brand-dot r"></div>
+        <div class="brand-dot y"></div>
+        <div class="brand-dot b"></div>
+      </div>
+      <h1 class="doc-title">Architecture</h1>
+      <span class="doc-subtitle">Tandem · PM Operating Kit</span>
+    </header>
+    <main class="doc-body">
+<h1 id="architecture">Architecture</h1>
+<p>Tandem is a Claude Code plugin that wraps a repo-native, file-based project-management system. There is no server, no database, and no runtime service: the &quot;application&quot; is a folder of Markdown artefacts, a set of slash-command skills that read and write those artefacts under fixed rules, and a handful of stdlib-only Node scripts that lint the folder and render it to HTML. This page explains the layers that make up the kit and how project-management data flows through them.</p>
+<h2 id="layers">Layers</h2>
+<p>The kit is built from five cooperating layers. Each owns one concern and talks to the others through plain files on disk — never through shared memory or a network call.</p>
+<ul>
+<li><strong>Plugin skills (the command surface).</strong> Each lifecycle step (<code>draft-prd</code>,</li>
+<p>  <code>split-into-features</code>, <code>execute-batch</code>, <code>close-phase</code>, …) is a skill that loads its own   instructions on demand and acts as a single PM &quot;hat&quot; (Founder, PM, Dev, QA, Technical   Writer). Skills are the only thing that create or mutate artefacts; they encode the gates   (Definition of Ready, Definition of Done) rather than leaving them to memory. Skills register   by auto-discovery — placing a <code>SKILL.md</code> in <code>skills/</code> is sufficient, and each pins an   explicit <code>name</code> equal to its folder (ADR-0042).</p>
+<li><strong>Sub-agents.</strong> Read-heavy or noisy work is delegated to a fresh sub-agent: an Explore agent</li>
+<p>  for &quot;where is X / which files reference Y&quot;, a discipline sub-agent (technical-writer,   frontend-developer, …) for focused authoring. Sub-agents return evidence; the main thread   keeps the editing, the decisions, and the status flips. A sub-agent never owns a status   change.</p>
+<li><strong>The PM scaffold.</strong> The artefact store lives under <code>_00-Project-Management/</code> — folders that</li>
+<p>  hold one Markdown file per artefact (epics, features, stories, testplans, bugs, decisions,   monitor, reports, standards, templates, scripts). Frontmatter carries the contract: a   closed-set <code>status:</code> enum, ISO-8601 timestamps, and the relationship links (<code>epic:</code>,   <code>feature:</code>, <code>story:</code>, <code>testplan:</code>) that stitch the tree together. Folder *roles* are resolved   through a logical→physical path map (<code>90-Standards/pm-paths.json</code>, ADR-0052) with <code>full</code> and   <code>flattened</code> presets, so the kit works for projects that do not use the canonical numbering.</p>
+<li><strong>The tooling.</strong> The scripts under <code>_00-Project-Management/93-Scripts/</code> are the kit&#39;s</li>
+<p>  &quot;build&quot;: <code>validate-frontmatter.js</code> (<code>pm:lint</code>) enforces the frontmatter contract,   <code>generate-monitor.js</code> (<code>pm:monitor</code>) recomputes the board rollups, <code>generate-dashboard.js</code>   (<code>pm:dash</code>) renders the interactive Command Center, and <code>generate-docs.js</code> (<code>pm:docs</code>)   renders this <code>documentation/</code> folder. All are dependency-free Node stdlib and idempotent.</p>
+<li><strong>Hooks.</strong> Two Claude Code hooks make enforcement deterministic rather than discretionary,</li>
+<p>  both dispatched through a single canonical Node entrypoint, <code>93-Scripts/hook.js</code>   (ADR-0053), via <code>${CLAUDE_PLUGIN_ROOT}</code> so they run identically on Windows, macOS, and Linux:   a <code>PostToolUse</code> hook lints frontmatter after any edit under the PM folder, and a <code>Stop</code> hook   regenerates the dashboard when PM files changed.</p>
+</ul>
+<h2 id="pm-data-flow">PM data flow</h2>
+<p>A unit of work flows down the artefact tree and back up the board. The data moves strictly through files; each step is gated before the next can begin.</p>
+<ol>
+<li><strong>Strategy → Epic.</strong> A North Star and quarterly OKRs in <code>00-Strategy/</code> justify an</li>
+<p>   <code>EPIC-NN</code>. Every epic must link to strategy or it is rejected — work has to trace to a    business outcome.</p>
+<li><strong>Epic → Features → Stories + Testplans.</strong> <code>split-into-features</code> decomposes an epic into</li>
+<p>   <code>FEAT-NN.M</code> files; <code>split-into-stories</code> decomposes each feature into <code>STORY-NN.M.PP</code> files    and writes the paired <code>TESTPLAN-NN.M.PP</code> in the same step. Pairing is mandatory: every    acceptance criterion maps to at least one runnable test case.</p>
+<li><strong>Refine → Ready.</strong> <code>refine-backlog</code> runs the Definition-of-Ready checklist and flips a</li>
+<p>   story to <code>ready</code>. Only <code>ready</code> stories may enter execution.</p>
+<li><strong>Execute → Verify → Close.</strong> <code>execute-story</code> (or <code>execute-batch</code> for a grouped &quot;chat&quot;)</li>
+<p>   flips <code>ready → in-progress</code>, implements the acceptance criteria one at a time, and files    ADRs and BUGs as they arise. <code>run-testplan</code> runs each test case&#39;s command verbatim and    auto-raises a BUG on any failure. <code>close-out-story</code> runs the Definition-of-Done gate (it    includes an AI-code review) and flips the story to <code>done</code>.</p>
+<li><strong>Board update.</strong> Every status change writes back to <code>42-Monitor/MONITOR.md</code> (the counts,</li>
+<p>   the progress bars, a revision-history line) and regenerates <code>DASHBOARD.html</code>. The dashboard    and these docs are read views; the Markdown files remain the single source of truth.</p>
+</ol>
+<h2 id="the-live-scaffold-split">The live ↔ scaffold split</h2>
+<p>The repo carries two copies of the PM system. The working <code>_00-Project-Management/</code> tree is the kit *dogfooding itself* — the real board this project is run from. The <code>scaffold/_00-Project-Management/</code> tree is the pristine template shipped to consumer projects. The split is deliberate: changes are made live, then mirrored into <code>scaffold/</code> only when they are part of the product (never the dogfood-only data), and <code>check-mirror.js</code> (<code>pm:mirror</code>) guards against drift between the two.</p>
+<h2 id="the-public-release-pipeline">The public release pipeline</h2>
+<p>The kit develops in a private repository and ships a sanitized public build (ADR-0028). <code>build:tandem</code> allowlist-copies the product surface, rewrites the project-name and contact tokens, renders a sanitized demo board, and runs a <strong>scrub gate</strong> that fails the build if any internal-provenance token survives — an inverted binary-blocklist with a NUL-byte sniff, a case-insensitive denylist, and a fail-closed symlink rejection (ADR-0040). Because the public bundle ships <code>documentation/</code> but not <code>_00-Project-Management/</code>, any shipped doc references decision records by ID in prose (for example &quot;ADR-0028&quot;) rather than relative-linking into the non-shipped PM tree.</p>
+<h2 id="why-it-is-this-way">Why-it-is-this-way</h2>
+<p>Decisions worth remembering are captured on the spot as <code>ADR-NNNN</code> files under <code>40-Decisions/</code> and linked from the story that triggered them — so the *why* behind a field name, a threshold, or a deviation survives long after the commit that made it. See <a href="#">Decisions</a> for the full digest.</p>
+    </main>
+    <footer class="doc-footer">
+      Source: architecture.md
+    </footer>
+  </div>
+</body>
+</html>

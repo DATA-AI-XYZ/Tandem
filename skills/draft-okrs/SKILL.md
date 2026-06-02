@@ -69,6 +69,6 @@ The canonical layout is under `_00-Project-Management/`. Use `Read` / `Glob` to 
 
 ## Next command
 
-`/Tandem:draft-prd` — turn one of these Objectives into a PRD.
+Next: `/Tandem:draft-prd` — turn one of these Objectives into a PRD.
 
 Or, if you're going straight to execution-shaped strategy: `/Tandem:draft-epic` — turn a KR directly into an Epic.

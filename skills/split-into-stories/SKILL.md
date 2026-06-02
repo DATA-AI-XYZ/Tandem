@@ -17,7 +17,7 @@ Follow that prompt verbatim. The sections below add only the slash-command-speci
 
 ## Paired-testplan enforcement (MANDATORY)
 
-Per SOP §11 — "Story → Testplan pairing — MANDATORY" — every Story file under `_00-Project-Management/32-Stories/EPIC-NN/FEAT-NN.M/` requires a paired Testplan at `_00-Project-Management/33-Testplans/EPIC-NN/FEAT-NN.M/TESTPLAN-NN.M.PP-<slug>.md` written **in the same response**.
+Per SOP §11 — "Story → Testplan pairing — MANDATORY" — every Story file under the resolved `stories` folder (via `node _00-Project-Management/93-Scripts/lib/pm-paths.js resolve stories`), organized as `EPIC-NN/FEAT-NN.M/STORY-NN.M.PP-*.md`, requires a paired Testplan in the resolved `testplans` folder, organized as `EPIC-NN/FEAT-NN.M/TESTPLAN-NN.M.PP-<slug>.md`, written **in the same response**. Folder locations are resolved through the path map (`pm-paths.json`) rather than hardcoded.
 
 This skill enforces the rule structurally, not as an honour-system convention:
 
@@ -30,19 +30,19 @@ This contract IS the differentiator vs. the plain paste-prompt. The prompt advis
 
 ## Inputs needed
 
-- Path to the source Feature file (`_00-Project-Management/31-Features/EPIC-NN/FEAT-NN.M-<slug>.md`).
+- Path to the source Feature file under the `features` folder (resolve via the path map: `node _00-Project-Management/93-Scripts/lib/pm-paths.js resolve features`; e.g. `_00-Project-Management/31-Features/EPIC-NN/FEAT-NN.M-<slug>.md`).
 - If the user didn't supply one, ask: "Which Feature file should I decompose? Paste the path or the FEAT-NN.M id."
 
 ## Load into context
 
-Use `Read` / `Glob` to detect existence. Treat missing files as "not present" rather than throwing.
+Use `Read` / `Glob` to detect existence. Treat missing files as "not present" rather than throwing. Folder locations are resolved through the path map (`pm-paths.js` / `pm-paths.json`) rather than hardcoded.
 
 - **Source Feature** — at the resolved path above. Read fully — especially the `## Acceptance criteria` checklist (each criterion ~ 1 story).
-- **Parent Epic** — `_00-Project-Management/30-Epics/EPIC-NN-*.md` for upstream context.
+- **Parent Epic** — resolve the `epics` folder via the path map and read `EPIC-NN-*.md` for upstream context.
 - **SOP** — `_00-Project-Management/90-Standards/SOP.md` for DoR, estimation, status enum, frontmatter contract.
 - **Project context** — `_00-Project-Management/90-Standards/PROJECT-CONTEXT.md` for runnable test command conventions (which test runner, what ports, how to invoke).
-- **Story + Testplan templates** — `_00-Project-Management/91-Templates/STORY.template.md` + `_00-Project-Management/91-Templates/TESTPLAN.template.md`. Use both verbatim — do not redraft section headings from memory.
-- **Existing Stories under this Feature** — glob `_00-Project-Management/32-Stories/EPIC-NN/FEAT-NN.M/STORY-NN.M.PP-*.md` to find next-free `PP` (zero-padded to 2 digits). Same `PP` is used for the paired Testplan. Create both subfolders if missing.
+- **Story + Testplan templates** — resolve the `templates` folder via the path map and read `STORY.template.md` + `TESTPLAN.template.md`. Use both verbatim — do not redraft section headings from memory.
+- **Existing Stories under this Feature** — resolve the `stories` folder via the path map and glob `EPIC-NN/FEAT-NN.M/STORY-NN.M.PP-*.md` to find next-free `PP` (zero-padded to 2 digits). Same `PP` is used for the paired Testplan. Create both subfolders if missing.
 - **Project root `CLAUDE.md`** — for project-specific overrides.
 
 ## Task
@@ -61,6 +61,7 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
    - Frontmatter: `id: TESTPLAN-NN.M.PP`, `story: STORY-NN.M.PP`, `feature: FEAT-NN.M`, `epic: EPIC-NN`, `status: not-started`, `created_at: <ISO 8601 now>`.
 5. **Validate before writing**: every AC in the draft Story is covered by ≥1 TC in the draft Testplan; every TC has a real `Command:`. If validation fails, **abort** per the enforcement contract above.
 6. Commit both files to disk in the same response. Number stories sequentially within the Feature (.01, .02, .03 …).
+   - As each Story file is written, dispatch the `write-outcomes` skill via a sub-agent, passing the story's title, acceptance criteria, and technical content. Write the returned single-line outcome (verbatim, no markdown) into that Story's `outcome:` frontmatter field — in the same response.
 7. Update the Feature's `## Stories` section with relative links to the new Story files.
 8. **Show the file tree of what you'll create before writing.** Wait for user approval.
 
@@ -90,6 +91,6 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
 
 ## Next command
 
-`/Tandem:refine-backlog` — promote selected stories `not-started` → `ready` after DoR gate.
+Next: `/Tandem:refine-backlog` — promote selected stories `not-started` → `ready` after DoR gate.
 
 Or, if a story is obviously DoR-clean already: `/Tandem:execute-story <story-path>` — start work directly.

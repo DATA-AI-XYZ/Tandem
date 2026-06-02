@@ -1,6 +1,6 @@
 ---
 name: fill-claude-md
-description: Use when a CLAUDE.md stub created by `pm:claude-scaffold` still carries `[auto — verify]` or `<fill in>` markers, when `pm:claude-audit` reports `incomplete`, or when an existing CLAUDE.md needs trimming. Applies the three content-economics tests so only non-discoverable, project-specific, broadly-relevant lines remain.
+description: Fill in or trim a CLAUDE.md so only non-discoverable, project-specific, broadly-relevant lines remain — the judgement layer applying the three content-economics tests over `pm:claude-scaffold`'s stubs. Use when a CLAUDE.md stub created by `pm:claude-scaffold` still carries `[auto — verify]` or `<fill in>` markers, when `pm:claude-audit` reports `incomplete`, or when an existing CLAUDE.md needs trimming.
 ---
 
 # Tandem: fill-claude-md (Dev hat)
@@ -11,9 +11,9 @@ and marked them `[auto — verify]`. Your job is the part automation cannot do:
 decide what non-discoverable, project-specific content earns a place, and confirm
 or remove the auto-detected starters.
 
-## The three tests (CLAUDE-CODE-CONFIG §2.1.4)
+## The content-economics tests (CLAUDE-CODE-CONFIG §2.1.4)
 
-Before any line stays in a CLAUDE.md, it must pass ALL three tests:
+Before any line stays in a CLAUDE.md, it must pass ALL of these tests:
 
 1. **Applies broadly at this scope.** Root file → relevant to almost any task in
    the repo. Subdir file → relevant to almost any task in that subdir. Narrower →
@@ -23,8 +23,37 @@ Before any line stays in a CLAUDE.md, it must pass ALL three tests:
    "looks like X but is actually Y", which command to use *here*, where to start.
 3. **Project-specific, not reusable expertise.** Advice that applies to any repo
    is a *skill*, not CLAUDE.md.
+4. **Reference, don't duplicate.** If a line is reference material that already
+   has a canonical home — a frontmatter block or section skeleton living in
+   `91-Templates/`, a schema, a status enum, a command list owned by another
+   file — *point to that home*, don't inline a copy. Inlined duplication drifts
+   from its source and is paid for in context every session. Flag any inlined
+   copy of a template/schema/owned-command-list for replacement with a one-line
+   pointer (e.g. "Story frontmatter: see `91-Templates/STORY.template.md`").
 
 **Inclusion gate for every line:** "If I delete this line, what specifically goes wrong, and how often?" If the answer is "nothing, most of the time" — delete it.
+
+## Tiered layout (where a rule lives)
+
+CLAUDE.md is a tree, not one file. Place each rule by **cost-of-a-miss**: a
+serious or irreversible miss (data loss, a broken release, a security hole) earns
+a spot higher up; a recoverable, area-local miss lives lower down.
+
+- **Tier 1 — always-on root `CLAUDE.md`.** Loaded every session, so it costs
+  context on *every* task. Keep only rules relevant to **almost every** task here.
+  Keep it lean; it signposts the rest of the tree in plain words.
+- **Tier 2 — folder-scoped `CLAUDE.md`.** One per major area, auto-loaded by
+  Claude Code when a file in that folder is touched. **Additive** — it adds what's
+  true *only* in that folder; it is never a copy of root.
+- **Tier 3 — thin pointer file.** In a folder that only occasionally needs a rule
+  whose real home is elsewhere, a tiny `CLAUDE.md` that names the rule's single
+  home and is followed on demand — not a second copy of the rule.
+
+**Never use `@import`.** An `@import` (or `@path/to/file`) pulls the target into
+the always-loaded context eagerly, re-bloating Tier 1 with everything it points
+at — the opposite of the tiered model. Use a **plain-text signpost** ("when
+editing X, read `x/CLAUDE.md`") instead; Claude Code loads the folder file on
+demand when it's actually relevant.
 
 ## Workflow
 
@@ -73,10 +102,12 @@ the scaffold rewrites its inner content on the next run.
 ### Step 3 — Draft and filter gotchas + conventions
 
 Propose candidate lines for `## Critical gotchas` and `## Conventions`. For each,
-apply the three tests and the deletion gate. Concretely reject:
+apply the four tests and the deletion gate. Concretely reject:
 - "Components live in `/components`" → discoverable by `ls`. **Drop.**
 - "Use TypeScript strict mode" → discoverable from `tsconfig.json`. **Drop.**
 - "Write good commit messages" → reusable expertise. **Move to a skill, not here.**
+- A pasted copy of the Story frontmatter block → has a canonical home in
+  `91-Templates/STORY.template.md`. **Replace with a pointer to it** (test 4).
 
 Concretely keep (when true for this repo):
 - "Migrations run from repo root, not `/services/*`, despite appearances."
@@ -89,9 +120,10 @@ should be additive to root, never a copy of it.
 
 ### Step 4 — Trimming mode (existing bloated files)
 
-If asked to trim, run every existing line through the three tests in reverse.
-Produce a short list: "Recommend deleting — reason" per failing line. Make the
-edits only after the user confirms, unless they asked you to trim directly.
+If asked to trim, run every existing line through the four tests in reverse.
+Produce a short list: "Recommend deleting — reason" per failing line (including
+"duplicates `<canonical home>` — replace with pointer" for test-4 failures). Make
+the edits only after the user confirms, unless they asked you to trim directly.
 
 ### Step 5 — Re-audit
 

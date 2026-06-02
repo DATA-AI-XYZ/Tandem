@@ -67,4 +67,4 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
 
 ## Next command
 
-`/Tandem:split-into-features` — decompose this Epic into FEAT files.
+Next: `/Tandem:split-into-features` — decompose this Epic into FEAT files.

@@ -10,6 +10,10 @@ completed_at: ''
 estimate: <S | M | L>
 prd_refs: <or "—">
 mockup_ref: <path or Figma URL, or "—">
+outcome: ''                  # optional: founder-facing "what you'll have" once this feature
+                             # ships — one plain sentence about the capability, not the build.
+                             # Never required; a missing outcome is nudged by a non-fatal
+                             # pm:lint warning (W1), see ADR-0061.
 html_artefacts: []           # optional, repo-relative paths to sibling HTML artefacts. Validator R15.
 decisions: []
 ---

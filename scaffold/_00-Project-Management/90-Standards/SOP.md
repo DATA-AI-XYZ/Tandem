@@ -202,6 +202,8 @@ Plus relationship and type-specific fields per the templates in `91-Templates/`.
 
 Timestamp format: `YYYY-MM-DDTHH:MM:SS±HH:MM` (e.g. `2026-05-20T14:32:00+01:00`). Always quoted as a string. Source of "now": system clock, not chat-stated date.
 
+**Optional founder-facing `outcome:`** — Story and Feature frontmatter may carry an optional `outcome:` field: one founder-facing sentence describing *what you'll have* once the unit is done — the tangible capability, not the implementation. It is **optional and never required**, but a missing `outcome` on a Story or Feature is nudged by a **non-fatal `pm:lint` warning** (rule **W1** — a warning that is reported but never fails the build; only fatal violations exit 1, see [ADR-0061](../40-Decisions/ADR-0061-non-fatal-lint-warning-tier.md)). The dashboard's Implementation Strategy view surfaces the outcome on chat cards and phase headers (FEAT-14.2), and `execution-strategist` carries it on each `chat`/`phase` in its JSON sidecar.
+
 ### 11.1 Output format selection — Markdown vs HTML
 
 Most artefacts in this kit are markdown — short, version-controllable, diff-friendly, render natively on GitHub. Reach for **HTML** when at least one of these triggers fires:

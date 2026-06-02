@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Features</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+:root {
+  /* Foundation */
+  --cream: #F5F0E8;
+  --cream-2: #EBE5D8;
+  --surface: #FAF8F4;
+  --surface-2: #F1ECE3;
+  --ink: #1A1714;
+  --ink-2: #3D3831;
+  --ink-3: #6B6358;
+  --ink-faint: #9E9589;
+  --border: #DDD6C8;
+  --line: #DDD6C8;
+
+  /* Brand accents */
+  --red: #D63031;
+  --red-soft: #F8E0E0;
+  --yellow: #F0B429;
+  --yellow-soft: #FAE9C0;
+  --blue: #2D6CDF;
+  --blue-soft: #DCE7F8;
+  --teal: #0D9488;
+  --teal-soft: #CFEAE6;
+
+  /* Semantic */
+  --success: var(--teal);
+  --success-soft: var(--teal-soft);
+  --warn: var(--yellow);
+  --warn-soft: var(--yellow-soft);
+  --danger: var(--red);
+  --danger-soft: var(--red-soft);
+
+  /* Shape */
+  --r: 12px;
+  --r-sm: 10px;
+  --r-lg: 16px;
+  --r-pill: 100px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(26,23,20,0.06);
+  --shadow: 0 4px 14px rgba(26,23,20,0.08);
+  --shadow-lg: 0 18px 40px rgba(26,23,20,0.16);
+
+  /* Type */
+  --serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --sans: 'Manrope', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+
+  /* Motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur: 320ms;
+
+  /* Focus */
+  --focus-ring: rgba(214,48,49,0.45);
+
+  /* Scrollbar */
+  --sb-thumb: #CFC6B7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cream: #15120F;
+    --cream-2: #1C1814;
+    --surface: #1A1612;
+    --surface-2: #221D17;
+    --ink: #F1ECE3;
+    --ink-2: #D8CFC0;
+    --ink-3: #9E9589;
+    --ink-faint: #6B6358;
+    --border: #312A22;
+    --line: #312A22;
+    --red: #E25558;
+    --red-soft: rgba(226,85,88,0.16);
+    --yellow: #F2C24A;
+    --yellow-soft: rgba(242,194,74,0.16);
+    --blue: #5B8DE8;
+    --blue-soft: rgba(91,141,232,0.18);
+    --teal: #2BB3A6;
+    --teal-soft: rgba(43,179,166,0.18);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+    --shadow: 0 6px 18px rgba(0,0,0,0.45);
+    --shadow-lg: 0 26px 50px rgba(0,0,0,0.55);
+    --focus-ring: rgba(226,85,88,0.5);
+    --sb-thumb: #2E2820;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--cream);
+  line-height: 1.65;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  padding: 0 1rem 4rem;
+}
+::selection { background: var(--yellow); color: var(--ink); }
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); border-radius: var(--r-sm); }
+
+/* Scrollbar */
+* { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--sb-thumb); border-radius: var(--r-pill); }
+
+/* Layout */
+.doc-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 3rem 0 2rem;
+}
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.75rem;
+  margin-bottom: 2.5rem;
+}
+.brand-mark {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.brand-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.brand-dot.r { background: var(--red); }
+.brand-dot.y { background: var(--yellow); }
+.brand-dot.b { background: var(--blue); }
+.doc-title {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.doc-subtitle {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Body content */
+.doc-body { }
+
+.doc-body h1 {
+  font-family: var(--serif);
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin: 2.5rem 0 0.75rem;
+  color: var(--ink);
+}
+.doc-body h2 {
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 2rem 0 0.6rem;
+  color: var(--ink);
+}
+.doc-body h3 {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 1.75rem 0 0.5rem;
+  color: var(--ink-faint);
+}
+.doc-body h4, .doc-body h5, .doc-body h6 {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.4rem;
+  color: var(--ink-2);
+}
+.doc-body p {
+  margin: 0 0 1rem;
+  color: var(--ink);
+}
+.doc-body ul, .doc-body ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+  color: var(--ink);
+}
+.doc-body li {
+  margin-bottom: 0.3rem;
+}
+.doc-body a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-decoration-color: rgba(45,108,223,0.35);
+  text-underline-offset: 2px;
+}
+.doc-body a:hover {
+  text-decoration-color: var(--blue);
+}
+.doc-body code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  color: var(--ink);
+}
+.doc-body pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+.doc-body pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+.doc-body blockquote {
+  border-left: 3px solid var(--border);
+  margin: 1rem 0;
+  padding: 0.4rem 0 0.4rem 1.1rem;
+  color: var(--ink-3);
+  font-style: italic;
+}
+.doc-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+/* Tables */
+.md-table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.md-table th {
+  background: var(--surface-2);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.md-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  vertical-align: top;
+}
+.md-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.md-table tbody tr:hover td {
+  background: var(--surface);
+}
+
+/* Footer */
+.doc-footer {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+  </style>
+</head>
+<body>
+  <div class="doc-wrap">
+    <header class="doc-header">
+      <div class="brand-mark">
+        <div class="brand-dot r"></div>
+        <div class="brand-dot y"></div>
+        <div class="brand-dot b"></div>
+      </div>
+      <h1 class="doc-title">Features</h1>
+      <span class="doc-subtitle">Tandem · PM Operating Kit</span>
+    </header>
+    <main class="doc-body">
+<h1 id="features">Features</h1>
+<p>This page describes what Tandem can do, grouped by capability. Each capability is delivered by one or more <strong>skills</strong> (slash commands Claude loads on demand) and/or <strong>scripts</strong> (<code>npm run pm:*</code>). Everything below is <strong>shipped</strong> — the kit is at v2.4.0 with all planned epics complete. For the exact order you run the lifecycle skills in, see the <a href="#">Command lifecycle</a>; for the underlying model, see <a href="#">Architecture</a>.</p>
+<p>The full feature tree lives under <code>_00-Project-Management/31-Features/</code> (50 feature files across 14 epics). The sections here summarise the major groups rather than listing every file.</p>
+<h2 id="strategy-planning">Strategy &amp; planning</h2>
+<p>Anchor work to a business outcome before any code is written.</p>
+<ul>
+<li><strong><code>draft-okrs</code></strong> (Founder hat) — draft quarterly OKRs from a North Star.</li>
+<li><strong><code>draft-prd</code></strong> (Founder → PM hat) — draft a PRD from an OKR or rough notes; ships its own</li>
+<p>  PRD template.</p>
+<li><strong><code>draft-epic</code></strong> (PM hat) — draft an Epic from an OKR key result or a PRD section. Every</li>
+<p>  epic must link back to strategy or it is rejected.</p>
+</ul>
+<h2 id="decomposition">Decomposition</h2>
+<p>Break strategy down into executable, testable units.</p>
+<ul>
+<li><strong><code>split-into-features</code></strong> (PM hat) — decompose an Epic into <code>FEAT-NN.M</code> files.</li>
+<li><strong><code>split-into-stories</code></strong> (PM hat) — decompose a Feature into <code>STORY-NN.M.PP</code> files <strong>and</strong></li>
+<p>  their paired <code>TESTPLAN-NN.M.PP</code> in the same step. Story-to-testplan pairing is mandatory:   one test case per acceptance criterion.</p>
+</ul>
+<h2 id="refinement-gates">Refinement &amp; gates</h2>
+<p>Two checklists bracket execution so only ready work starts and only finished work closes.</p>
+<ul>
+<li><strong><code>refine-backlog</code></strong> (PM hat) — run the Definition-of-Ready checklist and either promote a</li>
+<p>  story to <code>ready</code> or stop and list the gaps. It never silently promotes.</p>
+<li><strong><code>close-out-story</code></strong> (QA → PM hat) — run the Definition-of-Done gate (which includes an</li>
+<p>  AI-code review), flip the story to <code>done</code>, update the board, and regenerate the dashboard.</p>
+</ul>
+<h2 id="execution">Execution</h2>
+<p>Pull ready work into progress — one story or a planned batch.</p>
+<ul>
+<li><strong><code>execute-story</code></strong> (Dev hat) — start a single ready story: verify Definition of Ready, flip</li>
+<p>  to <code>in-progress</code>, work the acceptance criteria one at a time, filing ADRs and BUGs as they   arise.</p>
+<li><strong><code>run-testplan</code></strong> (QA hat) — run every test case&#39;s command verbatim, mark PASS/FAIL, and</li>
+<p>  auto-file a BUG for any failure before reporting.</p>
+<li><strong><code>execute-batch</code></strong> (Dev/QA hat) — execute one &quot;chat&quot; from an Implementation Strategy: run</li>
+<p>  its stories sequentially (execute → test → close) with atomic per-story finalisation and a   context-budget guard.</p>
+</ul>
+<h2 id="intelligent-execution-strategy">Intelligent execution strategy</h2>
+<p>Plan *how* to execute a backlog, not just what.</p>
+<ul>
+<li><strong><code>execution-strategist</code></strong> (PM hat) — group ready stories into right-sized &quot;chats&quot; by</li>
+<p>  dependency and coherence (judgment-led grouping, soft size bounds; ADR-0025/0026). It is a   dry-run planner — it does not change story status.</p>
+<li><strong>Story sub-agent metadata</strong> — each story carries a <code>type_of_work</code> (and optional</li>
+<p>  <code>suggested_agents</code>) used to pick a specialist executor, with a documented fallback so a   missing agent never hard-fails (ADR-0023).</p>
+</ul>
+<h2 id="review-critique">Review &amp; critique</h2>
+<p>Two complementary review surfaces.</p>
+<ul>
+<li><strong><code>critique</code></strong> (PM hat) — advisory quality review of a planning artefact (Epic, Feature,</li>
+<p>  Story, Testplan). Read-only; it never rewrites the file.</p>
+<li><strong><code>peer-review</code></strong> (reviewer / QA hat) — on-demand code review of an explicit target</li>
+<p>  (diff, branch, PR, or file) across correctness, security, performance, maintainability,   tests, and error paths, returning blocker/major/minor findings each with a suggested fix.</p>
+</ul>
+<h2 id="phase-lifecycle">Phase lifecycle</h2>
+<p>Group a set of stories into a phase, run it on its own branch, and integrate cleanly.</p>
+<ul>
+<li><strong><code>start-phase</code></strong> (PM hat) — gate the entry state, cut a <code>phase/&lt;phase-id&gt;</code> branch off</li>
+<p>  <code>main</code> (ADR-0045), and record the open on the board.</p>
+<li><strong><code>close-phase</code></strong> (PM hat) — gate on every phase story being <code>done</code>, compile a phase</li>
+<p>  retrospective, capture follow-ups, update the board, and run a gated merge to <code>main</code>.</p>
+</ul>
+<h2 id="the-command-center">The Command Center</h2>
+<p><code>npm run pm:dash</code> renders the whole board to an interactive <code>42-Monitor/DASHBOARD.html</code>: status pills, progress bars, and a workflow-aligned, grouped information architecture built on a shared tile-grid + drawer component model (ADR-0032/0033/0048). It includes an <strong>Implementation Strategy</strong> view (each epic&#39;s strategy selected by story coverage, ADR-0049), an <strong>AI catalogue</strong> that describes the installed skills/agents for humans, a <strong>Docs view</strong> that serves these pages, and a <strong>context-cost</strong> view that surfaces the token &quot;tax&quot; of what each session loads. A zero-dependency headless smoke (<code>pm:smoke</code>, ADR-0038) drives system Chrome over the DevTools Protocol to verify the render with no Puppeteer/Playwright.</p>
+<h2 id="founder-facing-outcomes">Founder-facing outcomes</h2>
+<p>Every planning artefact carries a plain-English &quot;what you&#39;ll be able to do&quot; line so the plan reads in business terms.</p>
+<ul>
+<li><strong><code>write-outcomes</code></strong> (dispatch-only) — a shared skill the producer skills spawn via a</li>
+<p>  sub-agent to turn an artefact&#39;s technical scope into one founder-outcome line (ADR-0059).</p>
+<li>Outcomes are authored automatically across the planning tree (PRD → feature → story →</li>
+<p>  chat/phase strategy), with a <code>refine-backlog</code> fill-if-missing safety net, and rendered on the   board as the chat-card lead, the phase subtitle, and in the artefact drawer.</p>
+</ul>
+<h2 id="cross-project-portability">Cross-project portability</h2>
+<p>The kit adapts to a host project rather than assuming one layout.</p>
+<ul>
+<li><strong>Configurable folder layout</strong> — PM sub-folders resolve through a logical→physical path map</li>
+<p>  (<code>90-Standards/pm-paths.json</code>, ADR-0052) with <code>full</code> and <code>flattened</code> presets plus per-key   overrides, so the generators and validator work even when a project does not use the   canonical numbering.</p>
+<li><strong><code>pm:install</code> / <code>pm:doctor</code></strong> — one idempotent command to wire every <code>pm:*</code> script and pin</li>
+<p>  the layout; a health check to verify it (ADR-0054). The installer registers the hooks into   the target only when none exist (a guarded write, ADR-0055).</p>
+<li><strong>Cross-platform hooks</strong> — a single canonical Node entrypoint runs the hooks identically on</li>
+<p>  Windows, macOS, and Linux (ADR-0053), with no <code>bash</code>/<code>jq</code> dependency.</p>
+<li><strong>Tiered CLAUDE.md model</strong> — <code>fill-claude-md</code> and <code>claude-audit</code> enforce a lean,</li>
+<p>  reference-don&#39;t-duplicate CLAUDE.md layout with advisory line budgets.</p>
+</ul>
+<h2 id="stack-aware-tooling">Stack-aware tooling</h2>
+<p>The kit is stack-agnostic — it ships per-type guidance for web-app, mobile, CLI, library, backend-service, data-pipeline, Power Platform, and automation projects. <strong><code>curate-toolkit</code></strong> (PM hat) ranks the installed AI tools (skills, agents, commands, plugins) HIGH / MED / LOW by fit for the project type and writes relevance overlays, so the AI catalogue reflects what is actually useful for *this* project.</p>
+<h2 id="documentation-generation">Documentation generation</h2>
+<p><strong><code>document</code></strong> (Technical Writer hat) authors this default documentation set — <code>overview</code>, <code>getting-started</code>, <code>architecture</code>, <code>decisions</code>, and <code>features</code> — synthesised from the project&#39;s own PM knowledge (PROJECT-CONTEXT, epics/features/stories, ADRs, and the codebase). It authors Markdown only; <code>npm run pm:docs</code> renders the folder to HTML, which the release pipeline ships into the public <code>docs/</code> site (ADR-0030/0034).</p>
+<h2 id="quality-tooling-the-release-pipeline">Quality tooling &amp; the release pipeline</h2>
+<ul>
+<li><strong><code>pm:lint</code></strong> — validate the frontmatter contract across every artefact, with a non-fatal</li>
+<p>  warning tier separate from hard violations (ADR-0061).</p>
+<li><strong><code>pm:monitor</code></strong> — recompute the board counts and rollups from real story statuses</li>
+<p>  (ADR-0024); <strong><code>pm:mirror</code></strong> guards the live-vs-scaffold split against drift.</p>
+<li><strong><code>build:tandem</code></strong> — produce the sanitized public release behind a scrub gate that fails on</li>
+<p>  any internal-provenance token (ADR-0028/0040).</p>
+</ul>
+<h2 id="session-helpers">Session helpers</h2>
+<ul>
+<li><strong><code>session-start</code></strong> — orient at the start of a session: read the active WIP, recent ADRs, and</li>
+<p>  the board, then announce the suggested next step.</p>
+<li><strong><code>weekly-monitor</code></strong> / <strong><code>monthly-retro</code></strong> — cadence reviews that update the board and</li>
+<p>  capture retrospectives.</p>
+<li><strong><code>reflect</code></strong> — end-of-session reflection that proposes CLAUDE.md / SOP / skill updates for</li>
+<p>  you to approve.</p>
+</ul>
+    </main>
+    <footer class="doc-footer">
+      Source: features.md
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML output convention</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+:root {
+  /* Foundation */
+  --cream: #F5F0E8;
+  --cream-2: #EBE5D8;
+  --surface: #FAF8F4;
+  --surface-2: #F1ECE3;
+  --ink: #1A1714;
+  --ink-2: #3D3831;
+  --ink-3: #6B6358;
+  --ink-faint: #9E9589;
+  --border: #DDD6C8;
+  --line: #DDD6C8;
+
+  /* Brand accents */
+  --red: #D63031;
+  --red-soft: #F8E0E0;
+  --yellow: #F0B429;
+  --yellow-soft: #FAE9C0;
+  --blue: #2D6CDF;
+  --blue-soft: #DCE7F8;
+  --teal: #0D9488;
+  --teal-soft: #CFEAE6;
+
+  /* Semantic */
+  --success: var(--teal);
+  --success-soft: var(--teal-soft);
+  --warn: var(--yellow);
+  --warn-soft: var(--yellow-soft);
+  --danger: var(--red);
+  --danger-soft: var(--red-soft);
+
+  /* Shape */
+  --r: 12px;
+  --r-sm: 10px;
+  --r-lg: 16px;
+  --r-pill: 100px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(26,23,20,0.06);
+  --shadow: 0 4px 14px rgba(26,23,20,0.08);
+  --shadow-lg: 0 18px 40px rgba(26,23,20,0.16);
+
+  /* Type */
+  --serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --sans: 'Manrope', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+
+  /* Motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur: 320ms;
+
+  /* Focus */
+  --focus-ring: rgba(214,48,49,0.45);
+
+  /* Scrollbar */
+  --sb-thumb: #CFC6B7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cream: #15120F;
+    --cream-2: #1C1814;
+    --surface: #1A1612;
+    --surface-2: #221D17;
+    --ink: #F1ECE3;
+    --ink-2: #D8CFC0;
+    --ink-3: #9E9589;
+    --ink-faint: #6B6358;
+    --border: #312A22;
+    --line: #312A22;
+    --red: #E25558;
+    --red-soft: rgba(226,85,88,0.16);
+    --yellow: #F2C24A;
+    --yellow-soft: rgba(242,194,74,0.16);
+    --blue: #5B8DE8;
+    --blue-soft: rgba(91,141,232,0.18);
+    --teal: #2BB3A6;
+    --teal-soft: rgba(43,179,166,0.18);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+    --shadow: 0 6px 18px rgba(0,0,0,0.45);
+    --shadow-lg: 0 26px 50px rgba(0,0,0,0.55);
+    --focus-ring: rgba(226,85,88,0.5);
+    --sb-thumb: #2E2820;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--cream);
+  line-height: 1.65;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  padding: 0 1rem 4rem;
+}
+::selection { background: var(--yellow); color: var(--ink); }
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); border-radius: var(--r-sm); }
+
+/* Scrollbar */
+* { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--sb-thumb); border-radius: var(--r-pill); }
+
+/* Layout */
+.doc-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 3rem 0 2rem;
+}
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.75rem;
+  margin-bottom: 2.5rem;
+}
+.brand-mark {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.brand-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.brand-dot.r { background: var(--red); }
+.brand-dot.y { background: var(--yellow); }
+.brand-dot.b { background: var(--blue); }
+.doc-title {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.doc-subtitle {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Body content */
+.doc-body { }
+
+.doc-body h1 {
+  font-family: var(--serif);
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin: 2.5rem 0 0.75rem;
+  color: var(--ink);
+}
+.doc-body h2 {
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 2rem 0 0.6rem;
+  color: var(--ink);
+}
+.doc-body h3 {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 1.75rem 0 0.5rem;
+  color: var(--ink-faint);
+}
+.doc-body h4, .doc-body h5, .doc-body h6 {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.4rem;
+  color: var(--ink-2);
+}
+.doc-body p {
+  margin: 0 0 1rem;
+  color: var(--ink);
+}
+.doc-body ul, .doc-body ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+  color: var(--ink);
+}
+.doc-body li {
+  margin-bottom: 0.3rem;
+}
+.doc-body a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-decoration-color: rgba(45,108,223,0.35);
+  text-underline-offset: 2px;
+}
+.doc-body a:hover {
+  text-decoration-color: var(--blue);
+}
+.doc-body code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  color: var(--ink);
+}
+.doc-body pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+.doc-body pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+.doc-body blockquote {
+  border-left: 3px solid var(--border);
+  margin: 1rem 0;
+  padding: 0.4rem 0 0.4rem 1.1rem;
+  color: var(--ink-3);
+  font-style: italic;
+}
+.doc-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+/* Tables */
+.md-table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.md-table th {
+  background: var(--surface-2);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.md-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  vertical-align: top;
+}
+.md-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.md-table tbody tr:hover td {
+  background: var(--surface);
+}
+
+/* Footer */
+.doc-footer {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+  </style>
+</head>
+<body>
+  <div class="doc-wrap">
+    <header class="doc-header">
+      <div class="brand-mark">
+        <div class="brand-dot r"></div>
+        <div class="brand-dot y"></div>
+        <div class="brand-dot b"></div>
+      </div>
+      <h1 class="doc-title">HTML output convention</h1>
+      <span class="doc-subtitle">Tandem · PM Operating Kit</span>
+    </header>
+    <main class="doc-body">
+<h1 id="html-output-convention">HTML output convention</h1>
+<p>The kit renders its human-facing views from the same Markdown that holds the plan. The rule is uniform: a source <code>*.md</code> renders to a sibling <code>*.html</code> of the same basename, the HTML is a generated artefact, and you never hand-edit it. This page documents that convention so the read views stay reproducible.</p>
+<h2 id="the-rule">The rule</h2>
+<ul>
+<li><strong>Source is Markdown.</strong> Each documentation page is a <code>documentation/*.md</code> file. The first</li>
+<p>  <code># </code> heading becomes the page title and the Docs-view tile name.</p>
+<li><strong>Output is a sibling <code>.html</code>.</strong> <code>npm run pm:docs</code> reads every <code>documentation/*.md</code> and</li>
+<p>  writes a self-contained <code>*.html</code> beside it — <code>architecture.md</code> → <code>architecture.html</code>. The   HTML inlines the kit&#39;s brand tokens, so it needs no external CSS.</p>
+<li><strong>Generated, never hand-edited.</strong> The <code>.html</code> is overwritten on every render. Edit the</li>
+<p>  <code>.md</code> and re-run the generator; any manual change to the <code>.html</code> is lost on the next build.</p>
+<li><strong>Idempotent.</strong> Same input produces the same body HTML — the generated-at stamp lives only</li>
+<p>  in an HTML comment, so re-rendering an unchanged page yields an identical styled body.</p>
+</ul>
+<h2 id="where-the-convention-applies">Where the convention applies</h2>
+<p>The same <code>*.md</code> → <code>*.html</code> pattern runs across the kit&#39;s generated surfaces:</p>
+<ul>
+<li><strong>Documentation</strong> — <code>generate-docs.js</code> (<code>npm run pm:docs</code>) renders this <code>documentation/</code></li>
+<p>  folder. <code>buildDocs()</code> in the dashboard generator then lists every <code>documentation/*.html</code>   as a Docs-view tile, so a new page appears simply by adding its <code>.md</code> and re-rendering.</p>
+<li><strong>Dashboard</strong> — <code>generate-dashboard.js</code> (<code>npm run pm:dash</code>) renders the whole board to</li>
+<p>  <code>42-Monitor/DASHBOARD.html</code> from the plan&#39;s Markdown artefacts.</p>
+<li><strong>Release</strong> — the published build ships the rendered <code>*.html</code> pages into the public</li>
+<p>  <code>docs/</code> site, so the same sources serve both the in-repo Command Center and the public docs.</p>
+</ul>
+<h2 id="practical-notes">Practical notes</h2>
+<ul>
+<li>To add a page: create <code>documentation/&lt;name&gt;.md</code>, give it a <code># </code> title and at least a couple</li>
+<p>  of <code>## </code> sections, then run <code>npm run pm:docs</code>.</p>
+<li>To remove a page: delete <strong>both</strong> its <code>.md</code> and its <code>.html</code>, or the stale tile lingers in</li>
+<p>  the Docs view (which lists the rendered <code>.html</code>).</p>
+<li>Do not commit a hand-edited <code>.html</code>: regenerate it instead, so the source and the output</li>
+<p>  never disagree.</p>
+</ul>
+    </main>
+    <footer class="doc-footer">
+      Source: html-output-convention.md
+    </footer>
+  </div>
+</body>
+</html>

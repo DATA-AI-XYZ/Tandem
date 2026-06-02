@@ -112,6 +112,17 @@ skip `manual-review-by-claude` TCs — they have no runnable command). **Fallbac
 has no P0/integration TC, use the project **DoD quality gates** (lint / typecheck / test / build
 from PROJECT-CONTEXT) plus `npm run pm:lint`.
 
+## Step 6b — Generate chat and phase outcomes (via `write-outcomes` skill)
+
+For each **chat** and for each **phase**, dispatch a sub-agent with the `write-outcomes` skill to
+synthesize a **fresh, founder-facing outcome line** — a single plain-text sentence describing *what
+the founder will have* once that chat/phase lands (the new capability, not the implementation).
+**Critical nuance:** The outcome is a **fresh synthesis** of the grouped stories' collective value,
+**NOT** a concatenation or list of individual story outcomes. The sub-agent is handed the grouped
+stories' technical scope and writes one clean line. Capture the returned line verbatim (no
+markdown, no "Outcome:" label, no quotes) and write it into the JSON sidecar's `chats[].outcome`
+and `phases[].outcome` fields, and render it in the markdown report.
+
 ## Step 7 — Order into phases + edges
 
 Group chats into **ordered phases**, **foundation-first** (chats with no cross-chat dependency
@@ -137,10 +148,12 @@ Write **two** artefacts (today's date; on same-day re-run append `-02`, `-03`, �
   "phases": [
     {
       "name": "Foundations",
+      "outcome": "<optional: founder-facing 'what you'll have' once this phase lands>",
       "chats": [
         {
           "id": "CHAT-01",
           "title": "<short title>",
+          "outcome": "<optional: founder-facing 'what you'll have' once this chat lands>",
           "stories": [{ "id": "STORY-NN.M.PP", "status": "ready", "ready": true }],
           "lanes": [{ "type": "serial", "stories": ["STORY-...", "STORY-..."] }],
           "sub_agents": ["react-expert ×2", "javascript-pro"],
@@ -157,12 +170,15 @@ Write **two** artefacts (today's date; on same-day re-run append `-02`, `-03`, �
 }
 ```
 
+**`outcome` (optional, per `phase` and per `chat`)** — a single founder-facing sentence describing *what you'll have* once that phase/chat lands (the capability, not the implementation). Omit it (or use `""`) when there's nothing founder-facing to say; it never affects grouping or the dry-run contract. When present, the dashboard's Implementation Strategy view surfaces it on phase headers and chat cards (FEAT-14.2). This mirrors the optional `outcome:` field on Story/Feature frontmatter (SOP §11; nudged by the non-fatal W1 `pm:lint` warning, ADR-0061).
+
 ### Markdown report
 
 Renders the same data human-readably: a `## Phase N · <name>` heading per phase, then one block
 per chat carrying its id, rolled-up estimate, title, **Stories** (DoR-gap flagged where
 not-`ready`), **Lanes**, **Sub-agents**, a fenced **paste-trigger**, a fenced
-**verify-before-closing** command, and **Depends on / Unlocks**. End with the next-command stub
+**verify-before-closing** command, **Depends on / Unlocks**, and the phase/chat **outcome** line
+(if present, rendered after the phase heading and after the chat title respectively). End with the next-command stub
 `/Tandem:execute-batch <chat-id>`.
 
 ### Empty case (handle gracefully — do NOT error)
@@ -186,6 +202,8 @@ there is nothing to execute — and, if the only stories are `done`, say the epi
 - Reports live in `41-Reports/`.
 
 ## Next command
+
+Next: `/Tandem:execute-batch`
 
 `/Tandem:execute-batch <chat-id>` — pull one proposed chat into a fresh working
 chat. That command owns the status changes; this one does not.
