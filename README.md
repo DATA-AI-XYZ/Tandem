@@ -104,7 +104,7 @@ Skills are model-invoked — Claude auto-loads them when your task matches — b
 
 The headline feature. A single self-contained HTML file, regenerated from your markdown plan, with tabs for the plan tree, the monitor board, the execution strategy, and a glossary. It's built to be glanceable and stays current automatically (the Stop hook regenerates it whenever a PM file changes).
 
-**[▶ Open the live demo](https://data-ai-xyz.github.io/Tandem/)** — rendered from a fabricated sample project ("TaskFlow"), so it's safe to share and explore.
+**[▶ Open the live demo](https://data-ai-xyz.github.io/Tandem/)** — generated from a fabricated sample project (not real data), so it's safe to share and explore.
 
 <!-- Screenshots live under docs/ once generated:
 ![Tandem Command Center — light](docs/screenshot-light.png)
