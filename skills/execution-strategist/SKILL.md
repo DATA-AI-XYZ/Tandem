@@ -112,6 +112,19 @@ skip `manual-review-by-claude` TCs — they have no runnable command). **Fallbac
 has no P0/integration TC, use the project **DoD quality gates** (lint / typecheck / test / build
 from PROJECT-CONTEXT) plus `npm run pm:lint`.
 
+**Exit-code gates only (MANDATORY — BUG-20260608-01).** Every gate in the verify line must rely on
+the command's **exit code**, never on a substring of its output. Emit `npm run pm:lint >/dev/null
+2>&1 && echo OK` (the script exits non-zero on any violation — let that gate). **Never** emit the
+`npm run pm:lint 2>&1 | grep -E "violations" | tail -1` shape: the summary reads `N violation(s)`
+(no bare `violations` substring) and a trailing `| tail` always exits 0, so that pipeline can never
+fail and would green-light a dirty corpus. The same rule applies to any `grep … | tail`/`| head`
+"gate" — a pipe into `tail`/`head` masks the real exit status.
+
+**Never re-emit `npm run pm:mirror`.** The scaffold-parity mirror gate was retired in ADR-0074 (the
+script no longer exists in `package.json`), so a verify line that calls it would now hard-fail on a
+missing script. Do not append `&& npm run pm:mirror` (or `npm run pm:mirror &&`) to any emitted
+`verify` block. Historical sidecars that still carry it are a one-time cleanup, not a live gate.
+
 ## Step 6b — Generate chat and phase outcomes (via `write-outcomes` skill)
 
 For each **chat** and for each **phase**, dispatch a sub-agent with the `write-outcomes` skill to
@@ -122,6 +135,12 @@ the founder will have* once that chat/phase lands (the new capability, not the i
 stories' technical scope and writes one clean line. Capture the returned line verbatim (no
 markdown, no "Outcome:" label, no quotes) and write it into the JSON sidecar's `chats[].outcome`
 and `phases[].outcome` fields, and render it in the markdown report.
+
+**Ordering note (chats vs phases):** chats already exist by Step 2, so chat outcomes can be
+synthesized here. **Phase outcomes are synthesized once Step 7 has grouped chats into phases** — the
+phase set does not exist yet at this step, so run the phase-outcome dispatch after Step 7 (or treat
+this step's phase pass as deferred until the phases are known). Either way a phase outcome is a
+fresh synthesis of its constituent chats' collective value, not a concatenation of their lines.
 
 ## Step 7 — Order into phases + edges
 

@@ -56,7 +56,7 @@ For each item, mark PASS / FAIL with evidence.
    **AI-code-review artefact (when the review runs — SOP §7.1):**
    1. Copy `_00-Project-Management/91-Templates/AI-CODE-REVIEW.template.html` to `_00-Project-Management/41-Reports/AI-CODE-REVIEW-<story-id>-<YYYY-MM-DD>.html` (today's date).
    2. Interpolate the real unified diff into the diff slot (`data-slot="diff"`) and one `<article class="anno-card severity-<level>">` per finding into the annotation slot (`data-slot="annotations"`). Each annotation carries `data-severity` (`blocker` / `critical` / `warning` / `nit`), `data-file`, `data-line`, `data-category` (security / correctness / perf / style / dead-code), plus reasoning and a suggested fix. Render reasoning/fix as text only — never `innerHTML` (XSS-safe).
-   3. Write the artefact's repo-relative path into the story's `ai_review_artefact:` frontmatter, and set `ai_review: completed-YYYY-MM-DD`.
+   3. Write the artefact's repo-relative path into the story's `ai_review_artefact:` frontmatter, and set `ai_review: completed-YYYY-MM-DD` (today's date). **Set this token MECHANICALLY — never copy the review's verdict word.** The `ai_review:` field is a lifecycle marker, not a verdict: it is ALWAYS one of `completed-<today>` / `skipped-trivial` / `n-a`, regardless of whether the review's outcome was "APPROVE", "LGTM", "REJECT", or anything else. Copying a verdict word (e.g. `ai_review: approve`) is the exact defect BUG-20260608-01 recorded; validator **R14** now rejects any non-terminal `ai_review` on a `done` story, so a verdict word there will fail `pm:lint`.
    4. **Blocker gate (hard rule, SOP §7.1):** count the `data-severity="blocker"` annotations. **If blocker count > 0, this DoD item FAILs** — do NOT flip `status: done`. Report the blockers, fix them, re-review, and regenerate the artefact until the blocker count is zero. critical / warning / nit findings do not block the flip but must be triaged.
    5. For a **skipped** review (`skipped-trivial` / `n-a`), do NOT produce an artefact and leave `ai_review_artefact:` empty — validator R15b exempts those. Don't emit an empty placeholder artefact.
 7. [ ] All ADRs created during execution are present in `40-Decisions/` and linked from the story's `decisions:` array.
@@ -105,6 +105,20 @@ For each item, mark PASS / FAIL with evidence.
 - Tech debt captured: <list of BACKLOG entries>
 - Uncommitted work: report the `git status --porcelain` line count; if > 0, note plainly that `done` means finished-and-verified-on-disk, NOT committed, and ask "commit now?". Do NOT auto-commit — commit only on explicit user request. (Stops `done` stories silently piling up uncommitted across back-to-back sessions.)
 - Next Ready story to pull: <suggestion>
+
+## Reset conversation Mode if this was the last story in the phase
+
+After the story is `done` and MONITOR is updated, check whether any other story in the
+SAME phase/feature set is still `in-progress`, `in-review`, or `ready`:
+
+- **If none remain** (this was the last open story in the phase) → reset the mode:
+  `node _00-Project-Management/93-Scripts/mode.js set neutral --by auto-neutral --session <session_id>`
+  Announce it: *"Last story in the phase closed — Tandem mode reset to Neutral."*
+- **If others remain** → leave the mode unchanged. Do NOT reset on every story close.
+
+Use the same status scan you already perform for the phase; reuse `npm run pm:monitor`
+output or the live frontmatter you just read. Never reset silently. Use the session ID
+from the session context as `<session_id>`.
 
 ## Next command
 

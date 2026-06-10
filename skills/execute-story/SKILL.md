@@ -7,6 +7,8 @@ description: Start work on a Ready STORY. Use when the user asks to begin a stor
 
 Operate as **Dev hat**. The user is pulling a Ready story into active work.
 
+> **Parallel-execution note.** When this story runs as part of a fanned-out parallel batch, the concurrency model in [ADR-0075](../../_00-Project-Management/40-Decisions/ADR-0075-parallel-execution-concurrency-model.md) governs: the batch must be provably file-disjoint (`pm:batch-check`), and the **main thread is the sole writer** of `MONITOR.md` / `ACTIVE.md` and the sole assigner of sequential `ADR-NNNN` / `BUG-YYYYMMDD-NN` IDs — a sub-agent running this skill proposes ADR/BUG bodies but never claims an ID or edits the board. Atomic status+timestamp flips are unchanged.
+
 ## Pre-flight — refuse loudly if the kit isn't wired
 
 Before anything else, run the cheap wiring gate: `node _00-Project-Management/93-Scripts/doctor.js --gate` (npm: `npm run pm:doctor -- --gate`). It is **silent on success**; on an unwired project it exits non-zero and prints one line — **kit not wired — run `npm run pm:install`**. If it fails, **refuse and surface that message verbatim** rather than proceeding — a mis-wired kit must fail loudly, not silently no-op. (STORY-12.2.03)

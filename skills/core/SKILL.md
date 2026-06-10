@@ -106,6 +106,10 @@ State which hat at session start: **Founder · PM · Dev · QA**. Don't mix hats
 | Dev | Code, tests, story status Ready → Active → Review |
 | QA | Testplan execution, bug raising, DoD sign-off |
 
+### Conversation Mode (the moat) — enforces the hats across chats
+
+A project-global **Mode** (`plan · dev · dual · neutral`) groups and enforces the hats across separate chats. It persists in `.tandem-mode.json` (repo root, git-ignored) and is injected each message by the `UserPromptSubmit` hook for **joined** chats. Plan groups Founder/PM/QA-planning; Dev groups Dev/QA-execution. On an out-of-mode request, **nudge** (switch / go Dual / one-off) — never hard-block. Set it with `/mode <plan|dev|dual|neutral>`; it auto-resets to Neutral on `close-out-story` (last story in phase) and `close-phase`. Full rules: the **`mode`** skill.
+
 ### MONITOR + dashboard
 
 When a story flips to `done`, update `42-Monitor/MONITOR.md` in the same edit (tick the bar, update shipped count, prepend revision-history one-liner). The dash hook (`Stop` event) regenerates `DASHBOARD.html` at session end — you don't need to run `npm run pm:dash` manually if the plugin is active.

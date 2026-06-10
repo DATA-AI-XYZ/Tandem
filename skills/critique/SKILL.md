@@ -53,6 +53,7 @@ Run every check for the detected type. For each check: mark **PASS**, **WARN**, 
 2. **In/out-scope clarity** — does the Epic define what is explicitly in scope and what is out of scope? Ambiguous scope leads to scope creep. Check that both sides are stated.
 3. **Measurable success criteria** — does the Epic carry measurable success criteria (metrics, KPIs, or exit conditions), not just narrative intent? Vague "improve the experience" statements fail this check.
 4. **4-week split check** — is the Epic sized to be completed within roughly four weeks of team effort? Larger Epics must be split. If the Epic bundles more than one coherent strategic theme, flag it as an oversized Epic and propose a split.
+5. **Premise ↔ reality reconciliation** — if the Epic makes a status claim about, or proposes to retire/archive/delete/supersede, a named other artefact, resolve those ids and compare actual `status:` to the claim. A mismatch (or unresolvable id) is a **major** finding (see the Story-check definition for the tell + fixture). Advisory only.
 
 ---
 
@@ -61,6 +62,7 @@ Run every check for the detected type. For each check: mark **PASS**, **WARN**, 
 1. **Goal / user value clarity** — does the Feature have a well-stated goal and articulate the user value it delivers? "User value" must be explicit: who benefits, how, and why it matters.
 2. **AC testability** — are Acceptance Criteria written as machine-verifiable conditions? Subjective ACs ("feels fast", "looks good") fail this check. Each AC must be independently testable.
 3. **Dependency realism** — are dependencies on other Features, services, or external systems listed? For each listed dependency: is it done or scheduled? Floating "depends on TBD" is a FAIL.
+4. **Premise ↔ reality reconciliation** — if the Feature makes a status claim about, or proposes to retire/archive/delete/supersede, a named other artefact, resolve those ids and compare actual `status:` to the claim. A mismatch (or unresolvable id) is a **major** finding (see the Story-check definition for the tell + fixture). Advisory only.
 
 ---
 
@@ -72,6 +74,7 @@ Run every check for the detected type. For each check: mark **PASS**, **WARN**, 
 4. **≤5 ACs** — Story ACs must number five or fewer (≤5 ACs). More than five ACs suggests the Story is too broad and should be split.
 5. **Paired-testplan AC↔TC coverage** — if a paired Testplan exists, verify that every AC maps to at least one TC (AC↔TC coverage). If coverage is incomplete, list the uncovered ACs. If no Testplan exists yet and the Story is not in `not-started`, flag the absence.
 6. **`type_of_work` set** — the `type_of_work:` frontmatter field must be set to a concrete discipline (`frontend`, `backend`, `infra`, `data`, `docs`). A missing or placeholder value is a FAIL.
+7. **Premise ↔ reality reconciliation** — when the Story names other artefact ids (`STORY-`/`FEAT-`/`EPIC-`/`ADR-`/`BACKLOG-`) **and** makes a status claim about them (*"X is never-started / superseded / done / obsolete"*) **or** proposes to **retire / archive / delete / supersede / mutate** them, resolve those ids and compare their **actual `status:`** to the claim. A mismatch (or an unresolvable id) is a **major** finding — the premise is empirically false. Advisory only: critique never rewrites; the blocking enforcement lives in `refine-backlog`'s DoR gate. _Fixture: STORY-15.1.02 claimed "STORY-04.6.01–05 are never-started/superseded" and proposed `archived`, but all five are `done` — this check flags that as a major._
 
 ---
 

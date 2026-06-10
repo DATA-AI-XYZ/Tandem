@@ -28,15 +28,25 @@ Per SOP §6, a story is `ready` only when **all** of the following are true. The
 - [ ] **Estimate set** (XS / S / M / L). `XL` means split before promoting.
 - [ ] **`type_of_work` set to a concrete discipline** (`frontend` / `backend` / `infra` / `data` / `docs`) — not the template placeholder. A missing or placeholder value is a DoR gap (it fuels `execution-strategist` sub-agent assignment; see SOP §11.3 / FEAT-03.1).
 - [ ] **Risks section non-empty.** "None — reviewed YYYY-MM-DD" counts; blank does not.
+- [ ] **Premise verified.** Any claim the item makes about **another artefact's state** (status / existence / supersession), or any intent to **retire / archive / delete / supersede / mutate** a named `STORY-`/`FEAT-`/`EPIC-`/`ADR-`/`BACKLOG-` artefact, has been **checked against that artefact's current frontmatter**. A claim that contradicts reality — or names an artefact that can't be resolved — is a DoR gap.
 
 ## DoR enforcement contract (MANDATORY)
 
 This skill **never silently promotes**. The contract:
 
 1. Walk the DoR checklist verbatim — every item gets PASS / FAIL with a one-line reason.
-2. If **all** items pass → before flipping `status: not-started` → `ready`, perform a fill-if-missing check: if the story's `outcome:` frontmatter is empty or absent, dispatch a sub-agent with the `write-outcomes` skill to auto-generate exactly one plain-text line, then write that line into `outcome:` (fill-if-missing only — never overwrite an existing outcome). Then flip the story (or BACKLOG entry, after conversion) `status: not-started` → `ready`. Atomic edit. Do **not** set `started_at` (that happens at `in-progress`, not `ready`). Show the user the result table.
+2. If **all** items pass → before flipping `status: not-started` → `ready`, perform a fill-if-missing check: if the story's `outcome:` frontmatter is empty or absent, dispatch a sub-agent with the `write-outcomes` skill — handing it the story's **title + acceptance criteria + technical notes** (the same dispatch input the other four FEAT-14.3 producers pass, per ADR-0059) — to auto-generate exactly one plain-text line, then write that line into `outcome:` (fill-if-missing only — never overwrite an existing outcome). Then flip the story (or BACKLOG entry, after conversion) `status: not-started` → `ready`. Atomic edit. Do **not** set `started_at` (that happens at `in-progress`, not `ready`). Show the user the result table.
 3. If **any** item fails → **stop**. Do **not** flip status. Show the gap list and the smallest fix for each. Ask the user before patching — the skill never auto-completes the missing pieces (e.g. don't invent ACs, don't fabricate TCs, don't guess at risks).
 4. **Sunset check** — per SOP §15, if a story has been `not-started` > 90 days, propose `wontfix` or `archived` instead of refinement. Stale items rot; the kit prefers honest sunsetting over false hope.
+
+### Premise resolution (the "Premise verified" DoR item)
+
+A story can be perfectly well-*formed* and still be *wrong*, because the other DoR items only check structure — never whether the item's stated premise is **true**. To walk the **Premise verified** item:
+
+1. Scan the item's body/ACs for the tell — a phrase shape that makes a **state claim about a named other artefact** or proposes to **mutate** one: *"X is never-started / not-started / superseded / done / blocked / obsolete / duplicate"* or *"retire / archive / delete / supersede / close X"*, where **X is a `STORY-`/`FEAT-`/`EPIC-`/`ADR-`/`BACKLOG-` id**. (Only ids named **with a status claim or mutation intent** — a bare reference in prose does not trip the gate.)
+2. **Resolve each named id** and read its current `status:` (and existence). If the artefact can't be found, or its real status contradicts the claim → **DoR FAILS**: do not promote; name the specific mismatch (claimed-vs-actual) and stop, consistent with the "never silently promote" rule above.
+
+**Worked example (the regression fixture this guards) — STORY-15.1.02:** it asserted "STORY-04.6.01–05 are five never-started, superseded stories" and proposed to flip them to `archived` — but all five are genuinely `status: done`. Executing it would have silently corrupted the board (done-count 154→149) while **every structural gate stayed green** (`archived` + `completed_at` is enum-legal; R21 doesn't fire on terminal status). The premise check resolves `STORY-04.6.01…05`, sees `done`, and fails the gate before promotion — catching systematically what was previously caught only by luck (execution happening to inspect the targets first).
 
 The gap-list path is the skill's load-bearing differentiator vs the plain paste-prompt. Silent or partial promotion would corrupt the kit's "Ready means Ready" invariant — every downstream skill (`execute-story` especially) relies on it.
 

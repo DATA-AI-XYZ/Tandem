@@ -336,8 +336,8 @@ body {
 <p>  folder. <code>buildDocs()</code> in the dashboard generator then lists every <code>documentation/*.html</code>   as a Docs-view tile, so a new page appears simply by adding its <code>.md</code> and re-rendering.</p>
 <li><strong>Dashboard</strong> — <code>generate-dashboard.js</code> (<code>npm run pm:dash</code>) renders the whole board to</li>
 <p>  <code>42-Monitor/DASHBOARD.html</code> from the plan&#39;s Markdown artefacts.</p>
-<li><strong>Release</strong> — the published build ships the rendered <code>*.html</code> pages into the public</li>
-<p>  <code>docs/</code> site, so the same sources serve both the in-repo Command Center and the public docs.</p>
+<li><strong>Public docs site</strong> — <code>npm run build:tandem</code> ships the rendered <code>documentation/*.html</code> into</li>
+<p>  the public <code>docs/</code> site (GitHub Pages root) alongside the dashboard at <code>docs/index.html</code>   (<code>release-tandem.js</code>, STORY-04.6.05), so the same <code>.md</code> sources serve both the in-repo Command   Center and the public docs.</p>
 </ul>
 <h2 id="practical-notes">Practical notes</h2>
 <ul>

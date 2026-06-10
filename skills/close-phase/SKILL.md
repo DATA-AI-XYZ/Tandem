@@ -113,8 +113,37 @@ phase report is a generated execution artefact alongside `EXECUTION-STRATEGY-*`)
 ## Step 6 — Integration: merge the phase to `main` (gated)
 
 The integration step runs after the wrap-up — the retro, follow-up capture, and board update
-(Steps 3–5) all happen first; only then does the phase merge to `main`. Before anything reaches
-`main`, a hard **merge gate** must pass — **all four** items:
+(Steps 3–5) all happen first; only then does the phase merge to `main`.
+
+### Step 6a — Already-merged detection (retro-only path)
+
+**Before** evaluating the merge gate, detect whether the phase branch has **already been merged**
+to `main` — the real order of events sometimes runs ahead of the board (this kit hit exactly this:
+a phase branch was fast-forwarded into `main` in git while the board still said "merge pending").
+Probe **true ancestry**, not a clean working tree:
+
+```bash
+git merge-base --is-ancestor phase/<phase-id> main && echo "ALREADY-MERGED" || echo "NOT-MERGED"
+```
+
+- **Already-merged** (`git merge-base --is-ancestor phase/<phase-id> main` exits **0** — the phase
+  branch tip is reachable from `main`): route to the **retro-only path**. Steps 2–5 (done-gate,
+  retrospective, follow-up capture, board + MONITOR + dashboard) **still run in full**; only the
+  merge itself (Step 6 gate + Step 7 mechanism) is **skipped and marked already-integrated** in the
+  phase report and the MONITOR revision-history line (e.g. "merge: already-integrated — phase branch
+  is an ancestor of `main`"). Nothing is force-merged or re-merged; the retro + board update are the
+  whole job.
+- **Not-merged** (`--is-ancestor` exits **non-zero**): the **normal path** — fall through to the
+  merge gate (below) and Step 7.
+
+**Gate on true ancestry, never on a clean tree.** `--is-ancestor` is true only when the phase
+branch tip is *fully* reachable from `main`; a **partially-merged** branch (some commits in `main`,
+tip not yet) returns non-zero and therefore takes the normal merge path — a partial merge must
+**not** be mistaken for a complete one. A clean working tree alone says nothing about whether the
+phase was integrated, so it is **not** the signal used here.
+
+On the **not-merged** (normal) path, before anything reaches `main`, a hard **merge gate** must
+pass — **all four** items:
 
 - **All phase stories `done`** — re-confirm the Step-2 gate still holds for every story in the phase.
 - **`npm run pm:lint` green** — the PM artefacts validate.
@@ -141,6 +170,27 @@ In both cases the skill **surfaces the PR / merge command or link** rather than 
 copy-pasteable command or link; don't hard-call a host API. The PR-vs-gated-direct default and the
 gate composition are recorded in an ADR (`40-Decisions/`) so the integration path is settled once.
 
+### Step 7a — Log the approval (`10-Inbox/APPROVALS.md`)
+
+A merge to `main` is a **manual, gated approval** — when the operator **confirms** it (the gated
+direct merge, or merging the surfaced PR), **append a one-line approval entry** to
+`10-Inbox/APPROVALS.md` so the sign-off survives beyond the chat transcript (audit + handover).
+The same applies on the **already-integrated** retro-only path (Step 6a): record that the close was
+confirmed even though no fresh merge ran. Append (newest at the bottom):
+
+```
+- <ISO 8601 timestamp> — <what was approved> — by: <who> — gated: <artefact / command>
+```
+
+e.g. `- 2026-06-06T15:55:00+01:00 — merge phase/p1-outcome-contract to main — by: operator — gated: close-phase Step 7 (gated direct merge)`.
+
+- Use the **system clock** for the timestamp (ISO 8601 with offset), not the chat-stated date.
+- It's a **one-line append**, not a ceremony. `10-Inbox/` is not a linted artefact folder, so the
+  entry must keep the file valid plain markdown.
+- If `10-Inbox/APPROVALS.md` does **not exist** yet, **create it** (header + the convention
+  documented at the top of that file) and append the first entry. See the file for the full
+  convention.
+
 ## Non-negotiable rules (from CLAUDE.md)
 
 - Operates as **PM hat**; the phase-level analogue of `close-out-story`.
@@ -157,3 +207,12 @@ gate composition are recorded in an ADR (`40-Decisions/`) so the integration pat
 - Retro written (+ path); follow-ups captured (BACKLOG + ADR list); board updated (MONITOR + dashboard).
 - Merge gate: PASS / blocked (+ the failing item); mechanism: PR link or gated direct merge.
 - Next step: the surfaced PR / merge command, or the gate gap to fix.
+
+## Reset conversation Mode to Neutral
+
+A closed phase means the active frame's work is done. Always reset:
+
+`node _00-Project-Management/93-Scripts/mode.js set neutral --by auto-neutral --session <session_id>`
+
+Announce it: *"Phase closed — Tandem mode reset to Neutral."* This is also how `dual`
+returns to Neutral. Use the session ID from the session context.

@@ -328,7 +328,7 @@ body {
 <li>Trimming or deferring high-tax artefacts you rarely use buys back working space.</li>
 </ul>
 <h2 id="reading-the-token-cost-view">Reading the token-cost view</h2>
-<p>FEAT-11.3 surfaces the context tax directly in the AI catalogue (the Command Center&#39;s toolkit view in <a href="../_00-Project-Management/42-Monitor/DASHBOARD.html">the dashboard</a>). The token-cost view counts the tax <strong>per scope</strong>:</p>
+<p>FEAT-11.3 surfaces the context tax directly in the AI catalogue (the Command Center&#39;s toolkit view in <a href="../_00-Project-Management/42-Monitor/DASHBOARD.html">the dashboard</a> — local in-repo only). The token-cost view counts the tax <strong>per scope</strong>:</p>
 <ul>
 <li><strong>Command / skill</strong> — the tokens of the skill body (its <code>SKILL.md</code>) plus any references it</li>
 <p>  always loads.</p>
@@ -346,7 +346,7 @@ body {
 <li><strong>Sort and filter by cost</strong> — sort the catalogue ascending/descending by context-load</li>
 <p>  cost, and filter to a minimum cost, to find the heaviest artefacts fast.</p>
 </ul>
-<p>Read the number as *context weight*, not price. For the precise counting method behind the figure, see FEAT-11.3&#39;s decision record; this page defines what the number <strong>means</strong> and how to use the view to keep your context economics healthy.</p>
+<p>Read the number as *context weight*, not price. For the precise counting method behind the figure, see the <code>tokenCost()</code> helper in <code>generate-dashboard.js</code> (STORY-11.3.01); this page defines what the number <strong>means</strong> and how to use the view to keep your context economics healthy.</p>
     </main>
     <footer class="doc-footer">
       Source: context-economics.md

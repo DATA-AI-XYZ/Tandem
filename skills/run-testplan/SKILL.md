@@ -43,6 +43,7 @@ Use `Read` / `Glob` to detect existence rather than assuming; treat missing file
    - Execute the `Command:` exactly as written. **No improvisation.** No "I'll try a slightly different command."
      - **Runtime-on-PATH exception:** if a command fails only because its runtime isn't on the shell PATH (`exit 127` / "command not found" for `node`/`npm`/etc.), that's an environment gap, not a bad command — resolve it per `PROJECT-CONTEXT.md` "Known stack gotchas" (put the runtime on PATH or invoke its absolute binary), then re-run the **same** command verbatim. Resolving the runtime ≠ rewriting the `Command:`.
    - Compare actual output to `Expected:`.
+     - **Confound caution (dashboard TCs):** if a TC asserts via a bare `grep <substring> DASHBOARD.html` (no `window.__DATA`/element qualifier), treat a PASS/FAIL with suspicion — the generator embeds every artefact body into `window.__DATA`, so the substring may match indexed *prose*, not the rendered feature (precedents: BUG-20260606-02, TESTPLAN-15.2.02/04). Still run the `Command:` verbatim, but if the result looks confounded, file a BUG against the testplan (not the product) and flag the TC for re-authoring to a payload-/element-scoped assertion (see `split-into-stories` testplan-authoring rule).
    - Update the TC's `Result:` line:
      - `PASS — YYYY-MM-DD` on success.
      - `FAIL — see BUG-YYYYMMDD-NN` on failure (link the bug you file).

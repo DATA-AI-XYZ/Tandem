@@ -8,3 +8,6 @@ node_modules/
 dist/
 # Generated demo dashboard rendered from the fixture during the build
 demo-fixture/_00-Project-Management/42-Monitor/DASHBOARD.html
+
+# Tandem conversation-mode state — machine/session-local (joined session IDs)
+.tandem-mode.json

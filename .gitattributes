@@ -2,4 +2,3 @@
 # any non-git-for-Windows `sh`/dash. Pin the shipped pre-commit hooks to LF so a
 # Windows clone with core.autocrlf=true can't rewrite them. (STORY-01.5.03 review.)
 _00-Project-Management/93-Scripts/hooks/pre-commit text eol=lf
-scaffold/_00-Project-Management/93-Scripts/hooks/pre-commit text eol=lf

@@ -76,6 +76,19 @@ Suggested next step: <one specific action>
 - Status enum — never invent values when summarising.
 - Do not regenerate the dashboard at session start (that's the Stop hook's job).
 
+## Join this chat to the conversation Mode
+
+This chat opts in to the project's global Mode as part of session start:
+
+1. Get the current state and join:
+   `node _00-Project-Management/93-Scripts/mode.js join --session <session_id>`
+   `node _00-Project-Management/93-Scripts/mode.js get --json`
+2. Lead the session announcement with the active mode, e.g.
+   *"Tandem mode: **DEV** (set by you, 2026-06-03). I'll nudge on planning requests."*
+   If mode is `neutral`, say so and note the user can set one with `/mode <plan|dev|dual|neutral>`.
+
+Use the session ID from the session context as `<session_id>`.
+
 ## End-of-session-start
 
 Always end with a single concrete suggested next action — not a menu. The user can override; the default should be obvious.
