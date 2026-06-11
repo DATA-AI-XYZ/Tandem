@@ -317,8 +317,8 @@ body {
     </header>
     <main class="doc-body">
 <h1 id="features">Features</h1>
-<p>This page describes what Tandem can do, grouped by capability. Each capability is delivered by one or more <strong>skills</strong> (slash commands Claude loads on demand) and/or <strong>scripts</strong> (<code>npm run pm:*</code>). Everything below is <strong>shipped</strong> — the kit is at v2.4.0 with all planned epics complete. For the exact order you run the lifecycle skills in, see the <a href="#">Command lifecycle</a>; for the underlying model, see <a href="#">Architecture</a>.</p>
-<p>The full feature tree lives under <code>_00-Project-Management/31-Features/</code> (50 feature files across 14 epics). The sections here summarise the major groups rather than listing every file.</p>
+<p>This page describes what Tandem can do, grouped by capability. Each capability is delivered by one or more <strong>skills</strong> (slash commands Claude loads on demand) and/or <strong>scripts</strong> (<code>npm run pm:*</code>). Everything below is <strong>shipped</strong> — the kit is at v2.6.0 with all planned epics complete (~28 skills). For the exact order you run the lifecycle skills in, see the <a href="#">Command lifecycle</a>; for the underlying model, see <a href="#">Architecture</a>.</p>
+<p>The full feature tree lives under <code>_00-Project-Management/31-Features/</code> (63 feature files across 19 epics). The sections here summarise the major groups rather than listing every file.</p>
 <h2 id="strategy-planning">Strategy &amp; planning</h2>
 <p>Anchor work to a business outcome before any code is written.</p>
 <ul>
@@ -352,6 +352,8 @@ body {
 <p>  auto-file a BUG for any failure before reporting.</p>
 <li><strong><code>execute-batch</code></strong> (Dev/QA hat) — execute one &quot;chat&quot; from an Implementation Strategy: run</li>
 <p>  its stories sequentially (execute → test → close) with atomic per-story finalisation and a   context-budget guard.</p>
+<li><strong><code>execute-batch-parallel</code></strong> (Dev/QA hat) — run a batch of <strong>file-disjoint</strong> stories</li>
+<p>  concurrently: fan out one tightly-scoped sub-agent per story, then fold the results back   through a single-writer, serialised reconciliation that flips status, assigns ADR/BUG IDs, and   writes the board once for the whole batch. A static <code>pm:batch-check</code> proves the stories&#39;   <code>files_touched</code> are disjoint before any dispatch; a <code>CONFLICT</code>/<code>UNKNOWN</code> result falls back to   serial. The §5 WIP cap is preserved, not raised (ADR-0075 / ADR-0077).</p>
 </ul>
 <h2 id="intelligent-execution-strategy">Intelligent execution strategy</h2>
 <p>Plan *how* to execute a backlog, not just what.</p>
@@ -377,6 +379,18 @@ body {
 <li><strong><code>close-phase</code></strong> (PM hat) — gate on every phase story being <code>done</code>, compile a phase</li>
 <p>  retrospective, capture follow-ups, update the board, and run a gated merge to <code>main</code>.</p>
 </ul>
+<h2 id="conversation-mode">Conversation Mode</h2>
+<p>Tandem runs as a normal Claude Code session by default, but a <strong>Mode</strong> can be switched on to change how Claude converses through the lifecycle.</p>
+<ul>
+<li><strong><code>mode</code></strong> — set or clear a conversation Mode held in a small global state file and applied</li>
+<p>  through a prompt-level hook, so the chosen interaction style persists across turns without   re-stating it each message (ADR-0066).</p>
+</ul>
+<h2 id="path-scoped-skills">Path-scoped skills</h2>
+<p>Skills normally activate by description match anywhere in a project. A skill can instead be <strong>scoped to a path</strong> so it only activates when work touches matching files.</p>
+<ul>
+<li><strong><code>path-scope-example</code></strong> — a minimal reference-candidate skill scoped to</li>
+<p>  <code>40-Decisions/**</code> (an ADR-authoring reminder) that demonstrates the <code>paths:</code> activation rule.   It ships as a copy-me template; no existing lifecycle skill genuinely needed scoping, so the   kit proves the mechanism with this candidate rather than retrofitting one (ADR-0076).</p>
+</ul>
 <h2 id="the-command-center">The Command Center</h2>
 <p><code>npm run pm:dash</code> renders the whole board to an interactive <code>42-Monitor/DASHBOARD.html</code>: status pills, progress bars, and a workflow-aligned, grouped information architecture built on a shared tile-grid + drawer component model (ADR-0032/0033/0048). It includes an <strong>Implementation Strategy</strong> view (each epic&#39;s strategy selected by story coverage, ADR-0049), an <strong>AI catalogue</strong> that describes the installed skills/agents for humans, a <strong>Docs view</strong> that serves these pages, and a <strong>context-cost</strong> view that surfaces the token &quot;tax&quot; of what each session loads. A zero-dependency headless smoke (<code>pm:smoke</code>, ADR-0038) drives system Chrome over the DevTools Protocol to verify the render with no Puppeteer/Playwright.</p>
 <h2 id="founder-facing-outcomes">Founder-facing outcomes</h2>
@@ -392,13 +406,16 @@ body {
 <ul>
 <li><strong>Configurable folder layout</strong> — PM sub-folders resolve through a logical→physical path map</li>
 <p>  (<code>90-Standards/pm-paths.json</code>, ADR-0052) with <code>full</code> and <code>flattened</code> presets plus per-key   overrides, so the generators and validator work even when a project does not use the   canonical numbering.</p>
-<li><strong><code>pm:install</code> / <code>pm:doctor</code></strong> — one idempotent command to wire every <code>pm:*</code> script and pin</li>
-<p>  the layout; a health check to verify it (ADR-0054). The installer registers the hooks into   the target only when none exist (a guarded write, ADR-0055).</p>
+<li><strong><code>pm:install</code> / <code>pm:doctor</code></strong> — one idempotent command to materialize the PM tree, wire</li>
+<p>  every <code>pm:*</code> script, and pin the layout; a health check to verify it (ADR-0054). Install is   <strong>manifest-driven</strong>: <code>93-Scripts/lib/pm-manifest.json</code> lists the work-folders and seed files   with a per-file kit/user <strong>ownership</strong> rule (kit-owned files are overwritten, user files are   written only when absent) (ADR-0072). The installer registers the hooks into the target only   when none exist (a guarded write, ADR-0055), then generates the dashboard so a fresh install   opens a working Command Center. The <code>/Tandem:install</code> skill is the conversational wrapper.</p>
+<li><strong><code>pm:update</code></strong> — a non-destructive kit refresh that rewrites <strong>only</strong> kit-owned content</li>
+<p>  (manifest seeds + the <code>93-Scripts/</code> tooling) into existing folders, never touching your files   or the folder set, and records the installed <code>kitVersion</code>. It is manually triggered;   <code>pm:doctor</code> only *reports* that an update is available (ADR-0073). The <code>/Tandem:update</code> skill   wraps it with a dry-run diff and confirmation.</p>
 <li><strong>Cross-platform hooks</strong> — a single canonical Node entrypoint runs the hooks identically on</li>
-<p>  Windows, macOS, and Linux (ADR-0053), with no <code>bash</code>/<code>jq</code> dependency.</p>
+<p>  Windows, macOS, and Linux (ADR-0053), with no <code>bash</code>/<code>jq</code> dependency, and a short-lived TTL   sentinel guards against a double-firing Stop hook (ADR-0069).</p>
 <li><strong>Tiered CLAUDE.md model</strong> — <code>fill-claude-md</code> and <code>claude-audit</code> enforce a lean,</li>
 <p>  reference-don&#39;t-duplicate CLAUDE.md layout with advisory line budgets.</p>
 </ul>
+<p>The kit no longer carries a separate <code>scaffold/</code> template: the release build ships the <strong>canonical</strong> PM assets directly and <code>install.js</code> materializes the tree in the target, so there is one source of truth instead of a live-vs-template pair to keep in sync (ADR-0074).</p>
 <h2 id="stack-aware-tooling">Stack-aware tooling</h2>
 <p>The kit is stack-agnostic — it ships per-type guidance for web-app, mobile, CLI, library, backend-service, data-pipeline, Power Platform, and automation projects. <strong><code>curate-toolkit</code></strong> (PM hat) ranks the installed AI tools (skills, agents, commands, plugins) HIGH / MED / LOW by fit for the project type and writes relevance overlays, so the AI catalogue reflects what is actually useful for *this* project.</p>
 <h2 id="documentation-generation">Documentation generation</h2>
@@ -408,7 +425,7 @@ body {
 <li><strong><code>pm:lint</code></strong> — validate the frontmatter contract across every artefact, with a non-fatal</li>
 <p>  warning tier separate from hard violations (ADR-0061).</p>
 <li><strong><code>pm:monitor</code></strong> — recompute the board counts and rollups from real story statuses</li>
-<p>  (ADR-0024); <strong><code>pm:mirror</code></strong> guards the live-vs-scaffold split against drift.</p>
+<p>  (ADR-0024). A shared frontmatter-parser module backs the validator and the generators so they   read the contract identically (ADR-0067).</p>
 <li><strong><code>build:tandem</code></strong> — produce the sanitized public release behind a scrub gate that fails on</li>
 <p>  any internal-provenance token (ADR-0028/0040).</p>
 </ul>

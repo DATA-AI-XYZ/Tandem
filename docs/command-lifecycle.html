@@ -331,10 +331,12 @@ body {
 <li><strong>refine-backlog</strong> — run the Definition-of-Ready checklist and flip a story to <code>ready</code>.</li>
 <li><strong>execution-strategist</strong> — group ready stories into batched &quot;chats&quot; with serial/parallel</li>
 <p>   lanes (a dry-run plan; it changes no statuses).</p>
+<li><strong>start-phase</strong> — gate the entry state (clean tree, on <code>main</code>, every phase story</li>
+<p>   DoR-<code>ready</code>) and cut a <code>phase/&lt;phase-id&gt;</code> branch off <code>main</code> to run the batch on (ADR-0045).</p>
 <li><strong>execute-batch</strong> — run a chat&#39;s stories in order (or <strong>execute-story</strong> for a single</li>
-<p>   story), flipping <code>ready → in-progress</code> and implementing the acceptance criteria.</p>
+<p>   story), flipping <code>ready → in-progress</code> and implementing the acceptance criteria. A    file-disjoint batch can instead run through <strong>execute-batch-parallel</strong>, which fans out one    sub-agent per story and reconciles the results through a single writer.</p>
 <li><strong>run-testplan</strong> — run every test case&#39;s command verbatim, marking PASS/FAIL and</li>
-<p>   auto-raising a BUG on any failure.</p>
+<p>    auto-raising a BUG on any failure.</p>
 <li><strong>close-out-story</strong> — run the Definition-of-Done gate and flip the story to <code>done</code>.</li>
 <li><strong>close-phase</strong> — gate the whole phase, compile the retro, and merge the phase branch</li>
 <p>    back to <code>main</code>. This step is terminal.</p>
@@ -349,7 +351,7 @@ body {
 <li><strong>Phase gates</strong> guard the merge: every story in the phase must be <code>done</code>, the board clean,</li>
 <p>  and the lint and smoke checks green before <code>close-phase</code> surfaces a merge command.</p>
 </ul>
-<p>Cadence and utility commands — <code>weekly-monitor</code>, <code>monthly-retro</code>, <code>reflect</code>, <code>session-start</code>, <code>critique</code>, <code>peer-review</code> — sit outside the chain; they observe and maintain the board rather than advance a single story along it.</p>
+<p>Cadence and utility commands — <code>weekly-monitor</code>, <code>monthly-retro</code>, <code>reflect</code>, <code>session-start</code>, <code>critique</code>, <code>peer-review</code>, <code>document</code>, <code>curate-toolkit</code>, and <code>mode</code> — sit outside the chain; they observe and maintain the board (or set how Claude converses) rather than advance a single story along it. Setup commands — <code>install</code>, <code>update</code>, <code>fill-claude-md</code> — wire the kit into a project and keep it current. See <a href="#">Features</a> for what each does.</p>
     </main>
     <footer class="doc-footer">
       Source: command-lifecycle.md

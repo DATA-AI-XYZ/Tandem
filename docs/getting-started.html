@@ -317,7 +317,7 @@ body {
     </header>
     <main class="doc-body">
 <h1 id="getting-started">Getting started</h1>
-<p>Tandem is a Claude Code plugin plus a <code>_00-Project-Management/</code> scaffold. Getting started means installing the plugin, dropping the scaffold into your project, wiring the <code>pm:*</code> scripts, and confirming the layout — after which the lifecycle skills are available as slash commands and the board renders to HTML.</p>
+<p>Tandem is a Claude Code plugin that materializes a <code>_00-Project-Management/</code> tree into your project. Getting started means installing the plugin, running the manifest-driven installer to create the PM folders and wire the <code>pm:*</code> scripts, and confirming the layout — after which the lifecycle skills are available as slash commands and the board renders to HTML.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
 <li><strong>Node.js ≥ 18</strong> — the <code>pm:*</code> scripts are dependency-free Node stdlib (no <code>npm install</code></li>
@@ -331,22 +331,22 @@ body {
 <h2 id="install">Install</h2>
 <ol>
 <li><strong>Install the plugin</strong> from your Claude Code marketplace, or point Claude Code at a local</li>
-<p>   checkout for development (<code>claude --plugin-dir ./&lt;plugin-dir&gt;</code>).</p>
-<li>On first use the plugin <strong>drops the <code>_00-Project-Management/</code> scaffold</strong> into your project</li>
-<p>   root (if not already present), registers the lifecycle skills under the plugin&#39;s command    namespace, enables the two hooks (lint-on-edit, dashboard-on-stop), and inserts a slim PM    rules block into your root <code>CLAUDE.md</code>.</p>
+<p>   checkout for development (<code>claude --plugin-dir ./&lt;plugin-dir&gt;</code>). The plugin registers the    lifecycle skills under the plugin&#39;s command namespace and inserts a slim PM rules block into    your root <code>CLAUDE.md</code>.</p>
+<li><strong>Materialize the PM tree</strong> by running the installer (or the <code>/Tandem:install</code> skill, which</li>
+<p>   wraps it). Install is manifest-driven: it creates every PM work-folder, copies the seed files    with the kit/user ownership rule, wires the <code>pm:*</code> scripts into your <code>package.json</code>, registers    the two hooks (lint-on-edit, dashboard-on-stop) when none exist, and generates the dashboard    as its final step.</p>
 </ol>
 <h2 id="wire-and-verify">Wire and verify</h2>
 <p>Run these from your project root:</p>
-<pre><code class="lang-bash">npm run pm:install   # merge the pm:* scripts into your package.json + pin the folder layout
+<pre><code class="lang-bash">npm run pm:install   # materialize the PM tree + wire pm:* scripts + pin the folder layout
 npm run pm:doctor    # health check: PM folder present, scripts wired, layout resolved</code></pre>
-<p><code>pm:install</code> is idempotent — re-running it is safe. <code>pm:doctor</code> exits non-zero only on core wiring problems (a missing <code>pm:lint</code> or <code>pm:dash</code>), so it is a reliable gate in CI.</p>
+<p><code>pm:install</code> is idempotent — re-running it is safe (kit-owned files are refreshed, your files are left untouched). <code>pm:doctor</code> exits non-zero only on core wiring problems (a missing <code>pm:lint</code> or <code>pm:dash</code>), so it is a reliable gate in CI; it also reports — without acting — when a newer kit version is available to pull with <code>pm:update</code>.</p>
 <h2 id="first-run">First run</h2>
 <p>Prove the kit is working by rendering the board:</p>
 <pre><code class="lang-bash">npm run pm:lint      # validate the frontmatter contract across every artefact
 npm run pm:dash      # render the Command Center to 42-Monitor/DASHBOARD.html</code></pre>
 <p>Open <code>42-Monitor/DASHBOARD.html</code> in a browser — that interactive board is the live view of the plan. From here, use the lifecycle skills in order: anchor a North Star and OKRs under <code>00-Strategy/</code>, draft a PRD, draft an epic, split it into features, split those into stories (with paired testplans), refine to <code>ready</code>, then execute and close. See the <a href="#">Command lifecycle</a> for the step-by-step order and <a href="#">Features</a> for what each skill does.</p>
 <h2 id="everyday-commands">Everyday commands</h2>
-<div class="md-table-wrap"><table class="md-table"><thead><tr><th>Command</th><th>What it does</th></tr></thead><tbody><tr><td><code>npm run pm:lint</code></td><td>Validate frontmatter across all artefacts (also runs on edit via a hook).</td></tr><tr><td><code>npm run pm:dash</code></td><td>Regenerate the interactive Command Center (<code>DASHBOARD.html</code>).</td></tr><tr><td><code>npm run pm:monitor</code></td><td>Recompute the board counts/rollups from real story statuses.</td></tr><tr><td><code>npm run pm:docs</code></td><td>Render this <code>documentation/</code> folder to HTML.</td></tr><tr><td><code>npm run pm:all</code></td><td><code>pm:lint</code> → <code>pm:monitor</code> → <code>pm:dash</code> → <code>pm:docs</code> in one pass.</td></tr><tr><td><code>npm run pm:doctor</code></td><td>Re-check wiring and layout health.</td></tr></tbody></table></div>
+<div class="md-table-wrap"><table class="md-table"><thead><tr><th>Command</th><th>What it does</th></tr></thead><tbody><tr><td><code>npm run pm:lint</code></td><td>Validate frontmatter across all artefacts (also runs on edit via a hook).</td></tr><tr><td><code>npm run pm:dash</code></td><td>Regenerate the interactive Command Center (<code>DASHBOARD.html</code>).</td></tr><tr><td><code>npm run pm:monitor</code></td><td>Recompute the board counts/rollups from real story statuses.</td></tr><tr><td><code>npm run pm:docs</code></td><td>Render this <code>documentation/</code> folder to HTML.</td></tr><tr><td><code>npm run pm:all</code></td><td><code>pm:lint</code> → <code>pm:monitor</code> → <code>pm:dash</code> → <code>pm:docs</code> in one pass.</td></tr><tr><td><code>npm run pm:update</code></td><td>Non-destructively refresh kit-owned files to the latest kit version.</td></tr><tr><td><code>npm run pm:doctor</code></td><td>Re-check wiring and layout health; report if an update is available.</td></tr></tbody></table></div>
 <h2 id="troubleshooting">Troubleshooting</h2>
 <ul>
 <li>**<code>command not found</code> / <code>npm: not recognized</code> when a <code>pm:*</code> script runs.** The Node install</li>
