@@ -3534,9 +3534,22 @@ function escScript(s) {
 
 function emitHtml(data) {
   const escapedProjectName = escapeHtml(data.project || resolveProjectName());
-  const diagBlock = data.diagnostics.unparseable.length
-    ? `<div id="diag" class="diag"><div class="diag-inner" role="alert"><div><strong>${data.diagnostics.unparseable.length} file(s) could not be parsed.</strong><ul>${data.diagnostics.unparseable.map(u => `<li><code data-path="${escapeHtml(u.path)}">${escapeHtml(u.path)}</code> — ${escapeHtml(u.reason)}</li>`).join('')}</ul></div></div></div>`
-    : '';
+  // Diagnostics banner — surfaces files the scan could NOT fold into the corpus so a
+  // silently-skipped file never leaves a section mysteriously empty. Two tiers:
+  //   • unparseable (red alert): file in a scanned artefact dir but skipped (e.g. no
+  //     frontmatter) → it is NOT counted in its section. This is the exact failure that
+  //     left the Releases panel empty while a file sat in 13-Releases/.
+  //   • warnings (amber): malformed JSON sidecars (index / EXECUTION-STRATEGY) — read
+  //     attempted, content dropped. Previously console-only; now visible here too.
+  const diag = data.diagnostics || { unparseable: [], warnings: [] };
+  const diagParts = [];
+  if (diag.unparseable.length) {
+    diagParts.push(`<div class="diag-inner" role="alert"><div><strong>${diag.unparseable.length} file(s) could not be parsed — skipped, so not counted in their section.</strong><ul>${diag.unparseable.map(u => `<li><code data-path="${escapeHtml(u.path)}">${escapeHtml(u.path)}</code> — ${escapeHtml(u.reason)}</li>`).join('')}</ul><div class="diag-note">Add frontmatter, or move the file out of the scanned folder if it is not that artefact type.</div></div></div>`);
+  }
+  if (diag.warnings.length) {
+    diagParts.push(`<div class="diag-inner warn" role="status"><div><strong>${diag.warnings.length} file(s) raised a warning.</strong><ul>${diag.warnings.map(w => `<li><code data-path="${escapeHtml(w.path)}">${escapeHtml(w.path)}</code> — ${escapeHtml(w.reason)}</li>`).join('')}</ul></div></div>`);
+  }
+  const diagBlock = diagParts.length ? `<div id="diag" class="diag">${diagParts.join('')}</div>` : '';
 
   // v1.1 — 8-group section grid (ADR-0048, PRD §5.1, TESTPLAN-04.6.06 TC-02).
   const sections = `

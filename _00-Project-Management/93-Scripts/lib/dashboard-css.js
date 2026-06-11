@@ -122,6 +122,10 @@ header.app-header { background:var(--surface); border-bottom:1px solid var(--bor
 .diag-inner strong { color:var(--red); }
 .diag-inner ul { margin:0.35rem 0 0 1.1rem; padding:0; }
 .diag-inner code { font-family:var(--mono); font-size:0.78rem; }
+.diag-inner + .diag-inner { margin-top:0.5rem; }
+.diag-inner.warn { background:var(--warn-soft); border-color:var(--warn); }
+.diag-inner.warn strong { color:var(--ink); }
+.diag-note { margin-top:0.4rem; font-size:0.78rem; opacity:0.8; }
 
 /* Two-row navigation */
 nav.group-nav { background:var(--cream); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:40; }
