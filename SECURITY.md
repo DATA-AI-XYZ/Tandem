@@ -21,7 +21,7 @@ This plugin is **a Claude Code extension**, not a network service. The threat su
 
 **Do not file a public issue for security vulnerabilities.**
 
-Email: `hello@dataxyzconnect.com`
+Email: `info@dataxyzconnect.com`
 
 Include:
 - The vulnerable file / function / command.

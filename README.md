@@ -137,4 +137,13 @@ Tandem/
 
 ## License
 
-[MIT](LICENSE) · Maintained by DATA-AI-XYZ · `hello@dataxyzconnect.com`
+[MIT](LICENSE) — provided **"as is"**, without warranty of any kind (see [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md)).
+
+## Disclaimer
+
+"Claude" and "Claude Code" are trademarks of Anthropic, PBC. Tandem is an independent project and is **not affiliated with, endorsed by, or sponsored by Anthropic**. Tandem runs locally; its scripts and hooks make **no network calls** and collect **no telemetry**. It creates and edits files under your project's `_00-Project-Management/` tree — review what it does and use it at your own risk. See [NOTICE.md](NOTICE.md) for full details.
+
+## Contact
+
+- Web: <https://www.dataxyzconnect.com>
+- Email: info@dataxyzconnect.com · Maintained by DATA-AI-XYZ
