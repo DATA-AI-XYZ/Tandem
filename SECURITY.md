@@ -12,7 +12,7 @@
 
 This plugin is **a Claude Code extension**, not a network service. The threat surface is narrow but real:
 
-1. **Hooks execute shell commands.** A malicious hook in this plugin would run on a user's machine when they edit PM-folder files (PostToolUse) or end a session (Stop). The shipped hooks invoke `npm run pm:lint` / `npm run pm:dash` only — they do NOT make network calls, modify files outside `_00-Project-Management/`, or read secrets.
+1. **Hooks execute shell commands.** A malicious hook in this plugin would run on a user's machine when they edit PM-folder files (PostToolUse) or end a session (Stop). The shipped hooks invoke a single stdlib-only Node entrypoint directly — `node ${CLAUDE_PLUGIN_ROOT}/_00-Project-Management/93-Scripts/hook.js` (no `npm` step) — and they do NOT make network calls, modify files outside `_00-Project-Management/`, or read secrets.
 2. **Skills load content into Claude's context.** A skill that contained prompt-injection payloads could attempt to manipulate Claude's behaviour against the user. All shipped skills are static markdown vetted at release; no skill loads remote content at runtime.
 3. **Scaffold copy on install.** The plugin drops `scaffold/_00-Project-Management/` into the user's project root. No file outside that folder is touched.
 4. **Validator scripts.** `93-Scripts/validate-frontmatter.js` and `93-Scripts/generate-dashboard.js` are pure-Node, stdlib-only, no I/O beyond reading PM files and writing the dashboard HTML. They do not execute user input.
@@ -42,7 +42,7 @@ Expect an acknowledgement within 72 hours, a fix or determination within 14 days
 ## What we will NOT treat as a vulnerability
 
 - Failing to detect malicious user content (e.g. a malicious PM artefact filed by the user themselves) — the kit doesn't claim to validate user-authored prose.
-- Issues in transitive dependencies of Node.js itself or in user-provided npm scripts wired by `npm run pm:lint`.
+- Issues in transitive dependencies of Node.js itself or in user-provided npm scripts the user wires up themselves.
 - Behaviour that requires the attacker to already have write access to the user's `_00-Project-Management/` folder — that's a pre-existing compromise.
 
 ## Coordinated disclosure

@@ -4,7 +4,7 @@
 
 **Your Claude Code co-pilot for shipping ideas without the chaos.**
 
-[![version](https://img.shields.io/badge/version-1.1.0-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases)
+[![version](https://img.shields.io/badge/version-2.6.0-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases)
 [![license](https://img.shields.io/badge/license-MIT-2D6CDF)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D63031)](https://code.claude.com/docs/en/plugins)
 
@@ -20,7 +20,7 @@ Tandem is a Claude Code plugin that takes you from idea to production — withou
 
 ## How it works
 
-Tandem installs a `_00-Project-Management/` scaffold into your project and registers a set of `/Tandem:*` skills that cover the full North Star → Done lifecycle. Two hooks keep everything honest: a linter that runs on every PM file edit, and a generator that rebuilds an interactive HTML **Command Center** whenever your plan changes.
+Tandem installs a `_00-Project-Management/` scaffold into your project and registers a set of `/Tandem:*` skills that cover the full North Star → Done lifecycle. Two hooks keep everything honest: a linter that runs on every PM file edit, and a generator that rebuilds an interactive HTML **Command Center** whenever your plan changes. Both hooks run a single stdlib-only Node entrypoint (`node ${CLAUDE_PLUGIN_ROOT}/_00-Project-Management/93-Scripts/hook.js`) directly — no `npm` step is involved.
 
 It's **stack-agnostic** — the bootstrap asks what you're building (web, mobile, CLI, library, backend, data-pipeline, Power Platform, or automation) and tailors the guidance to match.
 
@@ -120,7 +120,6 @@ Tandem/
 │   └── marketplace.json       DATA-AI-XYZ marketplace listing
 ├── skills/                    The /Tandem:* skills (full lifecycle)
 ├── hooks/                     PostToolUse (lint) + Stop (Command-Center regen)
-├── scaffold/                  ← TEMPLATE copied into your project on install
 ├── docs/                      Live-demo Command Center (GitHub Pages)
 ├── BOOTSTRAP-PROMPT.md        Paste-prompt installer (no-plugin path)
 ├── CONTRIBUTING.md · SECURITY.md · CHANGELOG.md · LICENSE
