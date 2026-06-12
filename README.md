@@ -2,7 +2,7 @@
 
 # Tandem
 
-**Your Claude Code co-pilot for shipping ideas without the chaos.**
+**Tandem — the Claude Code project-management plugin.** Your co-pilot for shipping ideas without the chaos.
 
 [![version](https://img.shields.io/badge/version-2.6.0-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases)
 [![license](https://img.shields.io/badge/license-MIT-2D6CDF)](LICENSE)
