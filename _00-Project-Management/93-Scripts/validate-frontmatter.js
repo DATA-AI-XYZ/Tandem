@@ -775,11 +775,20 @@ function checkVersionParity(baseDir, opts = {}) {
       return { ok: false, message: msg };
     }
 
+    // Consumer-repo guard (BUG-20260612-01). `package.json` only *describes the kit* in
+    // Tandem's own dev repo, where it ships alongside the plugin manifests. In a vendored/
+    // consumer install, package.json describes the consuming application — its version is
+    // unrelated to the kit version, so including it would make the gate fire on every fresh
+    // install (app 0.1.0 vs kit 2.6.0). The unambiguous "this is the kit's own repo" signature
+    // is the presence of .claude-plugin/plugin.json or marketplace.json (both absent in a
+    // consumer repo). Outside the kit repo the set reduces to { kitVersion } and the gate passes.
+    const isKitRepo = fs.existsSync(pluginPath) || fs.existsSync(marketplacePath);
+
     // Collect the versions into a set to detect divergence.
     const versions = new Set();
     if (pluginVersion !== null && pluginVersion !== undefined) versions.add(pluginVersion);
     if (marketplaceVersion !== null && marketplaceVersion !== undefined) versions.add(marketplaceVersion);
-    if (packageVersion !== null && packageVersion !== undefined) versions.add(packageVersion);
+    if (isKitRepo && packageVersion !== null && packageVersion !== undefined) versions.add(packageVersion);
     if (kitVersion !== null && kitVersion !== undefined) versions.add(kitVersion);
 
     // If more than one distinct version, report a violation naming every source (incl. kitVersion).

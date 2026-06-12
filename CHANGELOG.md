@@ -2,6 +2,13 @@
 
 All notable changes to **Tandem** are tracked here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [2.6.1] — 2026-06-12
+
+**Hotfix — `pm:lint` works out of the box in your project again.** A patch release with a single guard; the status enum, the frontmatter contract, and every command name are unchanged.
+
+### Fixed
+- **Version-parity check no longer fails in projects that use Tandem.** Previously, running `npm run pm:lint` in a project that merely installs the kit failed on every run, because the check compared your app's `package.json` version against the kit version and demanded they match — but they are independent by design. The check now only enforces that match inside Tandem's own repo; in your project it simply passes. If you applied a local workaround to the validator, you can drop it after updating.
+
 ## [2.6.0] — 2026-06-10
 
 **Prod-clean installs and stronger planning gates.** This release also realigns the public version number with Tandem's internal release line — the jump from `1.1.0` to `2.6.0` reflects that single shared lineage, not 1.4 majors of breaking change. Upgrading is safe: the status enum, the frontmatter contract, and every command name are unchanged.

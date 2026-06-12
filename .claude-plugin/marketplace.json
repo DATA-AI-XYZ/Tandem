@@ -11,7 +11,7 @@
       "name": "Tandem",
       "source": "./",
       "description": "Go from idea to production without the chaos: Tandem is a repo-native PM co-pilot for Claude Code that keeps every project on track from North Star → OKRs → PRD → Epic → Feature → Story → Testplan → ship. You get a closed-set status enum, mandatory Story↔Testplan pairing, Definition-of-Ready/Done gates, automatic ADRs on every decision, auto-filed bugs on test failure, and a self-generating interactive Command Center — all in plain Markdown, no external tools required. Stack-agnostic across web, mobile, CLI, library, backend, data-pipeline, Power Platform, and automation projects.",
-      "version": "2.6.0",
+      "version": "2.6.1",
       "tags": [
         "project-management",
         "workflow",

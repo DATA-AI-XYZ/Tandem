@@ -1,5 +1,5 @@
 {
-  "kitVersion": "2.6.0",
+  "kitVersion": "2.6.1",
   "$comment": "Install manifest (ADR-0072). `kitVersion` is the version source that travels with the scripts (a consumer project has no kit package.json) — install/update stamp it into .claude-pm-config.json and doctor compares against it to report drift. Keep it in lockstep with package.json + plugin.json version (the version-parity gate; STORY-16.4.05 should fold it in). install.js materializes the PM tree from this: every `folders` entry is created under the target; every `seedFiles` entry is copied from the kit (src, relative to the kit's _00-Project-Management) to the target (dest, relative to the same), governed by `ownership` — kit-owned files are always (over)written, user-owned files are written only when absent so an operator's edits survive a re-install/update. Folder + dest paths are canonical 'full'-layout; install.js remaps them through lib/pm-paths PRESETS for flattened/custom layouts. NOTE: under the 'flattened' preset the roles `active` and `monitor` both map to `00-Monitor`, so the seed ACTIVE.md and MONITOR.md co-locate there by design (distinct filenames — no collision); install.js fails fast if any two seedFiles ever resolve to the SAME file. `htmlArtifacts` are generated (not seeded) and listed for reference.",
   "folders": [
     "_00-Project-Management/00-Strategy",
