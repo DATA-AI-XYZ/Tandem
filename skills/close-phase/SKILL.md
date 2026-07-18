@@ -155,6 +155,11 @@ If **any** gate item is unmet, the skill **refuses to merge** and **reports whic
 it does not proceed. A blocked merge names the failing gate item so the operator knows exactly
 what to fix; it never merges a phase that hasn't cleared all four.
 
+**Dashboard note (ADR-0082).** In a **consumer** repo the generated `DASHBOARD.html` is
+gitignored by `pm:install` policy, so this merge can never fail unlinking it. The **kit repo
+itself** still tracks its live dashboard (deliberate exception) — if a merge conflict lands on
+it there, **regenerate with `npm run pm:dash`** rather than hand-resolving the diff.
+
 ## Step 7 — Merge mechanism: PR-default vs gated direct
 
 Once the merge gate (Step 6) passes, integrate via one of two mechanisms — never a force-merge:

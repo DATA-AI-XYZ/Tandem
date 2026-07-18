@@ -35,6 +35,16 @@ const PATHS = loadPaths(PM_ROOT).map;
 const MONITOR = path.join(PM_ROOT, PATHS.monitor, 'MONITOR.md');
 const CHANGELOG = path.join(PM_ROOT, '..', 'CHANGELOG.md');
 
+// Usage rollup (STORY-21.2.03 / ADR-0079): actual tokens `usage-capture.js` recorded +
+// estimated tokens (`usage_estimate:` frontmatter) rolled up by epic/feature. Reuses the
+// SAME tolerant log reader / positive-int shape check as usage-reconcile.js (STORY-21.2.02)
+// rather than re-implementing the parsing, so the two surfaces never drift on what counts as
+// "an actual" or "a valid estimate". DEFAULT_LOG_PATH is usage-capture.js's own canonical
+// (non-layout-mapped) write location — read from the exact place it writes, not a
+// layout-remapped guess.
+const { readUsageLog, actualTotalsByStoryId, parsePositiveInt } = require('./usage-reconcile');
+const { DEFAULT_LOG_PATH } = require('./usage-capture');
+
 const TERMINAL = new Set(['done', 'wontfix', 'duplicate', 'archived']);
 
 // ---------- corpus walk (dependency-free; mirrors validate-frontmatter.js) ----------
@@ -122,6 +132,46 @@ function deriveEpicTimestamps(epics, stories) {
   return derived;
 }
 
+// ---------- usage rollup (STORY-21.2.03 / ADR-0079) ----------
+
+// Rolls up ACTUAL usage (usage-log.jsonl, tolerant of absence) + ESTIMATED usage
+// (`usage_estimate:` frontmatter, stories only) by epic and by feature. CRITICAL HONESTY
+// RULE: a map entry is created ONLY when a story actually contributes an estimate or an
+// actual — an epic/feature with neither is simply absent from the map, never a fabricated
+// all-zero row. `hasAnyActual` distinguishes "zero actuals recorded anywhere yet" (the
+// whole-block "no usage actuals recorded yet" case) from "some actuals exist, just not for
+// this epic/feature" (handled per-row via the dash below).
+function computeUsageRollup(stories) {
+  const { records } = readUsageLog(DEFAULT_LOG_PATH); // tolerant: missing/malformed → []
+  const actualsByStoryId = actualTotalsByStoryId(records);
+
+  const byEpic = new Map();
+  const byFeature = new Map();
+
+  function bump(map, key) {
+    if (!map.has(key)) map.set(key, { estimateSum: 0, estimateCount: 0, actualSum: 0, actualCount: 0 });
+    return map.get(key);
+  }
+
+  for (const s of stories) {
+    const epicId = s.fm.epic || '(no epic)';
+    const featureId = s.fm.feature || '(no feature)';
+    const estimate = parsePositiveInt(s.fm.usage_estimate);
+    const actual = s.fm.id && actualsByStoryId.has(s.fm.id) ? actualsByStoryId.get(s.fm.id) : null;
+
+    if (estimate !== null) {
+      const e = bump(byEpic, epicId); e.estimateSum += estimate; e.estimateCount += 1;
+      const f = bump(byFeature, featureId); f.estimateSum += estimate; f.estimateCount += 1;
+    }
+    if (actual !== null) {
+      const e = bump(byEpic, epicId); e.actualSum += actual; e.actualCount += 1;
+      const f = bump(byFeature, featureId); f.actualSum += actual; f.actualCount += 1;
+    }
+  }
+
+  return { byEpic, byFeature, hasAnyActual: actualsByStoryId.size > 0 };
+}
+
 // ---------- compute ----------
 
 function compute() {
@@ -165,9 +215,11 @@ function compute() {
   // Honest timestamp derivation: reconcile epic times from child stories.
   const derivedEpicTimestamps = deriveEpicTimestamps(epics, stories);
 
+  const usage = computeUsageRollup(stories);
+
   return {
     epics, features, stories, testplans, bugs, adrs, backlog, releaseCount, prds,
-    storyDone, storyTotal, byEpic, wip, derivedEpicTimestamps,
+    storyDone, storyTotal, byEpic, wip, derivedEpicTimestamps, usage,
     epicStatus: tally(epics), bugOpen: bugs.filter(b => !TERMINAL.has(b.fm.status)).length,
   };
 }
@@ -224,6 +276,53 @@ function renderWip(c) {
   ].join('\n');
 }
 
+// Thousands separator without relying on locale/ICU (dependency-free, stdlib-only stance).
+function fmtThousands(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+// Renders one rollup table ('Epic' or 'Feature' keyed) from a computeUsageRollup() map.
+// Returns null when the map is empty (nothing to show for that grouping) rather than an
+// empty table — the caller decides what to say when both groupings are empty.
+function renderUsageTable(map, keyLabel) {
+  const ids = [...map.keys()].sort();
+  if (ids.length === 0) return null;
+  const rows = [`| ${keyLabel} | Estimated tokens | Actual tokens |`, '|---|---|---|'];
+  for (const id of ids) {
+    const r = map.get(id);
+    const estCell = r.estimateCount > 0
+      ? `${fmtThousands(r.estimateSum)} (${r.estimateCount} ${r.estimateCount === 1 ? 'story' : 'stories'})`
+      : '—';
+    const actCell = r.actualCount > 0
+      ? `${fmtThousands(r.actualSum)} (${r.actualCount} ${r.actualCount === 1 ? 'story' : 'stories'})`
+      : '—';
+    rows.push(`| ${id} | ${estCell} | ${actCell} |`);
+  }
+  return rows.join('\n');
+}
+
+// CRITICAL HONESTY RULE (STORY-21.2.03 AC-1): absent data renders as absent. When NO usage
+// actuals are recorded anywhere, say so in one explicit line — never a table of fabricated
+// zeros. Estimated-tokens cells only appear for epics/features that actually have a story
+// carrying `usage_estimate`; the same for actuals. When there is genuinely nothing to roll
+// up (no estimates AND no actuals anywhere in the corpus), print one explicit line instead
+// of two empty tables.
+function renderUsage(c) {
+  const epicTable = renderUsageTable(c.usage.byEpic, 'Epic');
+  const featureTable = renderUsageTable(c.usage.byFeature, 'Feature');
+
+  const parts = [];
+  if (!epicTable && !featureTable) {
+    parts.push('_No stories carry a `usage_estimate` yet, and no usage actuals recorded yet._');
+  } else {
+    if (epicTable) parts.push('**By epic:**\n\n' + epicTable);
+    if (featureTable) parts.push('**By feature:**\n\n' + featureTable);
+    if (!c.usage.hasAnyActual) {
+      parts.push('_no usage actuals recorded yet — run `usage-capture.js` (via `execute-story` / ' +
+        '`execute-batch`) to start recording; figures above are estimates only._');
+    }
+  }
+  return parts.join('\n\n');
+}
+
 // ---------- upsert ----------
 
 function upsert(text, key, body) {
@@ -247,6 +346,7 @@ function main() {
   text = upsert(text, 'rollup', renderRollup(c));
   text = upsert(text, 'counts', renderCounts(c));
   text = upsert(text, 'wip', renderWip(c));
+  text = upsert(text, 'usage', renderUsage(c));
   if (process.exitCode === 2) { console.error('✗ pm:monitor — aborted (missing markers); MONITOR.md unchanged.'); return; }
 
   // STORY-09.3.04: Write MONITOR atomically via a temp file + rename.
@@ -290,4 +390,9 @@ if (require.main === module) {
 }
 
 // Re-export from shared module for backward compatibility with test-monitor-parser.js.
-module.exports = { parseFrontmatter, stripQuotes };
+// computeUsageRollup / renderUsage(Table) / fmtThousands also exported (STORY-21.2.03) so
+// the usage-rollup logic is unit-testable without spawning the full generator.
+module.exports = {
+  parseFrontmatter, stripQuotes,
+  computeUsageRollup, renderUsage, renderUsageTable, fmtThousands,
+};

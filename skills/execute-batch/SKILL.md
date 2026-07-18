@@ -84,6 +84,13 @@ When **all** the chat's stories reach `done`, set the chat's **`executed: true`*
 `AUTO-EXECUTED`), then regenerate the dashboard. Finally, run the chat's **verify-before-closing**
 command and report its result.
 
+## Usage capture
+
+Run `node _00-Project-Management/93-Scripts/usage-capture.js --chat <CHAT-NN>` when the chat
+finishes (after the loop's last close-out-story) to attribute the batch's actual usage record
+to this chat (ADR-0079). A usage-source-unavailable no-op is fine — it always exits 0 and
+never blocks the chat.
+
 ## Output rules
 
 - Commit messages per story: `STORY-NN.M.PP — <imperative>` (close-out-story owns these).
@@ -105,6 +112,20 @@ command and report its result.
 - Status enum is the closed set of nine; DoR gate before `in-progress`, DoD gate before `done`.
 - ADR-on-the-spot for non-obvious decisions; BUG auto-raise on any defect / TC failure.
 - Never execute an un-ready story (DoR precheck above).
+
+## Fresh session vs autonomous subagent-per-chat dispatch
+
+This skill doesn't care how its fresh session was opened. An operator may open it by hand, or a
+PM-hat orchestrator may dispatch this chat as an autonomous **subagent-per-batch** run instead.
+**Equivalence:** the dispatched subagent's fresh context == a manually-opened fresh session, so
+this skill's contract (sequential loop, atomic finalisation, context-budget guard) holds either
+way. See SOP §18 ("Subagent-per-batch — autonomous phase runs") for the orchestrator's contract.
+
+**When running as a dispatched batch subagent:** report the success triple — all stories `done`,
+all TCs passing, this chat's `executed` flag set — in the end-of-session summary above; never
+switch branches (commit on the phase branch only, no worktree); and if the triple can't be met,
+stop and report rather than continue, so the orchestrator's halt-and-report behaviour gets an
+honest signal.
 
 ## Next command
 

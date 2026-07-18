@@ -405,6 +405,7 @@ Claude's main thread has a finite context budget. Every grep result, file read, 
 | **Main thread** | Editing files, deciding status flips, writing ADRs, updating MONITOR, anything the rest of the session must remember | Direct Read/Edit/Write/Grep/Glob |
 | **Explore agent** (read-only) | "Where is symbol X / which files import Y / what's at path Z" — pure lookups that return excerpts | `Agent({ subagent_type: "Explore" })` |
 | **Fresh general-purpose / specialised agent** | Any task that would require >5 file reads, multi-step research, running a test suite, or open-ended investigation | `Agent({ subagent_type: "general-purpose" | "<specialist>" })` |
+| **Autonomous phase run** (subagent-per-batch) | Running a whole phase's chats back-to-back without an operator opening a fresh session per chat | PM-hat orchestrator dispatches each `execute-batch` as a fresh-context subagent (Dev/QA hat); sequential; failure halts the chain — see "Subagent-per-batch" below |
 
 ### Heuristic — when to spawn vs do in main thread
 
@@ -426,6 +427,73 @@ The agent brings back evidence; the main thread synthesises. Prompts like "based
 - Delegating "fix the bug" → the fix is a decision; only delegate the investigation.
 
 See `90-Standards/CLAUDE-CODE-CONFIG.md` §2.7 for the broader rationale (blog priority 7: split exploration from editing).
+
+### Subagent-per-batch — autonomous phase runs
+
+A whole **phase** — `start-phase` → chat → chat → chat → `close-phase` — can be run
+**autonomously** in one driving session instead of the operator manually opening a fresh session
+per chat. The pattern is called **subagent-per-batch**: a thin **PM-hat orchestrator** in the main
+session dispatches each `execute-batch` as its own **fresh-context subagent** (Dev/QA hat), one
+chat at a time, then runs `close-phase` itself once every chat is done.
+
+- **Sequential, not parallel.** Chats run **sequentially** — one chat's subagent finishes and
+  reports before the next is dispatched. This is the phase-level axis, orthogonal to
+  `execute-batch-parallel`'s intra-batch fan-out (see below).
+- **Failure halts the chain.** If a dispatched `execute-batch` subagent does not report every
+  story `done` with all TCs passing, the orchestrator stops there — a failure halts the chain
+  rather than continuing to the next chat over a blocked or partial batch.
+- **The isolation *is* the fresh session.** A subagent's context is empty on dispatch — no
+  carry-over from the orchestrator's session or any prior chat — so the subagent boundary satisfies
+  the kit's **one-hat-per-session** rule exactly as a manually-opened fresh session would; the rule
+  is *preserved by* the isolation, not waived by it. The orchestrator stays **PM hat** throughout
+  (scope, dispatch, board reconciliation between chats); each dispatched subagent runs **Dev/QA
+  hat** for its one chat, per `execute-batch`'s own contract.
+- **Not a replacement for the gate contract.** Board writes (`MONITOR.md` / `ACTIVE.md`), DoR/DoD
+  gates, and per-story commits still happen exactly as `execute-batch` defines them — the
+  orchestrator changes *who opens each session*, not what each session is allowed to do. Because
+  chats run one at a time, there is never more than one subagent holding the working tree, so board
+  writes stay naturally serialised.
+
+**Distinct from, and composable with, `execute-batch-parallel`.** The two patterns sit on
+orthogonal axes: `execute-batch-parallel` fans out **N sub-agents over N stories within one batch,
+concurrently** — the parallel-within-batch axis (disjoint-file safety, ADR-0075). Subagent-per-batch
+is the **sequential-across-phase** axis — isolated chats, one at a time, chained across a whole
+phase. They **compose**: an autonomous orchestrator may dispatch a chat whose lanes are provably
+file-disjoint through `execute-batch-parallel` instead of serial `execute-batch`, then continue the
+chain to the next chat once that chat's subagent reports done.
+
+**Worked example (precedent).** A consumer project (`PowerBI-XYZ-Plugin`) ran a phase this way:
+`start-phase` → three chats, each dispatched as its own fresh-context subagent → `close-phase` —
+10 stories, 15/15 TCs, 0 bugs, and the chain never had to halt.
+
+#### Sharp edges — nesting, branch sharing, failure contract, hats (BACKLOG-0083 Tranche B)
+
+**Nesting.** A batch subagent dispatched by the orchestrator typically cannot spawn its own
+sub-agents — most harnesses cap agent nesting at one level, and the dispatched subagent is already
+at that depth. For a chat whose lanes are **serial**, this is a non-issue: the subagent does the
+work itself, one story after another, exactly as a manually-opened session would. For a chat whose
+**lanes are parallel** — marked so because the strategy proved the stories file-disjoint (ADR-0075)
+— the subagent cannot fan out on its own. The fallback (ADR-0081): the **orchestrator** runs that
+chat itself, in the **main thread**, by invoking `execute-batch-parallel` directly. The chat is
+never silently serialised inside the subagent — nesting depth never downgrades what the strategy
+authorised.
+
+**Branch/worktree sharing.** All batch subagents share **one working tree and the phase branch** —
+**do not switch branches; commit on the phase branch only**. Worktree isolation is **not warranted**
+for these sequential chats: chats serialise board writes by construction (one subagent holds the
+working tree at a time), so there is nothing left for a separate worktree to isolate.
+
+**Failure semantics.** The success contract a batch subagent must report before the orchestrator
+dispatches the next chat: **all stories `done`, all TCs passing, and the chat's `executed` flag
+set**. Anything less — a blocked story, a failing TC, the flag left unset — triggers the
+orchestrator's **halt-and-report** behaviour: stop the chain at that chat and report what's done,
+what's blocked, and what remains, rather than continuing the chain over a partial batch.
+
+**Hat protocol.** The orchestrator is **PM hat** throughout (scope, dispatch, board reconciliation
+between chats); each dispatched batch subagent is **Dev/QA hat** for its one chat, per
+`execute-batch`'s own contract. This is not a hat violation: **one-hat-per-session** is preserved
+*by* the fresh-context isolation itself — the same guarantee a manually-opened fresh session gives,
+consolidating (not contradicting) the isolation point made above.
 
 ---
 

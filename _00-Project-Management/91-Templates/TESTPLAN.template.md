@@ -57,6 +57,16 @@ html_context: []                 # optional: repo-relative paths to PRIOR siblin
      dirty corpus (precedent: BUG-20260608-01). validate-frontmatter.js already exits non-zero on any
      violation, so the exit code is the load-bearing signal — let it gate. -->
 
+<!-- Artefact-discovery / __DATA-extraction guidance (precedent: EPIC-21 waves 1-7, 2026-07-18: 6 TC
+     commands repaired in-review): never resolve a target artefact with order-fragile discovery like
+     `f=$(grep -lir "<keyword>" ADR-*.md | head -1)` — `head -1` picks the alphabetically-first
+     incidental match, not the artefact the story lands. Once the artefact exists, PIN the path
+     (`f=path/to/ADR-NNNN-slug.md && test -f "$f"`); if authoring before the artefact exists, mark the
+     discovery provisional and note it must be pinned when the artefact lands. Likewise never extract
+     `window.__DATA` with a non-greedy regex capture (`/window\.__DATA\s*=\s*(\{[\s\S]*?\});/` + JSON.parse)
+     — it truncates at the first `};` inside embedded content strings. Instead assert an ANCHORED field
+     (e.g. `/"fieldName"\s*:\s*"expected"/`) or use a brace-depth scanner. -->
+
 
 ### TC-01 · <name>
 - **Type:** unit | integration | e2e | static-analysis | manual-review-by-claude

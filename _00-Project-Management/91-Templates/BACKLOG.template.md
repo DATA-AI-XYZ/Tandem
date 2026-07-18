@@ -7,6 +7,12 @@ created_at: ''
 started_at: ''
 completed_at: ''
 estimate: XS | S | M | L
+usage_estimate: ''    # optional: approximate TOTAL tokens (input+output+cache_read+cache_creation
+                       # summed) expected once this item becomes a story. Single positive integer,
+                       # not a coarse band — so per-batch projections can sum it. Validator R23
+                       # enforces SHAPE only (same stance as R19): if present and non-empty it must
+                       # parse as a positive integer; feasibility is never judged. Absent/empty is
+                       # fine. Consumed by `93-Scripts/usage-reconcile.js`. See ADR-0079 / STORY-21.2.02.
 priority: P0 | P1 | P2 | P3
 type_of_work: frontend | backend | infra | data | docs | tech-debt
 captured_from: <story / bug / exploration / review — context that surfaced this>

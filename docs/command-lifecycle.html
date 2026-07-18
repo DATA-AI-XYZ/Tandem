@@ -351,7 +351,7 @@ body {
 <li><strong>Phase gates</strong> guard the merge: every story in the phase must be <code>done</code>, the board clean,</li>
 <p>  and the lint and smoke checks green before <code>close-phase</code> surfaces a merge command.</p>
 </ul>
-<p>Cadence and utility commands — <code>weekly-monitor</code>, <code>monthly-retro</code>, <code>reflect</code>, <code>session-start</code>, <code>critique</code>, <code>peer-review</code>, <code>document</code>, <code>curate-toolkit</code>, and <code>mode</code> — sit outside the chain; they observe and maintain the board (or set how Claude converses) rather than advance a single story along it. Setup commands — <code>install</code>, <code>update</code>, <code>fill-claude-md</code> — wire the kit into a project and keep it current. See <a href="#">Features</a> for what each does.</p>
+<p>Cadence and utility commands — <code>weekly-monitor</code>, <code>monthly-retro</code>, <code>reflect</code>, <code>session-start</code>, <code>critique</code>, <code>peer-review</code>, <code>document</code>, <code>curate-toolkit</code>, and <code>mode</code> — sit outside the chain; they observe and maintain the board (or set how Claude converses) rather than advance a single story along it. <code>autopilot</code> also sits outside the chain: it *drives* the chain — start-phase → each batch → close-phase, unattended, usage-governed — rather than being a step in it. Setup commands — <code>install</code>, <code>update</code>, <code>fill-claude-md</code> — wire the kit into a project and keep it current. See <a href="#">Features</a> for what each does.</p>
     </main>
     <footer class="doc-footer">
       Source: command-lifecycle.md

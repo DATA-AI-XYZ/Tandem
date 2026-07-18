@@ -141,6 +141,26 @@ function diagnose(REPO_ROOT) {
     else ok('Kit version', `${installed} (current)`);
   }
 
+  // 6. Purpose-reference sync guard (READ-ONLY, non-fatal — STORY-21.4.04 / ADR-0080).
+  // `documentation/what-each-thing-is-for.md` is the hand-curated per-item purpose
+  // reference; this nudges (never fails) when the scanned tree has outgrown it. Wrapped
+  // in try/catch because a --target/--root project may not carry this doc at all (it's
+  // a kit-repo concept, not a wiring requirement) — a guard error degrades to silence,
+  // never a doctor crash, and never touches `coreBroken`.
+  try {
+    const { check: purposeCheck } = require('./purpose-guard');
+    const purposeDoc = path.join(REPO_ROOT, 'documentation', 'what-each-thing-is-for.md');
+    const { warnings: purposeWarnings, missing, unfilled } = purposeCheck(REPO_ROOT, purposeDoc);
+    if (purposeWarnings.length) {
+      warn('Purpose-reference gaps', `${missing} missing purpose line(s), ${unfilled} unfilled stub(s) — run \`node _00-Project-Management/93-Scripts/purpose-guard.js --check\` for details`);
+      const preview = purposeWarnings.slice(0, 5);
+      for (const w of preview) lines.push(`    ${w}`);
+      if (purposeWarnings.length > preview.length) lines.push(`    ...and ${purposeWarnings.length - preview.length} more`);
+    }
+  } catch (_e) {
+    // Guard unavailable/erroring must never break doctor — silently skip this notice.
+  }
+
   return { lines, coreBroken };
 }
 

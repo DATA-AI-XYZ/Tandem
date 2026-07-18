@@ -3,7 +3,7 @@
  * validate-frontmatter.js
  *
  * Lints YAML frontmatter across the PM folder against the rule set
- * (R0–R15, R15b, R16, R17, R18, R19, R21, R22) defined in 90-Standards/SOP.md and the
+ * (R0–R15, R15b, R16, R17, R18, R19, R21, R22, R23) defined in 90-Standards/SOP.md and the
  * CLAUDE.md project rules.
  *
  * Usage: node _00-Project-Management/93-Scripts/validate-frontmatter.js
@@ -214,6 +214,26 @@ function checkFilesTouchedPath(filepath, value) {
   }
 }
 
+// R23 — `usage_estimate:` shape check (STORY-21.2.02 / ADR-0079). Pure function, no
+// filesystem access, exported for unit tests. `usage_estimate` is an OPTIONAL
+// approximate TOTAL token figure (input+output+cache_read+cache_creation summed) a
+// story/backlog item is expected to consume when executed — a single positive
+// integer, never a coarse band, so `usage-reconcile.js` projections can sum it
+// directly. SAME STANCE AS R19: shape only — whether the number is a realistic
+// estimate is NEVER judged here. Returns a violation message string when the shape
+// is invalid, or null when the value is absent/empty/valid.
+function checkUsageEstimateShape(value) {
+  if (value === undefined || value === null) return null; // field absent — fine, optional
+  const str = String(value).trim();
+  if (str === '') return null; // present but empty — fine, optional
+  if (!/^[1-9]\d*$/.test(str)) {
+    return `usage_estimate must be a positive integer (approximate TOTAL tokens — ` +
+      `input+output+cache_read+cache_creation summed) when present (got '${value}'). ` +
+      `Shape only — feasibility is never judged (same stance as R19). Leave empty/absent if unknown.`;
+  }
+  return null;
+}
+
 // ---------- Rule engine ----------
 
 const violations = [];
@@ -331,10 +351,14 @@ function checkFile(filepath, allFilesByType, storyIndex) {
     }
   }
 
-  // W1 (non-fatal) — a Story or Feature SHOULD carry a founder-facing "what you'll
-  // have" line. Routed through warn(), never the fatal path; its absence is optional,
-  // not a build break. Coverage accrues over time; see STORY-14.2.03 / STORY-14.2.04.
-  if ((fm.type === 'story' || fm.type === 'feature') &&
+  // W1 (non-fatal) — a Story, Feature, or Epic SHOULD carry a founder-facing "what
+  // you'll have" / "what you'll see" line. Routed through warn(), never the fatal
+  // path; its absence is optional, not a build break. Coverage accrues over time;
+  // see STORY-14.2.03 / STORY-14.2.04. Extended to `epic` in STORY-21.4.01 (BACKLOG-
+  // 0082 / ADR-0084) so the Plan → Roadmap timeline's deliverable line gets the same
+  // soft nudge stories/features already have — still warn-tier only, exit code
+  // unaffected (ADR-0061).
+  if ((fm.type === 'story' || fm.type === 'feature' || fm.type === 'epic') &&
       (!fm.outcome || String(fm.outcome).trim() === '')) {
     warn(filepath, 'W1',
       'Missing `outcome` — the founder-facing "what you\'ll have" line. ' +
@@ -565,6 +589,23 @@ function checkFile(filepath, allFilesByType, storyIndex) {
           }
         }
       }
+
+      // R23 — `usage_estimate:` shape (optional; SHAPE-only, same stance as R19). See
+      // ADR-0079 / STORY-21.2.02 and the shared checkUsageEstimateShape() above (also
+      // applied to the `backlog` case below).
+      {
+        const usageMsg = checkUsageEstimateShape(fm.usage_estimate);
+        if (usageMsg) violate(filepath, 'R23', usageMsg);
+      }
+      break;
+
+    case 'backlog':
+      // R23 — `usage_estimate:` shape (optional; SHAPE-only). Mirrors the story case
+      // above — see ADR-0079 / STORY-21.2.02.
+      {
+        const usageMsg = checkUsageEstimateShape(fm.usage_estimate);
+        if (usageMsg) violate(filepath, 'R23', usageMsg);
+      }
       break;
 
     case 'testplan':
@@ -638,9 +679,10 @@ function checkChainSync(skillsDir = path.join(REPO_ROOT, 'skills')) {
 
   // The chain is the single line listing `/...:<command>` tokens joined by `→`. Pick the
   // line carrying the most such tokens (robust against any other arrow-bearing prose line).
-  // Capture the prefix from the first token on the winning line and reuse it for both the
-  // chain extraction and the per-skill Next: pointer match — no hardcoded prefix literals
-  // here (R22 / BACKLOG-0064 AC-3).
+  // Capture the prefix from the first token on the winning line — no hardcoded prefix
+  // literals here (R22 / BACKLOG-0064 AC-3). This captured value is kept for diagnostics
+  // only; the per-skill Next: pointer match below deliberately does NOT pin to it (see the
+  // note there — BACKLOG-0078 / STORY-21.1.01).
   let CANONICAL_CHAIN = [];
   let chainPrefix = null; // captured from the chain line (e.g. 'Tandem')
   for (const line of coreText.split(/\r?\n/)) {
@@ -684,12 +726,13 @@ function checkChainSync(skillsDir = path.join(REPO_ROOT, 'skills')) {
     if (!fs.existsSync(skillPath)) continue;
 
     const content = fs.readFileSync(skillPath, 'utf8');
-    // Next: pointer — the prefix captured from the canonical chain line is reused here so
-    // both dev (`/Tandem:`) and published (`/Tandem:`) prefixes are matched
-    // without hardcoding either literal. Fallback: match any single `/<prefix>:` prefix.
-    const prefixPattern = chainPrefix ? chainPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '[^:`]+';
-    const nextMatch = content.match(new RegExp(`^Next:\\s*\`\\/${prefixPattern}:([^\`]+)\``, 'm'));
-    const nextCommand = nextMatch ? nextMatch[1] : null;
+    // Next: pointer — matched against any single prefix of the same captured shape as the
+    // chain line's own tokens, NOT pinned to the chain line's exact captured value. A
+    // chain member on the published prefix while core is still on the dev prefix (or the
+    // reverse, post-republish) must not false-positive here; a wrong next command under a
+    // matching prefix still must (BACKLOG-0078 / STORY-21.1.01).
+    const nextMatch = content.match(/^Next:\s*`\/([^:`]+):([^`]+)`/m);
+    const nextCommand = nextMatch ? nextMatch[2] : null;
     const expectedNext = chainSuccessor[skillName];
 
     if (nextCommand !== expectedNext) {
@@ -1015,6 +1058,12 @@ module.exports.checkChainSync = checkChainSync;
 module.exports.checkVerifyAntiPatterns = checkVerifyAntiPatterns;
 // Exported for test injection (STORY-19.2.01 kitVersion parity gate).
 module.exports.checkVersionParity = checkVersionParity;
+// Exported for test injection (STORY-21.1.01): lets a harness inspect what checkChainSync
+// (or any other rule function) pushed via violate(), without re-running the whole corpus.
+module.exports.violations = violations;
+// Exported for unit tests (STORY-21.2.02 / ADR-0079): the pure R23 shape checker, no
+// filesystem access — mirrors the R19 suggested_agents export seam.
+module.exports.checkUsageEstimateShape = checkUsageEstimateShape;
 
 // Run as CLI only. The guard lets a test `require()` this module to reach the export
 // above WITHOUT triggering a full corpus lint + process.exit() (mirrors the

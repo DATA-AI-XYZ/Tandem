@@ -47,6 +47,15 @@ const OUT_FILE = path.join(PM_ROOT, '42-Monitor', 'DASHBOARD.html');
 // scan / machine-absolute paths — they would leak the builder's username/inventory into a public dashboard.
 const EXTERNAL_ROOT = !!process.env.PM_DASH_ROOT;
 
+// Usage rollup (STORY-21.2.03 / ADR-0079): reuses the SAME tolerant log reader / positive-int
+// shape check as generate-monitor.js / usage-reconcile.js (STORY-21.2.02) rather than
+// re-implementing the parsing, so all three surfaces never drift on what counts as "an
+// actual" or "a valid estimate". The usage-log path is computed from THIS script's own
+// PM_ROOT (honours PM_DASH_ROOT) rather than usage-capture.js's DEFAULT_LOG_PATH, which is
+// pinned to the kit's own physical location regardless of which PM tree is being rendered.
+const { readUsageLog, actualTotalsByStoryId, parsePositiveInt } = require('./usage-reconcile');
+const USAGE_LOG_PATH = path.join(PM_ROOT, '41-Reports', 'usage', 'usage-log.jsonl');
+
 // PM corpus scan map (PRD §10.1). Missing dirs are skipped silently.
 // v1.1: `inbox` added (10-Inbox) for the Capture tab + Now-page pending-action widget.
 const SCAN_DIRS = {
@@ -365,6 +374,39 @@ function parseFrontmatterAndBody(content) {
     listBuf = null;
     let value = kv[2].trim();
     if (!value) { fm[key] = ''; continue; }
+
+    // BUG-20260618-03 Case D — YAML block scalar (`description: |` literal,
+    // or `description: >` folded; optional chomping +/- and a rare leading
+    // indent-indicator digit). Without this, the value is left as the bare
+    // indicator string (fm.description === '|') and the block body is
+    // silently dropped — a drawer then renders a literal "|" instead of the
+    // description. Consume the following more-indented lines as the scalar's
+    // real text. Deliberately narrow (single style, no anchors/tags/nested
+    // block scalars) — this is a display-layer parser, not a YAML engine.
+    const blockScalar = value.match(/^([|>])([+-]?)\d*$/);
+    if (blockScalar) {
+      const style = blockScalar[1];
+      const collected = [];
+      let blockIndent = null;
+      let j = i + 1;
+      for (; j < lines.length; j++) {
+        const l = lines[j];
+        if (l.trim() === '') { collected.push(''); continue; }
+        const indent = l.match(/^\s*/)[0].length;
+        if (blockIndent === null) {
+          if (indent === 0) break; // nothing indented under the key — empty block
+          blockIndent = indent;
+        } else if (indent < blockIndent) {
+          break; // dedent — block scalar body ends here
+        }
+        collected.push(l.slice(blockIndent));
+      }
+      while (collected.length && collected[collected.length - 1] === '') collected.pop();
+      fm[key] = style === '|' ? collected.join('\n') : collected.join(' ').replace(/\s+/g, ' ').trim();
+      i = j - 1; // resume the outer loop at the first unconsumed line
+      continue;
+    }
+
     if (/^\[.*\]$/.test(value)) {
       const inner = value.slice(1, -1).trim();
       fm[key] = inner ? inner.split(',').map(s => unquote(s.trim())) : [];
@@ -438,6 +480,27 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+// STORY-21.4.01 (BACKLOG-0082 / ADR-0084) — plain-English "what you'll see"
+// deliverable line for the Plan → Roadmap timeline. Built server-side (same
+// pre-render pattern as mdToHtml's bodyHtml, see buildPmCorpus) so the
+// ADR-0059 thin-input rule is enforced in exactly one place and is directly
+// unit-testable via the module.exports test seam, rather than being
+// re-implemented inside the client-side render template. An empty/absent/
+// whitespace-only outcome MUST render NOTHING — no placeholder sentence, no
+// fabricated line — the caller receives an empty string and renders no
+// element at all.
+function buildDeliverableLine(outcome, cssClass) {
+  const text = (outcome == null ? '' : String(outcome)).trim();
+  if (!text) return '';
+  return '<p class="' + cssClass + '"><span class="lab">What you\'ll see</span> ' + escapeHtml(text) + '</p>';
+}
+
+// Shared allow-list for both the link (`[txt](href)`) and image
+// (`![alt](src)`) inline rules in mdToHtml()'s inline() — STORY-21.5.02
+// requires the image rule to reuse the SAME list verbatim so a `javascript:`
+// (or any other non-allow-listed scheme) is rejected identically for both.
+const SAFE_HREF_RE = /^(https?:|mailto:|#|\.\.?\/)/;
+
 function slug(s) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
@@ -481,10 +544,94 @@ function tokenCost(content) {
   return Math.ceil(s.length / 4);
 }
 
+// commas(n) — thousands-comma integer formatting, no locale dependency.
+function commas(n) {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// oneDecimalFloor(x) — one decimal place, TRUNCATED (not rounded), trailing
+// ".0" dropped. Truncation (vs. rounding) keeps a value just under a tier
+// boundary — e.g. 999999 tok — reading as "999.9K" rather than rounding up
+// to "1000.0K" and looking like it crossed into the next magnitude.
+function oneDecimalFloor(x) {
+  const truncated = Math.floor(x * 10) / 10;
+  let s = truncated.toFixed(1);
+  if (s.endsWith('.0')) s = s.slice(0, -2);
+  return s;
+}
+
+// formatTok(n) — BUG-20260618-03 Case C: the single number-format site for
+// every context-load token-cost figure (rollup header + every card cost tag
+// + the drawer). Below 10,000: thousands-comma integer (1,344). From 10,000:
+// one-decimal K abbreviation (378K, not 378.0K). From 1,000,000: one-decimal
+// M abbreviation (1.2M). Returns only the formatted number — callers supply
+// the '~' prefix and ' tok' suffix. Mirrored (not shared, per this file's
+// existing escHtml/escapeHtml split) as a client-side copy in BROWSER_JS
+// since this string bundle has no module system to import across.
+function formatTok(n) {
+  const num = Number(n) || 0;
+  const neg = num < 0;
+  const abs = Math.abs(num);
+  let out;
+  if (abs < 10000) {
+    out = commas(Math.round(abs));
+  } else if (abs < 1000000) {
+    out = oneDecimalFloor(abs / 1000) + 'K';
+  } else {
+    out = oneDecimalFloor(abs / 1000000) + 'M';
+  }
+  return (neg ? '-' : '') + out;
+}
+
+// STORY-21.5.02 / BUG-20260618-02: block-level pre-pass that strips HTML
+// comments (<!-- ... -->, including multi-line) BEFORE any escaping/inline
+// processing runs, so no comment text ever reaches the rendered output.
+// Fence-aware: mirrors mdToHtml's own fence open/close detection so the
+// strip never reaches inside a ``` fenced block — a README's code sample may
+// legitimately contain literal <!-- or <div> text and must survive verbatim.
+// Unterminated <!-- (no matching --> before EOF) is stripped to end-of-line
+// only, so it never swallows the rest of the document.
+function stripHtmlCommentsOutsideFences(md) {
+  const lines = md.split(/\r?\n/);
+  const out = [];
+  let inFence = false;
+  let buf = [];
+
+  function flushBuf() {
+    if (!buf.length) return;
+    let text = buf.join('\n');
+    // Balanced comments first (non-greedy so adjacent comments don't merge).
+    text = text.replace(/<!--[\s\S]*?-->/g, '');
+    // Any remaining (unterminated) <!-- is stripped to end-of-line only.
+    text = text.replace(/<!--.*$/gm, '');
+    out.push(text);
+    buf = [];
+  }
+
+  for (const line of lines) {
+    if (inFence) {
+      if (line.trim().startsWith('```')) inFence = false;
+      out.push(line); // fence contents/close line untouched
+      continue;
+    }
+    if (/^```(\w*)\s*$/.test(line)) {
+      flushBuf();
+      out.push(line); // fence-open line untouched
+      inFence = true;
+      continue;
+    }
+    buf.push(line);
+  }
+  flushBuf();
+  return out.join('\n');
+}
+
 // Minimal markdown → HTML. Handles headings, paragraphs, fenced code, inline
-// code, lists (ul/ol), blockquotes, tables, links, bold/italic, hr.
+// code, lists (ul/ol), blockquotes, tables, links, bold/italic, hr, images,
+// and a small allow-listed raw-HTML block passthrough (STORY-21.5.02).
 function mdToHtml(md) {
   if (!md) return '';
+  md = stripHtmlCommentsOutsideFences(md);
   const lines = md.split(/\r?\n/);
   let out = '';
   let inCode = false;
@@ -501,8 +648,17 @@ function mdToHtml(md) {
     s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
     s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     s = s.replace(/(^|\s|\()_([^_\n]+)_(?=$|\s|[.,;:!?\)])/g, '$1<em>$2</em>');
+    // Image rule MUST precede the link rule: `![alt](src)` shares the link
+    // rule's `[txt](href)` shape, so an un-consumed image would half-match
+    // the link regex below and leave a dangling `!` + hyperlink
+    // (BUG-20260618-02, Case B). Same safeHref allow-list as the link rule;
+    // a rejected scheme (e.g. javascript:) falls back to plain alt text.
+    s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function (_, alt, src) {
+      if (SAFE_HREF_RE.test(src)) return '<img alt="' + alt + '" src="' + src + '">';
+      return alt;
+    });
     s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (_, txt, href) {
-      const safeHref = /^(https?:|mailto:|#|\.\.?\/)/.test(href) ? href : '#';
+      const safeHref = SAFE_HREF_RE.test(href) ? href : '#';
       return '<a href="' + safeHref + '"' + (safeHref.startsWith('http') ? ' target="_blank" rel="noopener"' : '') + '>' + txt + '</a>';
     });
     return s;
@@ -546,6 +702,16 @@ function mdToHtml(md) {
     }
     const codeStart = line.match(/^```(\w*)\s*$/);
     if (codeStart) { flushPara(); closeList(); flushTable(); flushBlockquote(); inCode = true; codeLang = codeStart[1]; continue; }
+    // STORY-21.5.02 / BUG-20260618-02: known-safe raw block HTML passthrough.
+    // A line consisting solely of an allow-listed container tag (<div ...>,
+    // </div>, <p ...>, </p> — the family Tandem's own README uses for
+    // centering) is emitted verbatim instead of falling into the
+    // paragraph -> inline() -> escapeHtml() path, where it would otherwise
+    // render as visible escaped literal text. Anything NOT on this small
+    // allow-list (e.g. <script>) intentionally falls through to normal
+    // paragraph handling below and stays escaped.
+    const rawHtml = line.match(/^\s*(<\/?(?:div|p)(?:\s[^<>]*)?>)\s*$/i);
+    if (rawHtml) { flushPara(); closeList(); flushTable(); flushBlockquote(); out += rawHtml[1] + '\n'; continue; }
     // Table detection: header line followed by separator
     if (line.indexOf('|') !== -1 && i + 1 < lines.length && /^\s*\|?\s*:?-+:?(\s*\|\s*:?-+:?)+\s*\|?\s*$/.test(lines[i + 1])) {
       flushPara(); closeList(); flushBlockquote();
@@ -688,6 +854,13 @@ function buildPmCorpus() {
         record.question = extractSection(body, 'Question');
         record.recommendationText = extractSection(body, 'Recommendation') || record.recommendation || '';
       }
+      // STORY-21.2.03 — carry the optional usage_estimate (approximate total tokens; R23
+      // shape-checked) so buildUsageRollup() can roll it up per epic/feature without a
+      // second corpus walk. parsePositiveInt: an absent/invalid value is null, never a
+      // fabricated 0 — consistent with usage-reconcile.js / generate-monitor.js.
+      if (type === 'story') {
+        record.usage_estimate = parsePositiveInt(fm.usage_estimate);
+      }
       all[type].push(record);
     }
     all[type].sort((a, b) => {
@@ -786,7 +959,9 @@ function readSkillDir(skillDir, source) {
   if (content == null) return null;
   const { fm, body } = parseFrontmatterAndBody(content);
   const name = (fm && fm.name) || path.basename(skillDir);
-  const fullDescription = decodeYamlEscapes((fm && fm.description) || '') || firstLine(body);
+  // BUG-20260618-03 Cases D/E — resolveDescription guards a bare block-scalar
+  // indicator and skips to the first prose line (not a raw heading) when absent.
+  const fullDescription = resolveDescription(fm, body);
   return {
     kind: 'skill',
     name,
@@ -806,10 +981,12 @@ function readAgentFile(fp, source) {
   if (content == null) return null;
   const { fm, body } = parseFrontmatterAndBody(content);
   const name = (fm && fm.name) || path.basename(fp, '.md');
-  const rawDesc = decodeYamlEscapes((fm && fm.description) || '');
+  // BUG-20260618-03 Cases D/E — resolveDescription guards a bare block-scalar
+  // indicator and skips to the first prose line (not a raw heading) when absent.
+  const rawDesc = resolveDescription(fm, body);
   // Card blurb: the prose before the first <example>/Specifically marker.
   const blurb = rawDesc.split(/<example>|Specifically:/i)[0].trim();
-  const description = blurb ? truncate(blurb, 220) : firstLine(body);
+  const description = truncate(blurb || rawDesc, 220);
   return {
     kind: 'agent',
     name,
@@ -832,7 +1009,10 @@ function readCommandFile(fp, source) {
   const { fm, body } = parseFrontmatterAndBody(content);
   const baseName = path.basename(fp, '.md');
   const name = (fm && fm.name) || baseName;
-  const description = (fm && fm.description) || firstLine(body) || baseName;
+  // BUG-20260618-03 Cases D/E — resolveDescription guards a bare block-scalar
+  // indicator and skips to the first prose line (never a raw heading) when
+  // absent, ending in a neutral placeholder rather than the bare baseName.
+  const description = resolveDescription(fm, body);
   // STORY-11.1.04 / ADR-0047: extract the lifecycle "next command" pointer from the command body
   // (the `Next: `/<plugin>:<x>`` form authored in STORY-11.1.03). Absent → '' → the card renders no
   // next-command element (graceful: the kit's lifecycle commands ship as skills, so a command card
@@ -854,12 +1034,6 @@ function readCommandFile(fp, source) {
   };
 }
 
-function firstLine(s) {
-  if (!s) return '';
-  const t = String(s).trim().split(/\r?\n/)[0].trim();
-  return t.length > 220 ? t.slice(0, 219) + '…' : t;
-}
-
 function truncate(s, n) {
   const t = String(s || '').trim();
   n = n || 200;
@@ -877,6 +1051,48 @@ function decodeYamlEscapes(s) {
     .replace(/\\r/g, '')
     .replace(/\\"/g, '"')
     .replace(/\\'/g, "'");
+}
+
+const NO_DESCRIPTION_PLACEHOLDER = 'No description provided.';
+
+// firstProseLine(body) — BUG-20260618-03 Case E: the naive firstLine(body)
+// fallback could return a raw markdown line verbatim (a command with no
+// `description:` and a body starting `# File Analysis Tool` rendered that
+// heading, `#` and all, as the drawer description). Walk the body line by
+// line, skipping blank/heading/blockquote/list-marker/rule lines, and return
+// the first genuine prose line with leading markdown tokens stripped. Empty
+// string when no prose line exists — callers apply NO_DESCRIPTION_PLACEHOLDER.
+function firstProseLine(body) {
+  if (!body) return '';
+  const lines = String(body).split(/\r?\n/);
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;                              // blank
+    if (/^#{1,6}(\s|$)/.test(line)) continue;          // heading
+    if (/^>/.test(line)) continue;                     // blockquote
+    if (/^([-*+]|\d+[.)])\s/.test(line)) continue;     // list marker
+    if (/^(---+|===+|\*\*\*+)$/.test(line)) continue;  // rule / setext underline
+    const stripped = line.replace(/^[#>\s]+/, '').replace(/^[*_`]+/, '').trim();
+    if (stripped) return truncate(stripped, 220);
+  }
+  return '';
+}
+
+// resolveDescription(fm, body) — BUG-20260618-03 Cases D+E: the single
+// source of truth every card/drawer description read runs through.
+//   D: guards against a raw block-scalar indicator ('|', '>', with optional
+//      chomping/indent modifiers) surviving as fm.description — belt-and-
+//      suspenders on top of parseFrontmatterAndBody's own block-scalar
+//      support, in case a caller ever hands in an fm object built elsewhere.
+//   E: when there is no usable description, resolves to the first prose
+//      line of the body (see firstProseLine) instead of a raw heading/list/
+//      blockquote line, falling back to a neutral placeholder when the body
+//      has no prose at all.
+function resolveDescription(fm, body) {
+  const raw = decodeYamlEscapes((fm && fm.description) || '');
+  const isBareBlockScalarIndicator = /^[|>][+-]?\d*$/.test(raw.trim());
+  if (raw && !isBareBlockScalarIndicator) return raw;
+  return firstProseLine(body) || NO_DESCRIPTION_PLACEHOLDER;
 }
 
 // Sub-agent descriptions embed <example> blocks (Context / user / assistant /
@@ -1161,6 +1377,15 @@ function applyFitRanks(items, kind, fitOverlays) {
   }
 }
 
+// BUG-20260618-03 Case B — the CATEGORY facet's catch-all ("Other", from
+// categorise()) and the ADR-0029 fit-rank group for items with no relevance
+// overlay used to share the literal label "Other", so two unrelated counts
+// (107 vs 167) read as the same ambiguous bucket. categorise()'s catch-all
+// intentionally STAYS "Other" (untouched); only the fit-rank group's display
+// label changes. Carried in the __DATA payload (not hardcoded in the client
+// bundle) so it is one source of truth for every render site that shows it.
+const FIT_UNRANKED_LABEL = 'Unranked';
+
 function buildAiCatalogue() {
   if (EXTERNAL_ROOT) {
     // Demo/external-root mode: skip the local ~/.claude scan and emit a path-free, empty catalogue
@@ -1173,6 +1398,7 @@ function buildAiCatalogue() {
       totalCost: 0,
       scanRoots: { user: '~/.claude', project: './.claude' },
       counts: { skills: 0, agents: 0, commands: 0, plugins: 0 },
+      fitGroupLabel: FIT_UNRANKED_LABEL,
     };
   }
   const skills = []
@@ -1306,6 +1532,7 @@ function buildAiCatalogue() {
       commands: allCommands.length,
       plugins: plugins.length,
     },
+    fitGroupLabel: FIT_UNRANKED_LABEL,
   };
 }
 
@@ -1331,9 +1558,19 @@ function computeCounts(pm) {
 function buildPlanTree(pm) {
   // Group features by epic, stories by feature, testplans by story.
   const byEpic = new Map();
-  for (const e of pm.epic) byEpic.set(e.id, { epic: e, features: [] });
+  for (const e of pm.epic) {
+    // STORY-21.4.01 — pre-render the epic's "what you'll see" deliverable
+    // line once here (thin-input rule enforced inside buildDeliverableLine),
+    // so the Plan → Roadmap timeline renderer only has to inject it verbatim.
+    e.deliverableHtml = buildDeliverableLine(e.outcome, 'epic-deliverable');
+    byEpic.set(e.id, { epic: e, features: [] });
+  }
   const orphanFeats = [];
   for (const f of pm.feature) {
+    // STORY-21.4.01 — same pre-render, feature grain (the timeline has no
+    // separate phase axis; per ADR-0084, epic+feature grain satisfies the
+    // "deliverable per phase" AC).
+    f.deliverableHtml = buildDeliverableLine(f.outcome, 'feat-deliverable');
     const ep = byEpic.get(f.epic);
     const node = { feature: f, stories: [] };
     if (ep) ep.features.push(node);
@@ -1645,6 +1882,41 @@ function buildTemplates() { return buildReferenceFolder('91-Templates', { extens
 function buildPrompts()   { return buildReferenceFolder('92-Prompts',   { extensions: ['.md'] }); }
 function buildScripts()   { return buildReferenceFolder('93-Scripts',   { extensions: ['.js', '.cjs', '.mjs', '.sh', '.ps1', '.md'] }); }
 
+// isKitRepo signal (BUG-20260618-01, STORY-21.5.01). Gates the Tandem tab so a consumer
+// install never sees kit-dev-only instructions. Mirrors the "am I the kit's own dev
+// repo?" guard shipped for the VERSION-PARITY consumer fix in v2.6.1 — see
+// checkVersionParity() in validate-frontmatter.js, which treats the kit's own
+// .claude-plugin manifests as the unambiguous "this is the kit repo" signature (a
+// consumer install never has them). Widened here per this story's AC with two more
+// kit-only markers — a defined `build:tandem` npm script and an already-built
+// dist/tt/ — so the kit repo still classifies correctly even before its first build
+// (see Risks/unknowns in STORY-21.5.01).
+function detectIsKitRepo() {
+  const pluginPath = path.join(REPO_ROOT, '.claude-plugin', 'plugin.json');
+  const marketplacePath = path.join(REPO_ROOT, '.claude-plugin', 'marketplace.json');
+  if (fs.existsSync(pluginPath) || fs.existsSync(marketplacePath)) return true;
+  if (existsDir(path.join(REPO_ROOT, 'dist', 'tt'))) return true;
+  try {
+    const pkgText = readFileSafe(path.join(REPO_ROOT, 'package.json'));
+    if (pkgText) {
+      const pkg = JSON.parse(pkgText);
+      if (pkg && pkg.scripts && typeof pkg.scripts['build:tandem'] === 'string') return true;
+    }
+  } catch (_e) { /* malformed package.json — treat as consumer, not kit */ }
+  return false;
+}
+
+// Empty-state copy for the Tandem tab when there is no build output to show. Computed
+// server-side (rather than hard-coded in the client bundle) so the kit-dev instruction
+// text physically cannot appear anywhere in a consumer-context build — see the AC on
+// BUG-20260618-01: a consumer install must never be told to run a script it doesn't have.
+const TANDEM_KIT_DEV_EMPTY_STATE = '<div class="panel"><h3>Tandem plugin</h3><div class="empty">No Tandem build found at <code>dist/tt/</code>. Run <code>npm run build:tandem</code> to publish the plugin and regenerate this dashboard.</div></div>';
+const TANDEM_CONSUMER_EMPTY_STATE = '<div class="panel"><h3>Tandem plugin</h3><div class="empty">Not applicable — the Tandem build pipeline runs only in the kit\'s source repo.</div></div>';
+
+function buildTandemEmptyStateHtml(isKitRepo) {
+  return isKitRepo ? TANDEM_KIT_DEV_EMPTY_STATE : TANDEM_CONSUMER_EMPTY_STATE;
+}
+
 // Scan the Tandem build output (`dist/tt/`) for the published plugin's manifest,
 // skill set, hook registry, and bundled docs. Drives the Tandem tab so the
 // dashboard reflects what's actually shipped rather than the source tree.
@@ -1668,7 +1940,8 @@ function buildTandemPackage() {
       if (!content) continue;
       const parsed = parseFrontmatterAndBody(content);
       const fm = parsed.fm || {};
-      const rawDesc = decodeYamlEscapes(fm.description || '') || firstLine(parsed.body || '');
+      // BUG-20260618-03 Cases D/E — same guard + prose-line fallback as the main scan.
+      const rawDesc = resolveDescription(fm, parsed.body || '');
       const blurb = rawDesc.split(/<example>|Specifically:/i)[0].trim();
       skills.push({
         name: fm.name || e.name,
@@ -1798,6 +2071,66 @@ function computeThisWeek(pm, days) {
   }
   out.sort((a, b) => String(b._when).localeCompare(String(a._when)));
   return out.slice(0, 40);
+}
+
+/* ============================================================
+ * STORY-21.2.03 — usage rollup (ADR-0079). Rolls up ACTUAL usage
+ * (usage-log.jsonl, tolerant of absence) + ESTIMATED usage
+ * (usage_estimate frontmatter) per epic/feature for the __DATA
+ * payload's `usage` field. CRITICAL HONESTY RULE: an epic/feature
+ * entry is created ONLY when a story actually contributes an
+ * estimate or an actual — never a fabricated all-null/all-zero row.
+ * ============================================================ */
+
+function buildUsageRollup(storyRecords) {
+  const { records } = readUsageLog(USAGE_LOG_PATH); // tolerant: missing/malformed → []
+  const actualsByStoryId = actualTotalsByStoryId(records);
+
+  const byEpic = new Map();
+  const byFeature = new Map();
+
+  function bump(map, key) {
+    if (!map.has(key)) map.set(key, { estimateSum: 0, estimateCount: 0, actualSum: 0, actualCount: 0 });
+    return map.get(key);
+  }
+
+  for (const s of (storyRecords || [])) {
+    const epicId = s.epic || '(no epic)';
+    const featureId = s.feature || '(no feature)';
+    const estimate = (typeof s.usage_estimate === 'number') ? s.usage_estimate : null;
+    const actual = s.id && actualsByStoryId.has(s.id) ? actualsByStoryId.get(s.id) : null;
+
+    if (estimate !== null) {
+      const e = bump(byEpic, epicId); e.estimateSum += estimate; e.estimateCount += 1;
+      const f = bump(byFeature, featureId); f.estimateSum += estimate; f.estimateCount += 1;
+    }
+    if (actual !== null) {
+      const e = bump(byEpic, epicId); e.actualSum += actual; e.actualCount += 1;
+      const f = bump(byFeature, featureId); f.actualSum += actual; f.actualCount += 1;
+    }
+  }
+
+  // Shape per epic/feature: { estimated, actual, coverage } (AC-2). `estimated`/`actual` are
+  // null (never a fabricated 0) when nothing contributed. `coverage` names the underlying
+  // story counts so the client can render "N of M stories have actuals" honestly instead of
+  // inventing a percentage when there is nothing to divide.
+  function toPayload(map) {
+    const out = {};
+    for (const [key, r] of map) {
+      out[key] = {
+        estimated: r.estimateCount > 0 ? r.estimateSum : null,
+        actual: r.actualCount > 0 ? r.actualSum : null,
+        coverage: { storiesWithEstimate: r.estimateCount, storiesWithActual: r.actualCount },
+      };
+    }
+    return out;
+  }
+
+  return {
+    hasAnyActual: actualsByStoryId.size > 0,
+    byEpic: toPayload(byEpic),
+    byFeature: toPayload(byFeature),
+  };
 }
 
 /* ============================================================
@@ -2194,9 +2527,9 @@ const BROWSER_JS = [
 '        var tp = (D.plan && D.plan.tpByStory && D.plan.tpByStory[s.id]) || null;',
 '        return \'<div class="tile" data-type="story" data-id="\' + escHtml(s.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(s.id) + \'</span><span class="tile-extra">\' + (tp ? \'<span class="tp-link">\' + escHtml(tp.id) + \'</span>\' : \'\') + pill(s.status) + \'</span></div><div class="tile-title">\' + escHtml(s.title) + \'</div></div>\';',
 '      }).join("") + \'</div>\' : \'<div class="empty">No stories yet.</div>\';',
-'      return \'<div class="feat-card" data-feat="\' + escHtml(f.id) + \'"><div class="feat-head"><span class="disclose">▸</span><span class="feat-id">\' + escHtml(f.id) + \'</span><span class="feat-title">\' + escHtml(f.title) + \'</span>\' + pill(featStatus(fn)) + \'</div><div class="feat-body">\' + storiesHtml + \'</div></div>\';',
+'      return \'<div class="feat-card" data-feat="\' + escHtml(f.id) + \'"><div class="feat-head"><span class="disclose">▸</span><span class="feat-id">\' + escHtml(f.id) + \'</span><span class="feat-title">\' + escHtml(f.title) + \'</span>\' + pill(featStatus(fn)) + \'</div>\' + (f.deliverableHtml||"") + \'<div class="feat-body">\' + storiesHtml + \'</div></div>\';',
 '    }).join("") || \'<div class="empty">No features yet.</div>\';',
-'    return \'<div class="epic-card reveal" data-epic="\' + escHtml(e.id) + \'"><div class="epic-head"><span class="disclose">▸</span><span class="epic-id">\' + escHtml(e.id) + \'</span><span class="epic-title">\' + escHtml(e.title) + \'</span><span class="epic-progress"><span class="progress"><span style="width:\' + pct + \'%"></span></span><span class="ratio">\' + doneFeats + \' / \' + totalFeats + \'</span></span><span class="epic-badges">\' + badges + pill(deriveStatus(epicStories, e.status)) + \'</span></div><div class="epic-body">\' + featsHtml + \'</div></div>\';',
+'    return \'<div class="epic-card reveal" data-epic="\' + escHtml(e.id) + \'"><div class="epic-head"><span class="disclose">▸</span><span class="epic-id">\' + escHtml(e.id) + \'</span><span class="epic-title">\' + escHtml(e.title) + \'</span><span class="epic-progress"><span class="progress"><span style="width:\' + pct + \'%"></span></span><span class="ratio">\' + doneFeats + \' / \' + totalFeats + \'</span></span><span class="epic-badges">\' + badges + pill(deriveStatus(epicStories, e.status)) + \'</span></div>\' + (e.deliverableHtml||"") + \'<div class="epic-body">\' + featsHtml + \'</div></div>\';',
 '  }).join("");',
 '  var intro = \'<div class="view-intro"><div class="vi-title">Plan</div><div class="vi-source">Derived from every story file under <code>32-Stories/</code>, grouped by epic and feature.</div><div class="vi-why">Matters because it is the single board showing what is planned, what is in flight, and what is done at every level of the hierarchy.</div></div>\';',
 '  root.innerHTML = intro + toolbar + html;',
@@ -2475,6 +2808,22 @@ const BROWSER_JS = [
 'RENDERERS["decisions:retro"]    = decisionsRenderer("retro");',
 
 // AI Catalogue renderers
+// BUG-20260618-03 Case C — the single number-format site for every context-load
+// token-cost figure (card cost tags + the rollup header). Mirrors the Node-side
+// formatTok in generate-dashboard.js (this bundle is a plain string blob with no
+// module system to import across, same as escHtml/escapeHtml already do).
+'function tokCommas(n){ return String(n).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ","); }',
+'function tokOneDecimal(x){ var t = Math.floor(x*10)/10; var s = t.toFixed(1); if(s.slice(-2)===".0") s = s.slice(0,-2); return s; }',
+'function formatTok(n){',
+'  var num = Number(n) || 0;',
+'  var neg = num < 0;',
+'  var abs = Math.abs(num);',
+'  var out;',
+'  if(abs < 10000){ out = tokCommas(Math.round(abs)); }',
+'  else if(abs < 1000000){ out = tokOneDecimal(abs/1000) + "K"; }',
+'  else { out = tokOneDecimal(abs/1000000) + "M"; }',
+'  return (neg ? "-" : "") + out;',
+'}',
 'function fitBadgeHtml(rank){',
 '  if(!rank) return "";',
 '  return \'<span class="fit-badge \' + escHtml(rank) + \'">\' + escHtml(rank) + \'</span>\';',
@@ -2495,12 +2844,14 @@ const BROWSER_JS = [
 '  // in buildAiCatalogue); it never recomputes the cost at render time. Neutral numeric label here;',
 '  // STORY-11.3.03 adds the human "context-load cost / context tax" wording + glossary cross-link.',
 '  var cost = (typeof it.tokenCost === "number") ? it.tokenCost : 0;',
-'  var costHtml = \'<span class="tag ai-cost" data-cost="\' + cost + \'" title="Context-load token cost (estimate)">~\' + cost + \' tok</span>\';',
+'  var costHtml = \'<span class="tag ai-cost" data-cost="\' + cost + \'" title="Context-load token cost (estimate)">~\' + formatTok(cost) + \' tok</span>\';',
 '  return \'<div class="ai-card reveal\' + (it.curated?" curated":"") + \'" data-type="ai-\' + kindKey + \'" data-name="\' + escHtml(it.name) + \'" data-cost="\' + cost + \'"><div class="name">\' + escHtml(it.name) + \'</div><div class="desc">\' + escHtml(desc) + \'</div>\' + nextHtml + \'<div class="footer">\' + costHtml + badges + \'</div></div>\';',
 '}',
 // recommendedVsOther partition (ADR-0033): split filtered items into
-// "Recommended for this project" (fitRank HIGH or MED) vs "Other" (LOW or no overlay).
-// Items with no overlay always render in Other — never dropped (graceful fallback).
+// "Recommended for this project" (fitRank HIGH or MED) vs the fit-rank catch-all
+// (LOW or no overlay), displayed as "Unranked" (BUG-20260618-03 Case B — was "Other",
+// colliding with the unrelated CATEGORY facet's own "Other" catch-all).
+// Items with no overlay always render in this group — never dropped (graceful fallback).
 'function recommendedVsOther(filtered){',
 '  var recommended = filtered.filter(function(it){ return it.fitRank==="HIGH" || it.fitRank==="MED"; });',
 '  var other = filtered.filter(function(it){ return it.fitRank!=="HIGH" && it.fitRank!=="MED"; });',
@@ -2537,12 +2888,23 @@ const BROWSER_JS = [
 '    var kindTotal = (ai.costByKind && ai.costByKind[listKey]) || 0;',
 '    var pluginTot = (ai.pluginTotal!=null) ? ai.pluginTotal : 0;',
 '    var catTotal  = (ai.totalCost!=null) ? ai.totalCost : 0;',
+'    var kindCount = (ai.counts && ai.counts[listKey]!=null) ? ai.counts[listKey] : list.length;',
 '    var costBar = \'<div class="controls reveal cost-controls" style="background:transparent; border:none; padding:0.25rem 0; gap:0.55rem; flex-wrap:wrap;">\' +',
 '      \'<span class="filter-label">Context-load cost <span class="cost-legend" style="font-weight:400; color:var(--ink-2);">(the context tax — how much an item costs to LOAD; it is not a per-invocation completion ($) cost · <a href="../../documentation/context-economics.html" target="_blank" rel="noopener" title="Forward reference — authored in FEAT-11.4">what is this?</a>)</span></span>\' +',
-'      \'<span class="cost-rollup">this \' + escHtml(kindKey) + \': <b>~\' + kindTotal + \' tok</b>\' + (listKey==="plugins" ? "" : \' · plugin total <b>~\' + pluginTot + \' tok</b>\') + \' · catalogue <b>~\' + catTotal + \' tok</b></span>\' +',
-'      \'<span class="tag cost-sort\' + (costSort==="asc"?" active":"") + \'" data-cost-sort="asc" title="Sort by cost, ascending">cost ↑</span>\' +',
-'      \'<span class="tag cost-sort\' + (costSort==="desc"?" active":"") + \'" data-cost-sort="desc" title="Sort by cost, descending">cost ↓</span>\' +',
-'      \'<label class="cost-filter-label" style="font-size:0.78rem; color:var(--ink-2);">min cost <input class="cost-filter" type="number" min="0" step="50" value="\' + costMin + \'" style="width:5.5rem;"></label>\' +',
+// BUG-20260618-03 Case A — this used to label the KIND-WIDE total (the sum of every
+// item of this kind) as singular "this <kindKey>", which read as one item costing
+// more than the whole "plugin total" figure next to it. Scope-clear plural label
+// with the item count instead; the figures themselves were always correct.
+'      \'<span class="cost-rollup">all \' + escHtml(listKey) + \' (\' + kindCount + \'): <b>~\' + formatTok(kindTotal) + \' tok</b>\' + (listKey==="plugins" ? "" : \' · plugin total <b>~\' + formatTok(pluginTot) + \' tok</b>\') + \' · catalogue <b>~\' + formatTok(catTotal) + \' tok</b></span>\' +',
+// STORY-21.5.04 (fix BUG-20260618-04 D1/D4) — sort buttons + min-cost input wrapped in
+// their own flex row (.cost-filter-row, styled in dashboard-css.js) so they line up as
+// one control family; aria-pressed mirrors the "active" class (both recompute from
+// STATE.aiCostSort on every renderActive(), so only one direction ever reads pressed).
+'      \'<div class="cost-filter-row">\' +',
+'      \'<span class="tag cost-sort\' + (costSort==="asc"?" active":"") + \'" data-cost-sort="asc" aria-pressed="\' + (costSort==="asc"?"true":"false") + \'" title="Sort by cost, ascending">cost ↑</span>\' +',
+'      \'<span class="tag cost-sort\' + (costSort==="desc"?" active":"") + \'" data-cost-sort="desc" aria-pressed="\' + (costSort==="desc"?"true":"false") + \'" title="Sort by cost, descending">cost ↓</span>\' +',
+'      \'<label class="cost-filter-label" style="font-size:0.78rem; color:var(--ink-2);">min cost <input class="cost-filter" type="number" min="0" step="50" value="\' + costMin + \'"></label>\' +',
+'      \'</div>\' +',
 '    \'</div>\';',
 // Partition into Recommended vs Other (ADR-0033 render-time grouping over existing fields).
 '    var groups = recommendedVsOther(filtered);',
@@ -2557,14 +2919,19 @@ const BROWSER_JS = [
 '      \'</div>\';',
 '    }',
 '    var grid;',
+// BUG-20260618-03 Case B — the fit-rank catch-all's DISPLAY label comes from the
+// __DATA payload (ai.fitGroupLabel, "Unranked") rather than a hardcoded "Other" so
+// it no longer collides with the unrelated CATEGORY facet's "Other" catch-all
+// (categorise()'s bucket, which intentionally keeps its own "Other" label).
+'    var fitOtherLabel = ai.fitGroupLabel || "Unranked";',
 '    if(!filtered.length){',
 '      grid = \'<div class="empty">No \' + escHtml(kindKey) + \'s match.</div>\';',
 '    } else if(groups.recommended.length === 0){',
-// No overlays present (the common/demo case) — everything renders in "Other" without badges.
-'      grid = groupSection("Other", groups.other);',
+// No overlays present (the common/demo case) — everything renders in the Unranked group without badges.
+'      grid = groupSection(fitOtherLabel, groups.other);',
 '    } else {',
 '      grid = groupSection("Recommended for this project", groups.recommended) +',
-'             groupSection("Other", groups.other);',
+'             groupSection(fitOtherLabel, groups.other);',
 '    }',
 // Tandem command process flow — shown above the plugin grid
 // when this is the Toolkit → Plugin tab AND the kit is present in the catalogue.
@@ -2748,7 +3115,7 @@ const BROWSER_JS = [
 'RENDERERS.tandem = function(root){',
 '  var tp = D.tandemPackage;',
 '  if(!tp || !tp.manifest || !tp.manifest.name){',
-'    root.innerHTML = \'<div class="panel"><h3>Tandem plugin</h3><div class="empty">No Tandem build found at <code>dist/tt/</code>. Run <code>npm run build:tandem</code> to publish the plugin and regenerate this dashboard.</div></div>\';',
+'    root.innerHTML = D.tandemEmptyStateHtml || \'<div class="panel"><h3>Tandem plugin</h3><div class="empty">Not applicable.</div></div>\';',
 '    return;',
 '  }',
 '  var m = tp.manifest;',
@@ -2867,6 +3234,28 @@ const BROWSER_JS = [
 '}',
 
 // --- Now-page (replaces Overview) -------------------------------
+// STORY-21.2.03 — compact usage-rollup panel for the Now view (estimated + actual tokens
+// per epic, ADR-0079). Reuses the .kv grid (already styled for "Latest from MONITOR") rather
+// than adding new CSS, and formatTok() for every figure (BUG-20260618-03 Case C precedent).
+// CRITICAL HONESTY RULE: no epic carries estimate/actual data → one explicit empty-state
+// line, never a fabricated 0. A per-epic dash (not 0) covers the partial case (some epics
+// have data, this one does not).
+'function renderUsagePanel(){',
+'  var u = D.usage || { byEpic:{}, hasAnyActual:false };',
+'  var epicKeys = Object.keys(u.byEpic || {}).sort();',
+'  if(!epicKeys.length){',
+'    return \'<div class="panel reveal"><h3>Usage rollup</h3><div class="empty">No stories carry a <code>usage_estimate</code> yet, and no usage actuals recorded yet.</div></div>\';',
+'  }',
+'  var rows = epicKeys.map(function(k){',
+'    var r = u.byEpic[k];',
+'    var est = (r.estimated===null) ? "—" : "~" + formatTok(r.estimated) + " tok";',
+'    var act = (r.actual===null) ? "—" : "~" + formatTok(r.actual) + " tok (" + r.coverage.storiesWithActual + "/" + r.coverage.storiesWithEstimate + " with actuals)";',
+'    return \'<dt>\' + escHtml(k) + \'</dt><dd>est \' + est + \' · actual \' + act + \'</dd>\';',
+'  }).join("");',
+'  var note = u.hasAnyActual ? "" : \'<div class="metric-sub" style="margin-top:0.5rem;">no usage actuals recorded yet — figures above are estimates only</div>\';',
+'  return \'<div class="panel reveal"><h3>Usage rollup <span class="count-bubble">\' + epicKeys.length + \'</span></h3><dl class="kv">\' + rows + \'</dl>\' + note + \'</div>\';',
+'}',
+
 'RENDERERS.now = function(root){',
 '  var pendingAction = D.pendingAction || [];',
 '  var blocking = D.blocking || [];',
@@ -2935,7 +3324,8 @@ const BROWSER_JS = [
 '  var nowGrid = \'<div class="now-grid">\' + pendingPanel + blockingPanel + stalePanel + thisWeekPanel + \'</div>\';',
 '  var latest = monEntries.length ? \'<div class="panel reveal"><h3>Latest from MONITOR</h3><dl class="kv"><dt>\' + escHtml(monEntries[0].date) + \'</dt><dd>\' + escHtml(monEntries[0].title) + \'</dd></dl><p style="margin-top:0.6rem; color:var(--ink-2); font-size:0.86rem; line-height:1.6;">\' + escHtml(monEntries[0].summary) + \'</p></div>\' : \'\';',
 '  var adrHtml = \'<div class="panel reveal"><h3>Recent decisions</h3>\' + (adrs.length ? tileList(adrs, "adr") : \'<div class="empty">No ADRs yet.</div>\') + \'</div>\';',
-'  root.innerHTML = hero + flowPanel + progress + nowGrid + (latest ? \'<div style="margin-top:1rem;">\' + latest + \'</div>\' : "") + \'<div style="margin-top:1rem;">\' + adrHtml + \'</div>\';',
+'  var usageHtml = renderUsagePanel();',
+'  root.innerHTML = hero + flowPanel + progress + nowGrid + (latest ? \'<div style="margin-top:1rem;">\' + latest + \'</div>\' : "") + \'<div style="margin-top:1rem;">\' + usageHtml + \'</div>\' + \'<div style="margin-top:1rem;">\' + adrHtml + \'</div>\';',
 '  bindRows(root);',
 '  $$("[data-flow-target]", root).forEach(function(el){ el.addEventListener("click", function(){',
 '    var g = el.dataset.flowGroup, s = el.dataset.flowSub, st = el.dataset.flowStatus;',
@@ -3681,10 +4071,16 @@ function main() {
   const stale         = computeStale(pm, 14);
   const thisWeek      = computeThisWeek(pm, 7);
 
+  // STORY-21.2.03 — usage rollup (estimated + actual tokens, per epic/feature).
+  const usage = buildUsageRollup(pm.story);
+
   // v1.1 — split reports into typed homes for Build → Phases / Cadence → Reviews|Audits.
   const splitR = splitReports(reports);
   // `phases` is the existing executionStrategy reshaped to a flat card list per epic.
   const phases = (executionStrategy && executionStrategy.epics) || [];
+
+  // BUG-20260618-01 / STORY-21.5.01 — Tandem tab consumer gate.
+  const isKitRepo = detectIsKitRepo();
 
   const data = Object.assign({}, pm, {
     generatedAt: new Date().toISOString(),
@@ -3709,11 +4105,14 @@ function main() {
     blocking,
     stale,
     thisWeek,
+    usage,
     diagnostics,
     glossary: GLOSSARY,
     sessionFlow: SOP_SESSION_FLOW,
     commandFlow: SOP_COMMAND_PROCESS_FLOW,
     tandemPackage: buildTandemPackage(),
+    isKitRepo,
+    tandemEmptyStateHtml: buildTandemEmptyStateHtml(isKitRepo),
   });
 
   const html = emitHtml(data);
@@ -3745,6 +4144,6 @@ function main() {
  * Downstream stories that need additional exports extend this object;
  * they MUST NOT add a second `module.exports` statement.
  * ============================================================ */
-module.exports = { mdToHtml, escapeHtml, tokenCost, buildAiCatalogue };
+module.exports = { mdToHtml, escapeHtml, tokenCost, buildAiCatalogue, formatTok, resolveDescription, parseFrontmatterAndBody, buildDeliverableLine };
 
 if (require.main === module) main();

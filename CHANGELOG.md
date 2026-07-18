@@ -2,6 +2,30 @@
 
 All notable changes to **Tandem** are tracked here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [2.7.0] — 2026-07-18
+
+**Autopilot & plan-by-usage budgeting.** Tandem can now run your whole plan unattended and tell you what every piece of work actually costs. Upgrading is safe: the status enum, the frontmatter contract, and every existing command name are unchanged — one new command (`/Tandem:autopilot`) and one new optional story field (`usage_estimate`) are added.
+
+### Added
+- **`/Tandem:autopilot`** — one command runs the existing plan end-to-end: opens each phase, runs every batch in its own fresh-context sub-agent, closes the phase. A durable checkpoint means re-running never redoes finished work (your board is always the ground truth); any failed test or raised bug halts the run and reports. Entry requires your explicit authorisation, every run is bounded by a stop condition, and a full run log is written to your reports folder.
+- **Usage governor** — autopilot watches your Claude usage window and, at a configurable threshold (default 92%), finishes the current unit, checkpoints, pauses, and schedules its own resume for the window reset. No usage signal available? It pauses and asks — it never guesses.
+- **Quality-first model tiering** — orchestration and every review pass run on the highest-capability model; implementation may be assigned to cheaper models per story by complexity and risk, with automatic escalation for anything ambiguous. Review is never skipped.
+- **Usage tracking & budgeting** — executions record the actual tokens they burned, attributed to the story or batch that caused them; stories can carry a `usage_estimate` that reconciles against actuals; the board and Command Center roll usage up by feature/epic; a pre-batch projection answers "can I afford this now?". Surfaces with no data yet say so honestly — never zeros pretending to be measurements.
+- **Plain-English deliverables on the roadmap** — each epic's "what you'll see" line now renders on the timeline, so a non-technical reader can tell what lands at every milestone. Nothing is fabricated for internal-only work.
+- **"What each thing is for"** — a per-item purpose reference covering every folder, standard file, script, and skill, with a sync guard that warns (never fails) when something new lacks its line.
+- **Autonomous-run playbook** — the subagent-per-batch orchestration pattern (sequential batches, fresh context per batch, failure halts the chain, hat separation preserved) is now documented standard practice, including how it composes with parallel-lane execution.
+
+### Fixed
+- **The Tandem tab no longer tells you to run a developer-only build script** in projects that merely use the kit — it now explains itself appropriately (the old instruction was un-followable outside Tandem's own repo).
+- **README rendering in the Command Center** — HTML comments stay hidden, badges/images render as images, and raw layout tags no longer appear as literal text.
+- **Toolkit tab honesty & readability** — the cost rollup label no longer reads as a single item exceeding the plugin total; the two unrelated "Other" groups are now distinguishable ("Unranked" for unranked items); token counts are readable (`~1,344 tok`, `~378K tok`); item descriptions never show a stray `|` or a raw `#` heading.
+- **Cost-filter controls** — aligned as one control row, group headers separated, the section label wraps instead of clipping, and the active sort direction is visibly indicated.
+
+### Changed
+- **Consumer repos no longer track the generated Command Center HTML** — installs now gitignore it automatically (it is fully regenerable), so phase-close merges can never fail on it and `git add` mistakes are impossible by design. Delete one gitignore line if you genuinely want it committed.
+- Install previews (`--dry-run`) now report exactly what a real install materialises, and custom folder-path overrides survive re-installs instead of being silently reset.
+- A broken or missing version number now stops a release build loudly instead of quietly shipping a stale default.
+
 ## [2.6.1] — 2026-06-12
 
 **Hotfix — `pm:lint` works out of the box in your project again.** A patch release with a single guard; the status enum, the frontmatter contract, and every command name are unchanged.

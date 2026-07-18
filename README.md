@@ -4,7 +4,7 @@
 
 **Tandem — the Claude Code project-management plugin.** Your co-pilot for shipping ideas without the chaos.
 
-[![version](https://img.shields.io/badge/version-2.6.1-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases)
+[![version](https://img.shields.io/badge/version-2.7.0-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases)
 [![license](https://img.shields.io/badge/license-MIT-2D6CDF)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D63031)](https://code.claude.com/docs/en/plugins)
 
@@ -23,6 +23,8 @@ Tandem is a Claude Code plugin that takes you from idea to production — withou
 Tandem installs a `_00-Project-Management/` scaffold into your project and registers a set of `/Tandem:*` skills that cover the full North Star → Done lifecycle. Two hooks keep everything honest: a linter that runs on every PM file edit, and a generator that rebuilds an interactive HTML **Command Center** whenever your plan changes. Both hooks run a single stdlib-only Node entrypoint (`node ${CLAUDE_PLUGIN_ROOT}/_00-Project-Management/93-Scripts/hook.js`) directly — no `npm` step is involved.
 
 It's **stack-agnostic** — the bootstrap asks what you're building (web, mobile, CLI, library, backend, data-pipeline, Power Platform, or automation) and tailors the guidance to match.
+
+**New in 2.7:** Tandem can now run your whole plan **hands-free** — `/Tandem:autopilot` drives every phase and batch unattended, checkpoints as it goes, halts on any failure, pauses itself near your Claude usage limit and resumes when the window resets. And every execution now records what it actually cost: stories carry usage estimates, actuals reconcile against them, and the board answers "can I afford to run this batch now?" before you start.
 
 ### Why it's different from "AI project management"
 
@@ -90,6 +92,7 @@ On install Tandem will:
 | `/Tandem:execution-strategist` | PM | Plan how to execute an Epic — group stories into batches with lanes & sub-agents |
 | `/Tandem:execute-story` | Dev | Pull a *ready* Story into active work |
 | `/Tandem:execute-batch` | Dev | Run a whole strategy "batch" of stories end-to-end |
+| `/Tandem:autopilot` | PM | **New in 2.7** — run the whole plan unattended: phase → batches → close, with checkpoint/resume, a usage governor that pauses near your Claude limit and resumes on reset, and quality-first model tiering |
 | `/Tandem:run-testplan` | QA | Run every test case; auto-file BUGs on failure |
 | `/Tandem:close-out-story` | QA→PM | DoD gate (incl. AI-code review) + board update |
 | `/Tandem:weekly-monitor` | PM | Friday weekly summary; flag stalls and blocks |

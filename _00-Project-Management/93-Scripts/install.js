@@ -32,6 +32,7 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { detectLayout, loadPaths, PRESETS } = require('./lib/pm-paths');
@@ -44,6 +45,32 @@ const { shouldShipKitScript } = require('./lib/ship-filter');
 // (STORY-16.4.05). The install TARGET (REPO_ROOT/PM_ROOT) is resolved separately in main().
 const KIT_PM_ROOT = path.resolve(__dirname, '..');
 const MANIFEST = readJson(path.join(__dirname, 'lib', 'pm-manifest.json'));
+
+// Resolve the layoutMap the SAME way for both the real run and --dry-run: via loadPaths(),
+// which layers PRESETS[layout] < pm-paths.json.paths < .claude-pm-config.json.paths
+// (STORY-19.3.03 AC-1). A real run has already pinned `.claude-pm-config.json` to disk before
+// calling this, so `loadPaths(pmRoot)` alone reads the true state. --dry-run must not write
+// anything under the target, so when `dryRunCfgContent` is given (the in-memory, not-yet-written
+// .claude-pm-config.json) it's staged into a throwaway scratch dir shaped like
+// <repoRoot>/_00-Project-Management — copying in the real target's on-disk
+// 90-Standards/pm-paths.json, if any, so its overrides still layer in — and loadPaths resolves
+// against that instead. Fixes the dry-run/real divergence + the drift it fed
+// (STORY-21.1.02 / BACKLOG-0079 tranche A).
+function resolveLayoutMap(pmRoot, dryRunCfgContent) {
+  if (dryRunCfgContent === null) return loadPaths(pmRoot).map;
+  const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pm-install-dryrun-'));
+  try {
+    fs.writeFileSync(path.join(scratchRoot, '.claude-pm-config.json'), dryRunCfgContent, 'utf8');
+    const scratchPmRoot = path.join(scratchRoot, '_00-Project-Management');
+    const scratchStandards = path.join(scratchPmRoot, '90-Standards');
+    fs.mkdirSync(scratchStandards, { recursive: true });
+    const realPathsCfgPath = path.join(pmRoot, '90-Standards', 'pm-paths.json');
+    if (fs.existsSync(realPathsCfgPath)) fs.copyFileSync(realPathsCfgPath, path.join(scratchStandards, 'pm-paths.json'));
+    return loadPaths(scratchPmRoot).map;
+  } finally {
+    fs.rmSync(scratchRoot, { recursive: true, force: true });
+  }
+}
 
 // Containment guard: is `childAbs` strictly inside `parentAbs`? A manifest entry with a
 // `..` segment would otherwise let `path.join` resolve outside the install target — install
@@ -107,6 +134,68 @@ function writeIfChanged(p, content) {
   return true;
 }
 
+// ---- CONSUMER-only .gitignore policy for generated artefacts (ADR-0082) ----
+// The generated DASHBOARD.html is fully regenerable build output (`npm run pm:dash`); a
+// CONSUMER install gitignores it so `git add` and a `close-phase` merge can never fail on it
+// (BACKLOG-0084). The kit's OWN repo keeps its live dashboard tracked (dev convenience) — this
+// block is only ever written into a target that is not the kit repo (see isConsumerInstall in
+// main()). Marker-delimited so it's idempotent (upsert, not append-forever) and refreshes the
+// ignored path if the monitor folder is later renamed via a layout overlay. Deliberately a
+// reusable "managed block" — ADR-0082 names it as the future home for other generated,
+// regenerable-and-not-authored artefacts (e.g. a usage-log .jsonl), not a DASHBOARD.html one-off.
+const GITIGNORE_BLOCK_BEGIN = '# BEGIN pm-kit managed generated-artefact ignores (ADR-0082) — do not edit by hand';
+const GITIGNORE_BLOCK_END = '# END pm-kit managed generated-artefact ignores (ADR-0082)';
+
+// STORY-21.2.03 AC-4: the usage-log .jsonl is the first tenant of the "future generated
+// artefacts" home ADR-0082 named — same rationale as DASHBOARD.html (locally-captured,
+// fully-derived, never hand-authored; ADR-0079). `usageLogRelPosix` is optional so existing
+// callers (tests, prior installs mid-upgrade) keep working without a second path.
+function buildDashboardIgnoreBlock(dashRelPosix, usageLogRelPosix) {
+  const lines = [
+    GITIGNORE_BLOCK_BEGIN,
+    '# The live DASHBOARD.html is a fully-regenerable build output (run `npm run pm:dash`);',
+    '# gitignored by policy so `git add` / phase-close merges can never fail on it (ADR-0082).',
+    '# This managed block is also the home for any future generated pm-kit artefact that should',
+    '# be gitignored under the same policy (e.g. a usage-log .jsonl).',
+    dashRelPosix,
+  ];
+  if (usageLogRelPosix) {
+    lines.push(
+      '',
+      '# usage-log.jsonl is a locally-captured, fully-derived execution-spend record (ADR-0079)',
+      '# — same "generated, not authored" policy as the dashboard above (ADR-0082 "Future',
+      '# generated artefacts"; STORY-21.2.03).',
+      usageLogRelPosix,
+    );
+  }
+  lines.push(GITIGNORE_BLOCK_END, '');
+  return lines.join('\n');
+}
+
+// Insert/replace the managed block in an existing .gitignore's content (string in, string out —
+// no I/O here so it's trivially testable and dry-run-safe). Missing file → treat as ''. No
+// existing block → append (after a blank-line separator if the file already has content). An
+// existing block → replaced in place (so a monitor-folder rename refreshes the ignored path on
+// re-install, and re-running with an unchanged path is a byte-identical no-op).
+function upsertGitignoreBlock(content, block) {
+  const beginIdx = content.indexOf(GITIGNORE_BLOCK_BEGIN);
+  if (beginIdx === -1) {
+    if (content.length === 0) return block;
+    const normalized = content.endsWith('\n') ? content : content + '\n';
+    return normalized + '\n' + block;
+  }
+  const endIdx = content.indexOf(GITIGNORE_BLOCK_END, beginIdx);
+  if (endIdx === -1) {
+    // Malformed existing block (BEGIN with no END) — don't guess at surgery; append a fresh
+    // block after whatever is there rather than risk corrupting hand-edited content.
+    const normalized = content.endsWith('\n') ? content : content + '\n';
+    return normalized + '\n' + block;
+  }
+  let tailStart = endIdx + GITIGNORE_BLOCK_END.length;
+  if (content[tailStart] === '\n') tailStart += 1;
+  return content.slice(0, beginIdx) + block + content.slice(tailStart);
+}
+
 // Read an existing JSON object strictly: a MISSING file → {} (we'll create it), but a
 // present-but-malformed file is FATAL (exit 1) rather than silently treated as empty.
 // Critical for .claude/settings.json — overwriting an unparseable settings.json would
@@ -152,9 +241,6 @@ function main() {
   const cfg = readJsonStrict(cfgPath, '.claude-pm-config.json');
   const priorLayout = cfg.layout;   // capture before mutation for change-detection (no tolerant re-read)
   const layout = args.layout || cfg.layout || detectLayout(PM_ROOT) || 'full';
-  // Computed destructuring: extract the preset map for the resolved layout name into
-  // layoutPreset — used for pm-paths.json content and the dry-run layoutMap fallback.
-  const { [layout]: layoutPreset } = PRESETS;
   cfg.layout = layout;
   // Stamp the installed kit version (manifest is the source that travels with the scripts),
   // so a fresh install reads as current and `pm:update`/`pm:doctor` have a baseline to compare.
@@ -174,7 +260,8 @@ function main() {
   // ---- 0. materialize the PM tree from the manifest (folders + seed files) ----
   // Ordering (AC-1): write .claude-pm-config.json to disk FIRST so loadPaths reads the
   // freshly-pinned layout and any per-key paths overrides in pm-paths.json are honoured.
-  // In --dry-run mode we skip the disk write and build layoutMap from in-memory cfg instead.
+  // In --dry-run mode we skip the disk write and resolve via resolveLayoutMap()'s scratch-dir
+  // simulation instead (STORY-21.1.02) — same loadPaths() resolution, nothing written to REPO_ROOT.
   if (!MANIFEST || !Array.isArray(MANIFEST.folders) || !Array.isArray(MANIFEST.seedFiles)) {
     console.error('✗ lib/pm-manifest.json missing or malformed (need `folders` + `seedFiles` arrays). Cannot materialize the PM tree.');
     process.exit(1);
@@ -186,11 +273,12 @@ function main() {
     writeIfChanged(cfgPath, cfgContent);
     // loadPaths reads both pm-paths.json (per-role overrides) and .claude-pm-config.json
     // (layout pin); together they honour any custom paths in 90-Standards/pm-paths.json.
-    layoutMap = loadPaths(PM_ROOT).map;
+    layoutMap = resolveLayoutMap(PM_ROOT, null);
   } else {
-    // Dry-run: config not on disk yet — build the map from in-memory cfg so the dry-run
-    // summary reflects what a real run would produce.
-    layoutMap = { ...layoutPreset, ...(cfg.paths && typeof cfg.paths === 'object' && !Array.isArray(cfg.paths) ? cfg.paths : {}) };
+    // Dry-run: resolve via the SAME loadPaths the real run uses (see resolveLayoutMap) so
+    // the preview never diverges from what a real install would materialize, without writing
+    // anything under REPO_ROOT (STORY-21.1.02 / BACKLOG-0079 tranche A).
+    layoutMap = resolveLayoutMap(PM_ROOT, cfgContent);
   }
 
   // Folder/seed paths are authored in canonical 'full' numbering and remapped onto the
@@ -294,13 +382,46 @@ function main() {
   // .claude-pm-config.json was already written early (before loadPaths, for AC-1 ordering).
   // The remaining plan writes package.json, pm-paths.json, and settings.json.
   const pathsCfgPath = path.join(PM_ROOT, '90-Standards', 'pm-paths.json');
-  const pathsContent = JSON.stringify({ layout, paths: { ...layoutPreset } }, null, 2) + '\n';
+  // Fold in whatever was actually materialised (preset + any pre-existing pm-paths.json /
+  // .claude-pm-config.json per-key overrides), rather than re-emitting the bare preset, so a
+  // rewrite never drops an operator's overrides (STORY-21.1.02 / BACKLOG-0079 tranche B).
+  // layoutMap is byte-for-byte what walked the manifest above, so this is exactly what was
+  // materialised — no separate "did it change" branch needed; writeIfChanged() below already
+  // no-ops when the resulting content matches what's on disk.
+  const pathsContent = JSON.stringify({ layout, paths: { ...layoutMap } }, null, 2) + '\n';
+
+  // ---- CONSUMER-only: gitignore the generated DASHBOARD.html (ADR-0082) ----
+  // Consumer-vs-kit detection mirrors the seed-file / tooling-copy self-install check above
+  // (path.resolve equality on the two PM roots): when installing INTO the kit's own repo (no
+  // --target, or a --target that resolves back to it), PM_ROOT === KIT_PM_ROOT and this step is
+  // skipped entirely — the kit's own live dashboard stays tracked (deliberate exception, ADR-0082).
+  // A genuine consumer target gets the managed .gitignore block, resolved through the SAME
+  // layoutMap the rest of this run used, so a renamed monitor folder is honoured correctly.
+  const isConsumerInstall = path.resolve(PM_ROOT) !== path.resolve(KIT_PM_ROOT);
+  let gitignoreStep = null;
+  if (isConsumerInstall) {
+    const monitorFolder = layoutMap.monitor || PRESETS.full.monitor;
+    const dashRelPosix = path.relative(REPO_ROOT, path.join(PM_ROOT, monitorFolder, 'DASHBOARD.html')).split(path.sep).join('/');
+    // STORY-21.2.03 AC-4: the usage-log .jsonl is the second tenant of this managed block —
+    // resolved through the SAME layoutMap as the dashboard path above, for the same
+    // renamed-folder-overlay correctness (custom `reports` role).
+    const reportsFolder = layoutMap.reports || PRESETS.full.reports;
+    const usageLogRelPosix = path.relative(REPO_ROOT, path.join(PM_ROOT, reportsFolder, 'usage', 'usage-log.jsonl')).split(path.sep).join('/');
+    const gitignorePath = path.join(REPO_ROOT, '.gitignore');
+    let existingGitignore = '';
+    if (fs.existsSync(gitignorePath)) { try { existingGitignore = fs.readFileSync(gitignorePath, 'utf8'); } catch (_e) { /* treat as empty */ } }
+    const newGitignoreContent = upsertGitignoreBlock(existingGitignore, buildDashboardIgnoreBlock(dashRelPosix, usageLogRelPosix));
+    if (newGitignoreContent !== existingGitignore) {
+      gitignoreStep = { path: gitignorePath, content: newGitignoreContent, label: `.gitignore → DASHBOARD.html ignored + usage-log.jsonl ignored (ADR-0082): ${dashRelPosix}, ${usageLogRelPosix}` };
+    }
+  }
 
   const plan = [
     { path: pkgPath, content: pkgContent, label: added.length ? `package.json → added scripts: ${added.join(', ')}` : null },
     { path: cfgPath, content: cfgContent, label: layout !== priorLayout ? `.claude-pm-config.json → layout: "${layout}"` : null },
     { path: pathsCfgPath, content: pathsContent, label: 'pm-paths.json' },
     ...(settingsContent ? [{ path: settingsPath, content: settingsContent, label: '.claude/settings.json → hooks registered' }] : []),
+    ...(gitignoreStep ? [gitignoreStep] : []),
   ];
   if (alreadyHooked) skipped.push('.claude/settings.json hooks already registered — skipped (avoids double-fire, ADR-0055)');
 

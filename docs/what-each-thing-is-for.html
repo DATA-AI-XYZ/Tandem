@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What each thing is for</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+:root {
+  /* Foundation */
+  --cream: #F5F0E8;
+  --cream-2: #EBE5D8;
+  --surface: #FAF8F4;
+  --surface-2: #F1ECE3;
+  --ink: #1A1714;
+  --ink-2: #3D3831;
+  --ink-3: #6B6358;
+  --ink-faint: #9E9589;
+  --border: #DDD6C8;
+  --line: #DDD6C8;
+
+  /* Brand accents */
+  --red: #D63031;
+  --red-soft: #F8E0E0;
+  --yellow: #F0B429;
+  --yellow-soft: #FAE9C0;
+  --blue: #2D6CDF;
+  --blue-soft: #DCE7F8;
+  --teal: #0D9488;
+  --teal-soft: #CFEAE6;
+
+  /* Semantic */
+  --success: var(--teal);
+  --success-soft: var(--teal-soft);
+  --warn: var(--yellow);
+  --warn-soft: var(--yellow-soft);
+  --danger: var(--red);
+  --danger-soft: var(--red-soft);
+
+  /* Shape */
+  --r: 12px;
+  --r-sm: 10px;
+  --r-lg: 16px;
+  --r-pill: 100px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(26,23,20,0.06);
+  --shadow: 0 4px 14px rgba(26,23,20,0.08);
+  --shadow-lg: 0 18px 40px rgba(26,23,20,0.16);
+
+  /* Type */
+  --serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --sans: 'Manrope', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+
+  /* Motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur: 320ms;
+
+  /* Focus */
+  --focus-ring: rgba(214,48,49,0.45);
+
+  /* Scrollbar */
+  --sb-thumb: #CFC6B7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cream: #15120F;
+    --cream-2: #1C1814;
+    --surface: #1A1612;
+    --surface-2: #221D17;
+    --ink: #F1ECE3;
+    --ink-2: #D8CFC0;
+    --ink-3: #9E9589;
+    --ink-faint: #6B6358;
+    --border: #312A22;
+    --line: #312A22;
+    --red: #E25558;
+    --red-soft: rgba(226,85,88,0.16);
+    --yellow: #F2C24A;
+    --yellow-soft: rgba(242,194,74,0.16);
+    --blue: #5B8DE8;
+    --blue-soft: rgba(91,141,232,0.18);
+    --teal: #2BB3A6;
+    --teal-soft: rgba(43,179,166,0.18);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+    --shadow: 0 6px 18px rgba(0,0,0,0.45);
+    --shadow-lg: 0 26px 50px rgba(0,0,0,0.55);
+    --focus-ring: rgba(226,85,88,0.5);
+    --sb-thumb: #2E2820;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--cream);
+  line-height: 1.65;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  padding: 0 1rem 4rem;
+}
+::selection { background: var(--yellow); color: var(--ink); }
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); border-radius: var(--r-sm); }
+
+/* Scrollbar */
+* { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--sb-thumb); border-radius: var(--r-pill); }
+
+/* Layout */
+.doc-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 3rem 0 2rem;
+}
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.75rem;
+  margin-bottom: 2.5rem;
+}
+.brand-mark {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.brand-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.brand-dot.r { background: var(--red); }
+.brand-dot.y { background: var(--yellow); }
+.brand-dot.b { background: var(--blue); }
+.doc-title {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.doc-subtitle {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Body content */
+.doc-body { }
+
+.doc-body h1 {
+  font-family: var(--serif);
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin: 2.5rem 0 0.75rem;
+  color: var(--ink);
+}
+.doc-body h2 {
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 2rem 0 0.6rem;
+  color: var(--ink);
+}
+.doc-body h3 {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 1.75rem 0 0.5rem;
+  color: var(--ink-faint);
+}
+.doc-body h4, .doc-body h5, .doc-body h6 {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.4rem;
+  color: var(--ink-2);
+}
+.doc-body p {
+  margin: 0 0 1rem;
+  color: var(--ink);
+}
+.doc-body ul, .doc-body ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+  color: var(--ink);
+}
+.doc-body li {
+  margin-bottom: 0.3rem;
+}
+.doc-body a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-decoration-color: rgba(45,108,223,0.35);
+  text-underline-offset: 2px;
+}
+.doc-body a:hover {
+  text-decoration-color: var(--blue);
+}
+.doc-body code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  color: var(--ink);
+}
+.doc-body pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+.doc-body pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+.doc-body blockquote {
+  border-left: 3px solid var(--border);
+  margin: 1rem 0;
+  padding: 0.4rem 0 0.4rem 1.1rem;
+  color: var(--ink-3);
+  font-style: italic;
+}
+.doc-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+/* Tables */
+.md-table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.md-table th {
+  background: var(--surface-2);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.md-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  vertical-align: top;
+}
+.md-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.md-table tbody tr:hover td {
+  background: var(--surface);
+}
+
+/* Footer */
+.doc-footer {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+  </style>
+</head>
+<body>
+  <div class="doc-wrap">
+    <header class="doc-header">
+      <div class="brand-mark">
+        <div class="brand-dot r"></div>
+        <div class="brand-dot y"></div>
+        <div class="brand-dot b"></div>
+      </div>
+      <h1 class="doc-title">What each thing is for</h1>
+      <span class="doc-subtitle">Tandem · PM Operating Kit</span>
+    </header>
+    <main class="doc-body">
+<h1 id="what-each-thing-is-for">What each thing is for</h1>
+<p>A per-item lookup: every standard folder, every standard item that ships inside it, and every script gets one plain-English line — what it&#39;s for, or when you&#39;d open it. If you&#39;ve ever opened <code>DAILY-WORKFLOW</code> (or any other file in this kit) and wondered what it was actually meant to do, this page is the answer.</p>
+<p>Two related pages cover similar ground at a different altitude: <a href="#">Overview</a> explains *why* the kit works the way it does, and the repo-root <code>CODEBASE-MAP.md</code> gives a lightweight, auto-generated table of just the top-level directories. This page is the complete, hand-curated, per-item version — see <a href="../_00-Project-Management/40-Decisions/ADR-0080-purpose-reference-surface-and-voice.md">ADR-0080</a> for why it lives here rather than being folded into either of those.</p>
+<h2 id="folders">Folders</h2>
+<h3 id="00-project-management-folders"><code>_00-Project-Management/</code> folders</h3>
+<ul>
+<li><strong>00-Strategy</strong> — the vision, the quarterly OKRs, the customer journey, and the risk register;</li>
+<p>  open it to see why a body of work is happening at all.</p>
+<li><strong>10-Inbox</strong> — quick, unrefined capture for a new idea or note before it&#39;s been thought through;</li>
+<p>  open it to jot something down without stopping to structure it.</p>
+<li><strong>11-Backlog</strong> — refined items that are worth doing but not yet ready to start; open it to see</li>
+<p>  what&#39;s queued and prioritised.</p>
+<li><strong>12-Active</strong> — the live &quot;what&#39;s in flight right now&quot; index (<code>ACTIVE.md</code>); open it to see what&#39;s</li>
+<p>  currently being worked on, at a glance.</p>
+<li><strong>14-Retros</strong> — the monthly look-backs on what went well and what didn&#39;t; open it before planning</li>
+<p>  the next stretch of work.</p>
+<li><strong>20-Requirements</strong> — the actual specs (PRDs) describing what&#39;s being built and why; open it</li>
+<p>  before starting anything non-trivial.</p>
+<li><strong>30-Epics</strong> — the big bodies of work the project is organised into; open it to see the</li>
+<p>  top-level roadmap.</p>
+<li><strong>31-Features</strong> — each epic broken into shippable slices; open it to see what a given epic is</li>
+<p>  actually made of.</p>
+<li><strong>32-Stories</strong> — the individual, workable units of work, one file per story, each carrying its</li>
+<p>  own status; open it to find or pick up a specific piece of work.</p>
+<li><strong>33-Testplans</strong> — one test plan per story, proving the story actually works; open it to see how</li>
+<p>  a story gets verified before it&#39;s called done.</p>
+<li><strong>34-Bugs</strong> — defects that were found and logged, with reproduction steps; open it to see what&#39;s</li>
+<p>  broken right now and how to reproduce it.</p>
+<li><strong>40-Decisions</strong> — the record of non-obvious calls made along the way, and why; open it before</li>
+<p>  re-litigating a decision that&#39;s already been made.</p>
+<li><strong>41-Reports</strong> — generated snapshots, audits, and side-by-side comparisons; open it for a</li>
+<p>  point-in-time view rather than the live plan.</p>
+<li><strong>42-Monitor</strong> — the single board with overall status, counts, and revision history</li>
+<p>  (<code>MONITOR.md</code>) plus the generated dashboard; open it for the one-page state of the whole project.</p>
+<li><strong>90-Standards</strong> — the rulebook for how the process itself works, day to day; open it whenever</li>
+<p>  you&#39;re unsure how something is supposed to be done. See <a href="#standards">Standards</a> below for what&#39;s   inside.</p>
+<li><strong>91-Templates</strong> — the starting shape for every new file of a given type; open it before creating</li>
+<p>  a new artefact by hand. See <a href="#templates">Templates</a> below.</p>
+<li><strong>92-Prompts</strong> — ready-to-use prompts for each step of the lifecycle; open it if you want to</li>
+<p>  trigger a step outside the usual skill commands. See <a href="#prompts">Prompts</a> below.</p>
+<li><strong>93-Scripts</strong> — the small, dependency-free programs that check, build, and render the plan;</li>
+<p>  open it to see what each <code>npm run pm:*</code> command actually runs. See <a href="#scripts">Scripts</a> below.</p>
+<li><strong>97-AI-Reference</strong> — notes on which installed AI tools are worth reaching for on this project and</li>
+<p>  which aren&#39;t (written by the <code>curate-toolkit</code> skill); open it before picking a tool, to see if   it&#39;s already been rated for this project type.</p>
+</ul>
+<h3 id="top-level-directories">Top-level directories</h3>
+<ul>
+<li><strong>skills/</strong> — the packaged, step-by-step instructions Claude loads for each part of the process</li>
+<p>  (drafting, executing, closing out, and so on); open it to see or change how a lifecycle step   behaves. See <a href="#skills">Skills</a> below.</p>
+<li><strong>hooks/</strong> — small checks that fire automatically at specific moments in a Claude Code session</li>
+<p>  (after a file is edited, when you send a message, when the session ends); open it to see what   runs on its own and when. See <a href="#hooks">Hooks</a> below.</p>
+<li><strong>.claude/</strong> — Claude Code&#39;s own local session and worktree state for this repo; you won&#39;t</li>
+<p>  normally need to open it.</p>
+<li><strong>.claude-plugin/</strong> — the manifest that makes this kit installable as a Claude Code plugin (its</li>
+<p>  name, version, and marketplace listing); open it only if you&#39;re changing how the kit is packaged   or distributed.</p>
+<li><strong>docs/</strong> — the published, public-facing site build plus longer-form recommendation notes; open</li>
+<p>  it to see what actually gets published, as opposed to the working source.</p>
+<li><strong>documentation/</strong> — the narrative documentation set you&#39;re reading right now, rendered to</li>
+<p>  browsable pages by <code>npm run pm:docs</code>; open it to understand a concept rather than to look up a   single task.</p>
+</ul>
+<h2 id="standards">Standards</h2>
+<p>Every file in <code>_00-Project-Management/90-Standards/</code>:</p>
+<ul>
+<li><strong>SOP</strong> — the standard operating procedure: the full lifecycle, the Definition of Ready and</li>
+<p>  Definition of Done checklists, and the weekly/monthly cadence; open it when you need the actual   rule, not just the name of the folder it lives in.</p>
+<li><strong>PROJECT-CONTEXT</strong> — this project&#39;s specific stack, conventions, and known quirks; open it</li>
+<p>  before running a build, lint, or test command so you&#39;re running the right one for this repo.</p>
+<li><strong>DAILY-WORKFLOW</strong> — a plain walk-through of what a normal day working with the kit looks like;</li>
+<p>  open it if you&#39;re not sure what to do next, right now.</p>
+<li><strong>CLAUDE-CODE-CONFIG</strong> — a map of how Claude Code itself is configured for this project</li>
+<p>  (settings, permissions, hooks); open it if Claude Code&#39;s behaviour in this repo seems off.</p>
+</ul>
+<h2 id="templates">Templates</h2>
+<p>Every file in <code>_00-Project-Management/91-Templates/</code>:</p>
+<ul>
+<li><strong>ADR.template.md</strong> — the starting shape for a new decision record; copy it when you&#39;re about</li>
+<p>  to make a call worth remembering.</p>
+<li><strong>AI-CODE-REVIEW.template.html</strong> — the shape of an AI code-review report attached to a story;</li>
+<p>  used when a story&#39;s code changes get reviewed.</p>
+<li><strong>BACKLOG.template.md</strong> — the starting shape for a new backlog item; copy it when capturing</li>
+<p>  something worth doing later.</p>
+<li><strong>BUG.template.md</strong> — the starting shape for a bug report, written so a junior developer can</li>
+<p>  reproduce it in minutes; copy it the moment a defect is found.</p>
+<li><strong>CLAUDE-SETTINGS.template.json</strong> — a conservative default <code>.claude/settings.json</code> with</li>
+<p>  destructive-command guard rails; copy it into a new project so risky commands need explicit   confirmation.</p>
+<li><strong>CLAUDEIGNORE.template</strong> — sensible default exclusions for a <code>.claudeignore</code> file; copy it to</li>
+<p>  keep build output and dependencies out of Claude&#39;s context.</p>
+<li><strong>CODEBASE-MAP.template.md</strong> — the starting shape of the top-level directory map; used the first</li>
+<p>  time <code>CODEBASE-MAP.md</code> is generated for a project.</p>
+<li><strong>DIAGRAM-CHEATSHEET.md</strong> — copy-paste-ready Mermaid and SVG diagram examples; open it when a</li>
+<p>  decision or spec needs a picture, not just prose.</p>
+<li><strong>EPIC.template.md</strong> — the starting shape for a new epic; copy it when a strategic bet is big</li>
+<p>  enough to need its own body of work.</p>
+<li><strong>EXPLORATION.template.html</strong> — a side-by-side comparison page for weighing three or more real</li>
+<p>  options before a decision; used when a call is too close to just write the ADR straight off.</p>
+<li><strong>FEATURE.template.md</strong> — the starting shape for a new feature inside an epic; copy it when</li>
+<p>  splitting an epic into shippable slices.</p>
+<li><strong>HTML-ARTEFACT.template.html</strong> — the generic shape for a one-off HTML artefact that isn&#39;t</li>
+<p>  covered by a template above; copy it for a bespoke report or page.</p>
+<li><strong>INBOX-ACTION.template.md</strong> — the shape of an inbox item that&#39;s waiting on a decision from you;</li>
+<p>  used when something needs your input before it can move forward.</p>
+<li><strong>PRD.template.md</strong> — the shape of a Product Requirements Document; copy it when an idea needs</li>
+<p>  proper spec&#39;ing before epics get cut from it.</p>
+<li><strong>RELEASE.template.md</strong> — the shape of a release note or milestone bundle; copy it when a batch</li>
+<p>  of work is about to ship together.</p>
+<li><strong>RETRO.template.md</strong> — the shape of a monthly retrospective; copy it (or let the monthly-retro</li>
+<p>  skill fill it in) at the end of the month.</p>
+<li><strong>ROOT-CLAUDE.template.md</strong> — the starting shape of a project&#39;s root <code>CLAUDE.md</code>; copy it when</li>
+<p>  setting up Claude&#39;s always-on context for a new repo.</p>
+<li><strong>STORY.template.md</strong> — the starting shape for a new story; copy it when a feature is broken down</li>
+<p>  into individually workable pieces.</p>
+<li><strong>SUBDIR-CLAUDE.template.md</strong> — the starting shape of a folder-scoped <code>CLAUDE.md</code> that only loads</li>
+<p>  when you&#39;re working in that folder; copy it for context that shouldn&#39;t be paid for on every task.</p>
+<li><strong>TESTPLAN.template.md</strong> — the starting shape for a new test plan, always paired with a story;</li>
+<p>  copy it in the same breath as the story it tests.</p>
+</ul>
+<h2 id="prompts">Prompts</h2>
+<p>Every file in <code>_00-Project-Management/92-Prompts/</code>:</p>
+<ul>
+<li><strong>01-draft-okrs-from-northstar.md</strong> — kicks off drafting quarterly OKRs from the North Star; use</li>
+<p>  it at the start of a quarter, or whenever the current OKRs feel disconnected from the real work.</p>
+<li><strong>02-draft-epic-from-okr-or-prd.md</strong> — turns an approved OKR or PRD into a new Epic; use it when</li>
+<p>  a strategic bet needs to enter the work graph.</p>
+<li><strong>03-split-epic-into-features.md</strong> — breaks a reviewed Epic into Features; use it once an epic</li>
+<p>  exists and is ready to be broken down.</p>
+<li><strong>04-split-feature-into-stories.md</strong> — breaks a Feature into Stories with their paired test</li>
+<p>  plans; use it when a feature is ready to become concrete, workable pieces.</p>
+<li><strong>05-refine-backlog-to-ready.md</strong> — runs the Definition of Ready checklist on a backlog item or</li>
+<p>  story; use it on the Friday review, or any time before pulling something into active work.</p>
+<li><strong>06-execute-story.md</strong> — starts work on a Ready story; use it during the daily check-in, the</li>
+<p>  moment a story moves into active work.</p>
+<li><strong>07-run-testplan.md</strong> — verifies a story against its paired test plan; use it once a story flips</li>
+<p>  to in-review.</p>
+<li><strong>08-close-out-story.md</strong> — runs the Definition of Done gate on a finished story; use it once its</li>
+<p>  test plan is fully passing.</p>
+<li><strong>09-weekly-monitor-update.md</strong> — updates the MONITOR board for the week; use it on the Friday</li>
+<p>  review.</p>
+<li><strong>10-monthly-retro.md</strong> — runs the monthly retrospective; use it on the first Monday of the</li>
+<p>  month.</p>
+</ul>
+<h2 id="scripts">Scripts</h2>
+<p>Every <code>*.js</code> directly in <code>_00-Project-Management/93-Scripts/</code>, dependency-free (Node stdlib only), with the <code>npm run pm:*</code> script that invokes it (from this repo&#39;s <code>package.json</code>) where one exists:</p>
+<ul>
+<li><strong>batch-check.js</strong> (<code>npm run pm:batch-check</code>) — checks whether a set of stories is safe to run in</li>
+<p>  parallel, i.e. no two of them touch the same files; run it before fanning a batch out concurrently.</p>
+<li><strong>claude-audit.js</strong> (<code>npm run pm:claude-audit</code>) — reports how well <code>CLAUDE.md</code> coverage matches</li>
+<p>  the repo&#39;s real structure; run it to see what&#39;s covered, incomplete, missing, or excluded.</p>
+<li><strong>claude-scaffold.js</strong> (<code>npm run pm:claude-scaffold</code>) — creates or merges <code>CLAUDE.md</code> files</li>
+<p>  across a repo&#39;s detected boundaries; run it to bootstrap or refresh the context layer.</p>
+<li><strong>doctor.js</strong> (<code>npm run pm:doctor</code>) — a read-only health check for the kit&#39;s wiring in this</li>
+<p>  project; run it when something about the setup feels half-installed.</p>
+<li><strong>generate-backlog-board.js</strong> (<code>npm run pm:board</code>) — builds an interactive HTML board for</li>
+<p>  prioritising the backlog; run it to get a visual view of what&#39;s queued.</p>
+<li><strong>generate-codebase-map.js</strong> (<code>npm run pm:map</code>) — builds and refreshes <code>CODEBASE-MAP.md</code>, the</li>
+<p>  lightweight top-level directory map; run it after adding or removing a top-level folder.</p>
+<li><strong>generate-dashboard.js</strong> (<code>npm run pm:dash</code>) — builds the interactive Command Center dashboard</li>
+<p>  from the live plan; run it after any status change so the board stays current.</p>
+<li><strong>generate-docs.js</strong> (<code>npm run pm:docs</code>) — renders every <code>documentation/*.md</code> (including this</li>
+<p>  page) into a matching <code>*.html</code>; run it after editing anything in <code>documentation/</code>.</p>
+<li><strong>generate-monitor.js</strong> (<code>npm run pm:monitor</code>) — recomputes <code>MONITOR.md</code>&#39;s counts and rollups</li>
+<p>  from the real story statuses; run it after creating or deleting artefacts.</p>
+<li><strong>hook.js</strong> (internal/library — not wired to a top-level <code>pm:*</code> script; invoked directly by</li>
+<p>  <code>hooks/hooks.json</code>) — the single cross-platform entry point Claude Code&#39;s own hooks call into;   you won&#39;t normally run this by hand. See <a href="#hooks">Hooks</a> below.</p>
+<li><strong>install-hooks.js</strong> (internal/library — wired as <code>pm:claude-hooks</code> in <code>93-Scripts/package.json</code>,</li>
+<p>  not at the project root) — copies the kit&#39;s pre-commit hook into the host repo&#39;s git hooks   folder.</p>
+<li><strong>install.js</strong> (<code>npm run pm:install</code>) — wires the kit into a new project: merges the <code>pm:*</code></li>
+<p>  scripts in, seeds the folder tree, registers hooks, and builds the first dashboard.</p>
+<li><strong>mode.js</strong> (internal/library — wired as <code>pm:mode</code> in <code>93-Scripts/package.json</code>, not at the</li>
+<p>  project root) — reads and writes the project&#39;s conversation-mode state (Plan / Dev / Dual /   Neutral).</p>
+<li><strong>smoke-dashboard.js</strong> (<code>npm run pm:smoke</code>) — a headless-browser smoke test proving the generated</li>
+<p>  dashboard actually loads and renders.</p>
+<li><strong>test-mode-hook.js</strong> (internal/library, dev-only self-test) — checks that the mode banner shows</li>
+<p>  up correctly for a joined session and stays silent for an un-joined one.</p>
+<li><strong>test-mode.js</strong> (internal/library, dev-only self-test) — self-tests <code>mode.js</code>&#39;s own read/write</li>
+<p>  behaviour.</p>
+<li><strong>test-monitor-parser.js</strong> (internal/library, dev-only self-test) — self-tests the frontmatter</li>
+<p>  parsing that <code>generate-monitor.js</code> relies on.</p>
+<li><strong>test-pm-paths.js</strong> (internal/library, dev-only self-test) — self-tests how the kit detects a</li>
+<p>  project&#39;s folder layout.</p>
+<li><strong>update.js</strong> (<code>npm run pm:update</code>) — refreshes only the kit-owned files (templates, standards,</li>
+<p>  tooling) in an already-installed project, without touching your own work.</p>
+<li><strong>usage-capture.js</strong> (internal/library — not yet wired to a top-level <code>pm:*</code> script) — reads</li>
+<p>  Claude Code&#39;s own session transcripts and attributes their token usage back to the story or   batch that produced it.</p>
+<li><strong>validate-frontmatter.js</strong> (<code>npm run pm:lint</code>) — lints every artefact&#39;s frontmatter against the</li>
+<p>  rulebook; run it before trusting a status or a timestamp on the board.</p>
+<li><code>purpose-guard.js</code> — keeps the what-each-thing-is-for reference honest: warns (never fails) when something in the kit lacks its purpose line, and can append fill-me stubs for new items. No direct npm script; surfaced through <code>npm run pm:doctor</code>.</li>
+<li><code>usage-governor.js</code> — the decision brain for hands-free runs: given how much of the usage window is spent, it says continue, pause before the next batch, pause now, or stop and ask. No direct npm script; consulted by the autopilot flow.</li>
+<li><code>usage-reconcile.js</code> — compares what a story was estimated to cost in AI usage against what it actually cost, and suggests estimates for new work from history. No direct npm script; run with <code>node</code> when reviewing spend.</li>
+</ul>
+<h2 id="skills">Skills</h2>
+<p>Every directory under <code>skills/</code>. Each line is harvested from that skill&#39;s own <code>description:</code> frontmatter in its <code>SKILL.md</code>, not rewritten:</p>
+<ul>
+<li><strong>close-out-story</strong> — Close out a STORY through the Definition of Done gate.</li>
+<li><strong>autopilot</strong> — Run the whole delivery plan end-to-end without supervision: it opens each phase, runs every batch in its own fresh context, saves progress, pauses near the usage limit, and resumes on its own.</li>
+<li><strong>close-phase</strong> — Close out a whole phase after an execution-strategist chat / execute-batch run</li>
+<p>  finishes — gate on every phase story being done, compile a phase retrospective, capture   follow-ups, update the board, then run a gated merge to main.</p>
+<li><strong>core</strong> — Core PM Operating Kit rules — closed-set status enum, frontmatter timestamps,</li>
+<p>  Story-Testplan pairing, DoR/DoD gates, hat protocol, ADR-on-the-spot, bug-auto-raise.</p>
+<li><strong>critique</strong> — Advisory artefact quality review for planning artefacts (Epic, Feature, Story,</li>
+<p>  Testplan).</p>
+<li><strong>curate-toolkit</strong> — Rank installed AI tools (Skills, Agents, Commands, Plugins) by fit for this</li>
+<p>  project and write relevance overlays under <code>97-AI-Reference/</code>.</p>
+<li><strong>document</strong> — Author the project&#39;s default markdown documentation set from accumulated PM</li>
+<p>  knowledge.</p>
+<li><strong>draft-epic</strong> — Draft a new EPIC from an OKR key result or a PRD section.</li>
+<li><strong>draft-okrs</strong> — Draft quarterly OKRs from a North Star.</li>
+<li><strong>draft-prd</strong> — Draft a Product Requirements Document from a North Star, an OKR Key Result, raw</li>
+<p>  founder notes, or a BACKLOG entry that needs more spec.</p>
+<li><strong>execute-batch</strong> — Execute one &quot;chat&quot; from an Implementation Strategy in this fresh session —</li>
+<p>  run its stories sequentially (execute-story → run-testplan → close-out-story) with atomic   per-story finalisation, a context-budget guard, and clean failure recovery; then flip the chat&#39;s   executed flag so the dashboard shows it done.</p>
+<li><strong>execute-batch-parallel</strong> — Execute one &quot;chat&quot; from an Implementation Strategy by fanning out one</li>
+<p>  scoped sub-agent per Ready story IN PARALLEL, then reconciling the board once on the main thread.</p>
+<li><strong>execute-story</strong> — Start work on a Ready STORY.</li>
+<li><strong>execution-strategist</strong> — Plan how to execute a whole epic — group its stories into &quot;chats&quot; that</li>
+<p>  are genuinely good to run together, the way a lead plans a sprint.</p>
+<li><strong>fill-claude-md</strong> — Fill in or trim a CLAUDE.md so only non-discoverable, project-specific,</li>
+<p>  broadly-relevant lines remain — the judgement layer applying the three content-economics tests   over <code>pm:claude-scaffold</code>&#39;s stubs.</p>
+<li><strong>install</strong> — Wire the Tandem PM kit into a project — materialize the full folder tree + seed</li>
+<p>  files from the manifest, pin the folder layout, merge the <code>pm:*</code> scripts, guard-register hooks,   and generate the Command Center dashboard.</p>
+<li><strong>mode</strong> — Set and enforce the project&#39;s global conversation Mode (Plan · Dev · Dual · Neutral) —</li>
+<p>  the persistent &quot;moat&quot; that frames every joined chat.</p>
+<li><strong>monthly-retro</strong> — Run the monthly retrospective.</li>
+<li><strong>path-scope-example</strong> — Reference example of a PATH-SCOPED skill (ADR-0010).</li>
+<li><strong>peer-review</strong> — On-demand code peer review of an explicitly-scoped target.</li>
+<li><strong>refine-backlog</strong> — Refine a BACKLOG item or not-started STORY by running the SOP §6 Definition</li>
+<p>  of Ready checklist.</p>
+<li><strong>reflect</strong> — End-of-session reflection that proposes updates to CLAUDE.md / SOP.md /</li>
+<p>  PROJECT-CONTEXT.md based on what happened.</p>
+<li><strong>run-testplan</strong> — Run every test case in a TESTPLAN.</li>
+<li><strong>session-start</strong> — Load active project context at the start of a Claude Code session.</li>
+<li><strong>split-into-features</strong> — Split an EPIC into Feature files.</li>
+<li><strong>split-into-stories</strong> — Split a Feature into Stories AND paired Testplans in the same response.</li>
+<li><strong>start-phase</strong> — Open a phase — the opener counterpart to close-phase.</li>
+<li><strong>update</strong> — Pull Tandem kit improvements into an already-installed project without touching your</li>
+<p>  work — refresh only kit-owned files (templates, standards, tooling) + regenerate the dashboard,   never the operator&#39;s artefacts or folder structure.</p>
+<li><strong>weekly-monitor</strong> — Weekly MONITOR update (Friday cadence).</li>
+<li><strong>write-outcomes</strong> — Dispatched by producer skills via a sub-agent to turn an artefact&#39;s</li>
+<p>  technical content into one plain-English founder-outcome line; it is not a manually-invoked   lifecycle command.</p>
+</ul>
+<h2 id="hooks">Hooks</h2>
+<p>Everything registered in <code>hooks/hooks.json</code>. All three route through the same cross-platform entry point, <code>93-Scripts/hook.js</code> (so behaviour is identical on Windows, macOS, and Linux), dispatched by event name:</p>
+<ul>
+<li><strong>PostToolUse</strong> (<code>hook.js post-tool-use</code>) — after any <code>Write</code> or <code>Edit</code> tool call, if the touched</li>
+<p>  file sits under <code>_00-Project-Management/</code>, automatically lints its frontmatter and surfaces any   violation back into the session.</p>
+<li><strong>UserPromptSubmit</strong> (<code>hook.js user-prompt-submit</code>) — on every message you send, if the session</li>
+<p>  has joined conversation Mode, prints the mode banner into context; otherwise stays silent and   never blocks the prompt.</p>
+<li><strong>Stop</strong> (<code>hook.js stop</code>) — at the end of a session, if anything under <code>_00-Project-Management/</code></li>
+<p>  changed, automatically regenerates the dashboard (and, only if enabled, adds a one-line nudge   about an incomplete <code>CLAUDE.md</code> — advisory only, never blocking).</p>
+</ul>
+    </main>
+    <footer class="doc-footer">
+      Source: what-each-thing-is-for.md
+    </footer>
+  </div>
+</body>
+</html>

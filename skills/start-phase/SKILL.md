@@ -98,6 +98,14 @@ the moment it opens — the front-end mirror of `close-phase` Step 5 (which reco
   opened phase. The MONITOR/ACTIVE edits and the dashboard regen happen in the same step (the kit's
   atomic status-change rule).
 
+## After opening: fresh session or autonomous subagent-per-chat
+
+Once a phase is open, each chat can run in a manually-opened fresh session, or the operator
+may authorise an autonomous subagent-per-chat run — a PM-hat orchestrator dispatching each
+`execute-batch` as its own fresh-context subagent, one chat at a time. **Equivalence:** a
+subagent's fresh context == a manually-opened fresh session, satisfying one-hat-per-session.
+See SOP §18 ("Subagent-per-batch — autonomous phase runs") for the full contract.
+
 ## Non-negotiable rules (from CLAUDE.md)
 
 - Operates as **PM hat**; the phase-level opener analogue of `close-phase`.

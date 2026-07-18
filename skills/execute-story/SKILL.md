@@ -77,6 +77,13 @@ Use `Read` / `Glob` to detect existence rather than assuming; treat missing file
 - Commit messages: `STORY-NN.M.PP — <imperative>`.
 - If you hit a `blocked` situation, flip status to `blocked`, note the reason in the story body, return to user.
 
+## Usage capture
+
+Run `node _00-Project-Management/93-Scripts/usage-capture.js --story <STORY-NN.M.PP>` at story
+finalisation (the DoD gate, or the combined-cycle exception above) to attribute actual Claude
+usage (tokens, per ADR-0079) to this story. A usage-source-unavailable no-op is fine — the
+helper always exits 0 and never blocks the story.
+
 ## Non-negotiable rules from CLAUDE.md
 
 - Frontmatter timestamps (set `started_at` on in-progress; do **not** set `completed_at` yet).

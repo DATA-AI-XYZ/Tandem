@@ -197,6 +197,12 @@ safety gate (Step 1):
 - Per-story commit messages: `STORY-NN.M.PP — <imperative>` (applied by the main thread in
   reconciliation, not by the sub-agents).
 
+## Relationship to subagent-per-batch (sequential-across-phase)
+
+This skill's fan-out is the **parallel-within-batch** axis (concurrent lanes, disjoint-file
+safety) — distinct from, and composable with, the **sequential-across-phase** subagent-per-batch
+pattern in SOP §18, which chains whole chats one at a time across a phase.
+
 ## Next command
 
 Next: `/Tandem:run-testplan`

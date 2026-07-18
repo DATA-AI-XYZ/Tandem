@@ -156,6 +156,16 @@ section.tab-section.active { display:block; }
 .filter-group { display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center; }
 .filter-label { font-size:0.66rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-faint); margin-right:0.25rem; font-weight:600; }
 
+/* Cost-filter row (STORY-21.5.04 — fix BUG-20260618-04 D1/D3/D4) */
+.cost-filter-row { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; }
+.cost-filter { width:5.5rem; padding:0.1rem 0.55rem; border-radius:var(--r-pill); border:1px solid var(--border); background:var(--surface); color:var(--ink); font-family:var(--mono); font-size:0.66rem; box-sizing:border-box; }
+.tag.cost-sort { cursor:pointer; transition:all var(--dur-fast) var(--ease); }
+.tag.cost-sort:hover { background:var(--ink); color:var(--cream); }
+.tag.cost-sort.active,
+.tag.cost-sort[aria-pressed="true"] { background:var(--ink); color:var(--cream); }
+.cost-controls .filter-label,
+.cost-controls .cost-legend { white-space:normal; overflow:visible; text-overflow:clip; }
+
 /* Pills */
 .pill { display:inline-block; padding:0.18rem 0.65rem; border-radius:var(--r-pill); font-size:0.7rem; font-family:var(--mono); font-weight:500; letter-spacing:0.02em; white-space:nowrap; user-select:none; line-height:1.55; }
 .pill.filterable { cursor:pointer; transition:all var(--dur-fast) var(--ease); }
@@ -248,11 +258,19 @@ section.tab-section.active { display:block; }
 .epic-progress .ratio { font-family:var(--mono); font-size:0.74rem; color:var(--ink-3); white-space:nowrap; flex-shrink:0; }
 .epic-body { display:none; padding:0.4rem 1.2rem 1.2rem; border-top:1px solid var(--border); }
 .epic-card.open .epic-body { display:block; }
+/* STORY-21.4.01 — "what you'll see" deliverable line (epic outcome, plain-English,
+   BACKLOG-0082 / ADR-0084). Sits between the head and the collapsible body so it is
+   visible without expanding the card; absent entirely when there is no outcome. */
+.epic-deliverable { font-size:0.88rem; color:var(--ink-2); margin:-0.35rem 0 0.75rem; padding:0 1.2rem; line-height:1.5; max-width:68ch; }
+.epic-deliverable .lab { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--teal); font-weight:700; margin-right:0.4rem; }
 .feat-card { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-sm); margin:0.65rem 0; }
 .feat-head { display:grid; grid-template-columns:24px 130px 1fr auto; gap:0.65rem; padding:0.65rem 0.85rem; cursor:pointer; align-items:center; }
 .feat-head:hover { background:var(--cream-2); }
 .feat-id { font-family:var(--mono); font-size:0.78rem; color:var(--ink-2); }
 .feat-title { font-size:0.95rem; color:var(--ink); font-weight:500; }
+/* STORY-21.4.01 — feature-grain deliverable line (same pattern as .epic-deliverable). */
+.feat-deliverable { font-size:0.84rem; color:var(--ink-2); margin:-0.2rem 0 0.55rem; padding:0 0.85rem; line-height:1.5; max-width:60ch; }
+.feat-deliverable .lab { font-size:0.6rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--teal); font-weight:700; margin-right:0.35rem; }
 .feat-body { display:none; padding:0.2rem 0.85rem 0.85rem; }
 .feat-card.open .feat-body { display:block; }
 .feat-card.open .disclose { transform:rotate(90deg); }
@@ -290,7 +308,7 @@ section.tab-section.active { display:block; }
 .fit-badge.LOW  { background:var(--surface-2);  color:var(--ink-3); border:1px solid var(--border); }
 /* AI fit grouping (recommendedVsOther — ADR-0033) */
 .ai-fit-group { margin-bottom:1.25rem; }
-.ai-fit-group-head { display:flex; align-items:baseline; gap:0.5rem; flex-wrap:wrap; padding:0.3rem 0 0.5rem; border-bottom:1px solid var(--border); margin-bottom:0.75rem; }
+.ai-fit-group-head { display:flex; align-items:baseline; gap:0.5rem; flex-wrap:wrap; padding:0.3rem 0 0.5rem; border-bottom:1px solid var(--border); margin-top:1.5rem; margin-bottom:0.75rem; }
 .ai-fit-group-label { font-family:var(--mono); font-size:0.78rem; font-weight:600; color:var(--ink-2); text-transform:uppercase; letter-spacing:0.08em; }
 .ai-fit-group-count { font-family:var(--mono); font-size:0.72rem; color:var(--ink-3); }
 
