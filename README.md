@@ -78,6 +78,13 @@ On install Tandem will:
 
 > No plugin access? Tandem also ships a paste-prompt installer — see [`BOOTSTRAP-PROMPT.md`](BOOTSTRAP-PROMPT.md).
 
+## Updating
+
+Two layers keep you current — the **plugin** and your project's **kit files**:
+
+1. **Update the plugin** (interactive — the CLI has no update command): in any Claude Code session run `/plugin`, update the `DATA-AI-XYZ` marketplace, then update/reinstall **Tandem**. `claude plugin list` should then show the new version.
+2. **Refresh your project**: inside each project that uses Tandem, run `npm run pm:update` — it non-destructively refreshes the kit's scripts/templates to the plugin's version and never touches your stories, decisions, or board.
+
 ## Slash commands
 
 | Command | Hat | When to use |
