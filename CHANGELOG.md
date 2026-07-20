@@ -2,6 +2,18 @@
 
 All notable changes to **Tandem** are tracked here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [2.7.2] — 2026-07-20
+
+**Quality hardening — every release is now pre-checked against the official plugin validator.** No action needed; update as usual.
+
+### Added
+- Tandem's release build now runs Anthropic's official `claude plugin validate` check — the same validation claude.ai / Claude Cowork run when reviewing a marketplace plugin — before anything ships. Regressions of the kind that briefly blocked Cowork sync in 2.7.0 are now caught before a release ever reaches you.
+
+### Changed
+- Two skill descriptions were polished for marketplace clarity (`write-outcomes` is now explicitly marked internal/dispatch-only; `path-scope-example` documents how its directory-scoping behaves on hosts that don't support it). No behaviour changes.
+
+---
+
 ## [2.7.1] — 2026-07-20
 
 **Hotfix — the marketplace now syncs in Claude Cowork / claude.ai.** Adding the repo as a custom marketplace in the Claude desktop app failed with *"Marketplace sync failed"* even though Claude Code CLI installs worked. Two causes, both fixed: the manifests carried a `$schema` URL that claude.ai tries (and fails) to resolve, and the plugin/marketplace names were not kebab-case, which claude.ai rejects (the CLI tolerates both).

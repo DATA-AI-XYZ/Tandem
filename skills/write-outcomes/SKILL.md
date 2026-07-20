@@ -1,6 +1,6 @@
 ---
 name: write-outcomes
-description: Dispatched by producer skills via a sub-agent to turn an artefact's technical content into one plain-English founder-outcome line; it is not a manually-invoked lifecycle command.
+description: Internal dispatch-only support skill — producer skills spawn a sub-agent that applies it to turn an artefact's technical content into one plain-English founder-outcome line for founder-facing surfaces. Never invoked manually and matches no direct user request; it is not a lifecycle command and stays model-invocable only so producer skills can delegate outcome-line writing to it.
 ---
 
 # Tandem: write-outcomes (dispatch-only)
