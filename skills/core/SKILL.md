@@ -11,7 +11,7 @@ You are working in a project that uses the Greenfield PM Operating Kit. These ru
 
 This is the **one** place the lifecycle command order is recorded (ADR-0047). Every per-command `Next:` pointer in the lifecycle skills must agree with this chain; if a pointer ever disagrees, **this record wins** and the pointer is the bug.
 
-`/Tandem:draft-okrs` → `/Tandem:draft-prd` → `/Tandem:draft-epic` → `/Tandem:split-into-features` → `/Tandem:split-into-stories` → `/Tandem:refine-backlog` → `/Tandem:execution-strategist` → `/Tandem:execute-batch` → `/Tandem:run-testplan` → `/Tandem:close-out-story` → `/Tandem:close-phase`
+`/tandem:draft-okrs` → `/tandem:draft-prd` → `/tandem:draft-epic` → `/tandem:split-into-features` → `/tandem:split-into-stories` → `/tandem:refine-backlog` → `/tandem:execution-strategist` → `/tandem:execute-batch` → `/tandem:run-testplan` → `/tandem:close-out-story` → `/tandem:close-phase`
 
 `close-phase` is terminal (no `Next:` pointer). Cadence / utility skills (`weekly-monitor`, `monthly-retro`, `reflect`, `session-start`, `critique`, `peer-review`, `document`, `curate-toolkit`, `fill-claude-md`, `execute-story`) are **not** chain members; `execute-story` is the single-story alternative to `execute-batch`.
 

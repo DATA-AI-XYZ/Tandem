@@ -1,6 +1,6 @@
 ---
 name: install
-description: Wire the Tandem PM kit into a project — materialize the full folder tree + seed files from the manifest, pin the folder layout, merge the pm:* scripts, guard-register hooks, and generate the Command Center dashboard. Use when the user asks to install Tandem, set up the PM kit, onboard a new repo, wire the kit, or invokes /Tandem:install. Thin wrapper over the canonical install.js (pm:install) — the script does the deterministic work; this skill handles the conversational choices (layout, PROJECT-CONTEXT) and confirms the result.
+description: Wire the Tandem PM kit into a project — materialize the full folder tree + seed files from the manifest, pin the folder layout, merge the pm:* scripts, guard-register hooks, and generate the Command Center dashboard. Use when the user asks to install Tandem, set up the PM kit, onboard a new repo, wire the kit, or invokes /tandem:install. Thin wrapper over the canonical install.js (pm:install) — the script does the deterministic work; this skill handles the conversational choices (layout, PROJECT-CONTEXT) and confirms the result.
 ---
 
 # Tandem: install (operator setup)
@@ -47,5 +47,5 @@ ADR-0072 (manifest schema + kit/user ownership boundary) and ADR-0054 (canonical
 - Keep deterministic logic in the script — the skill only orchestrates + confirms.
 
 ## Next
-Next: `/Tandem:session-start` (orient), then begin planning with `/Tandem:draft-okrs`. Pull kit
-improvements later with `/Tandem:update`.
+Next: `/tandem:session-start` (orient), then begin planning with `/tandem:draft-okrs`. Pull kit
+improvements later with `/tandem:update`.

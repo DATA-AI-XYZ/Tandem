@@ -1,12 +1,12 @@
 ---
 name: execute-batch
-description: Execute one "chat" from an Implementation Strategy in this fresh session — run its stories sequentially (execute-story → run-testplan → close-out-story) with atomic per-story finalisation, a context-budget guard, and clean failure recovery; then flip the chat's executed flag so the dashboard shows it done. Use when the user invokes /Tandem:execute-batch with a chat id (e.g. CHAT-01), or asks to run/execute a batch or chat from the execution-strategist's plan. Operates as Dev/QA hat. This command DOES change story status (unlike execution-strategist, which is dry-run).
+description: Execute one "chat" from an Implementation Strategy in this fresh session — run its stories sequentially (execute-story → run-testplan → close-out-story) with atomic per-story finalisation, a context-budget guard, and clean failure recovery; then flip the chat's executed flag so the dashboard shows it done. Use when the user invokes /tandem:execute-batch with a chat id (e.g. CHAT-01), or asks to run/execute a batch or chat from the execution-strategist's plan. Operates as Dev/QA hat. This command DOES change story status (unlike execution-strategist, which is dry-run).
 ---
 
 # Tandem: execute-batch (Dev/QA hat)
 
 Operate as **Dev/QA hat** in a **fresh chat**. The user has an Implementation Strategy (from
-`/Tandem:execution-strategist`) and wants to clear one of its **chats** — a small
+`/tandem:execution-strategist`) and wants to clear one of its **chats** — a small
 set of stories grouped to run together — end to end, without re-warming context per story.
 
 A "chat" is the execution-strategist's batch unit (`CHAT-01`, `CHAT-02`, …). This skill runs the
@@ -35,7 +35,7 @@ Use `Read` / `Glob`; treat missing files as "not present", never throw.
 
 A chat may include stories the strategy **flagged un-ready** (`ready: false`). **Do not execute an
 un-ready story.** If any story in the chat is not `ready`, STOP and report which — the user runs
-`/Tandem:refine-backlog` on those first. Only proceed when every story in the chat
+`/tandem:refine-backlog` on those first. Only proceed when every story in the chat
 is `ready` (or the user explicitly drops the un-ready ones from this run).
 
 ## Algorithm — sequential loop with atomic finalisation
@@ -129,8 +129,8 @@ honest signal.
 
 ## Next command
 
-Next: `/Tandem:run-testplan`
+Next: `/tandem:run-testplan`
 
-`/Tandem:weekly-monitor` — after a chat closes, fold the delta into the Friday
-cadence. Or re-run `/Tandem:execute-batch <next-chat-id>` for the next chat in the
+`/tandem:weekly-monitor` — after a chat closes, fold the delta into the Friday
+cadence. Or re-run `/tandem:execute-batch <next-chat-id>` for the next chat in the
 strategy (mind the chat's `depends_on` edges — run unlocked chats first).

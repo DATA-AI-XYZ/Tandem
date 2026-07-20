@@ -1,6 +1,6 @@
 ---
 name: split-into-stories
-description: Split a Feature into Stories AND paired Testplans in the same response. Use when the user asks to split / decompose a feature into stories, asks to write stories for a feature, asks to create stories + testplans, or invokes /Tandem:split-into-stories. Operates as PM hat. Enforces the kit's MANDATORY Story → Testplan pairing rule — aborts (writes nothing) if it cannot produce both story and matching testplan in the same response.
+description: Split a Feature into Stories AND paired Testplans in the same response. Use when the user asks to split / decompose a feature into stories, asks to write stories for a feature, asks to create stories + testplans, or invokes /tandem:split-into-stories. Operates as PM hat. Enforces the kit's MANDATORY Story → Testplan pairing rule — aborts (writes nothing) if it cannot produce both story and matching testplan in the same response.
 ---
 
 # Tandem: split-into-stories (PM hat)
@@ -92,6 +92,6 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
 
 ## Next command
 
-Next: `/Tandem:refine-backlog` — promote selected stories `not-started` → `ready` after DoR gate.
+Next: `/tandem:refine-backlog` — promote selected stories `not-started` → `ready` after DoR gate.
 
-Or, if a story is obviously DoR-clean already: `/Tandem:execute-story <story-path>` — start work directly.
+Or, if a story is obviously DoR-clean already: `/tandem:execute-story <story-path>` — start work directly.

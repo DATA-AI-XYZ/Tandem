@@ -4,7 +4,7 @@
 
 **Tandem — the Claude Code project-management plugin.** Your co-pilot for shipping ideas without the chaos.
 
-[![version](https://img.shields.io/badge/version-2.7.0-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases)
+[![version](https://img.shields.io/badge/version-2.7.1-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases)
 [![license](https://img.shields.io/badge/license-MIT-2D6CDF)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D63031)](https://code.claude.com/docs/en/plugins)
 
@@ -20,11 +20,11 @@ Tandem is a Claude Code plugin that takes you from idea to production — withou
 
 ## How it works
 
-Tandem installs a `_00-Project-Management/` scaffold into your project and registers a set of `/Tandem:*` skills that cover the full North Star → Done lifecycle. Two hooks keep everything honest: a linter that runs on every PM file edit, and a generator that rebuilds an interactive HTML **Command Center** whenever your plan changes. Both hooks run a single stdlib-only Node entrypoint (`node ${CLAUDE_PLUGIN_ROOT}/_00-Project-Management/93-Scripts/hook.js`) directly — no `npm` step is involved.
+Tandem installs a `_00-Project-Management/` scaffold into your project and registers a set of `/tandem:*` skills that cover the full North Star → Done lifecycle. Two hooks keep everything honest: a linter that runs on every PM file edit, and a generator that rebuilds an interactive HTML **Command Center** whenever your plan changes. Both hooks run a single stdlib-only Node entrypoint (`node ${CLAUDE_PLUGIN_ROOT}/_00-Project-Management/93-Scripts/hook.js`) directly — no `npm` step is involved.
 
 It's **stack-agnostic** — the bootstrap asks what you're building (web, mobile, CLI, library, backend, data-pipeline, Power Platform, or automation) and tailors the guidance to match.
 
-**New in 2.7:** Tandem can now run your whole plan **hands-free** — `/Tandem:autopilot` drives every phase and batch unattended, checkpoints as it goes, halts on any failure, pauses itself near your Claude usage limit and resumes when the window resets. And every execution now records what it actually cost: stories carry usage estimates, actuals reconcile against them, and the board answers "can I afford to run this batch now?" before you start.
+**New in 2.7:** Tandem can now run your whole plan **hands-free** — `/tandem:autopilot` drives every phase and batch unattended, checkpoints as it goes, halts on any failure, pauses itself near your Claude usage limit and resumes when the window resets. And every execution now records what it actually cost: stories carry usage estimates, actuals reconcile against them, and the board answers "can I afford to run this batch now?" before you start.
 
 ### Why it's different from "AI project management"
 
@@ -63,16 +63,16 @@ Every arrow is a slash command. Every box is a markdown artefact in your repo.
 /plugin marketplace add DATA-AI-XYZ/Tandem
 
 # 2. Install the plugin
-/plugin install Tandem@DATA-AI-XYZ
+/plugin install tandem@data-ai-xyz
 
 # 3. Bootstrap it into your project (drops _00-Project-Management/, wires hooks, seeds CLAUDE.md)
-/Tandem:session-start
+/tandem:session-start
 ```
 
 On install Tandem will:
 
 1. Drop the `_00-Project-Management/` scaffold into your project root (if absent).
-2. Register the `/Tandem:*` skills covering the full North Star → Done lifecycle.
+2. Register the `/tandem:*` skills covering the full North Star → Done lifecycle.
 3. Enable two hooks — lint-on-edit and Command-Center-regen-on-stop.
 4. Insert a slim PM rules block into your root `CLAUDE.md` (idempotent, under a managed marker).
 
@@ -80,33 +80,36 @@ On install Tandem will:
 
 ## Updating
 
+> **One-time step for 2.7.1:** this release renames the plugin's machine identity to kebab-case (`tandem@data-ai-xyz`) so the claude.ai / Cowork marketplace sync accepts it (the skill prefix changes from `Tandem` to `tandem` with it). An install made under the old capitalized name won't update in place — remove it, then re-add the marketplace and run `/plugin install tandem@data-ai-xyz`. Your project's PM files are untouched.
+
 Two layers keep you current — the **plugin** and your project's **kit files**:
 
-1. **Update the plugin** (interactive — the CLI has no update command): in any Claude Code session run `/plugin`, update the `DATA-AI-XYZ` marketplace, then update/reinstall **Tandem**. `claude plugin list` should then show the new version.
+1. **Update the plugin** (interactive — the CLI has no update command): in any Claude Code session run `/plugin`, update the `data-ai-xyz` marketplace, then update/reinstall **tandem**. `claude plugin list` should then show the new version.
 2. **Refresh your project**: inside each project that uses Tandem, run `npm run pm:update` — it non-destructively refreshes the kit's scripts/templates to the plugin's version and never touches your stories, decisions, or board.
+3. **Restart your session**: after updating the plugin, restart Claude Code — until you do, hook errors mentioning the old version's cache path are expected and harmless.
 
 ## Slash commands
 
 | Command | Hat | When to use |
 |---|---|---|
-| `/Tandem:session-start` | any | Orient at the start of a session: read active work, recent ADRs, the board; announce the next step |
-| `/Tandem:draft-okrs` | Founder | Draft quarterly OKRs from a North Star |
-| `/Tandem:draft-prd` | Founder→PM | Draft a PRD from an OKR or raw notes |
-| `/Tandem:draft-epic` | PM | Draft an Epic from an OKR key result or PRD section |
-| `/Tandem:split-into-features` | PM | Decompose an Epic into Features |
-| `/Tandem:split-into-stories` | PM | Decompose a Feature into Stories + paired Testplans |
-| `/Tandem:refine-backlog` | PM | DoR gate — promote to *ready* or list the gaps; never silently promotes |
-| `/Tandem:execution-strategist` | PM | Plan how to execute an Epic — group stories into batches with lanes & sub-agents |
-| `/Tandem:execute-story` | Dev | Pull a *ready* Story into active work |
-| `/Tandem:execute-batch` | Dev | Run a whole strategy "batch" of stories end-to-end |
-| `/Tandem:autopilot` | PM | **New in 2.7** — run the whole plan unattended: phase → batches → close, with checkpoint/resume, a usage governor that pauses near your Claude limit and resumes on reset, and quality-first model tiering |
-| `/Tandem:run-testplan` | QA | Run every test case; auto-file BUGs on failure |
-| `/Tandem:close-out-story` | QA→PM | DoD gate (incl. AI-code review) + board update |
-| `/Tandem:weekly-monitor` | PM | Friday weekly summary; flag stalls and blocks |
-| `/Tandem:monthly-retro` | Founder/PM | Monthly retrospective |
-| `/Tandem:fill-claude-md` | any | Author/refresh `CLAUDE.md` files across the codebase |
-| `/Tandem:reflect` | any | End-of-session reflection: propose improvements (you approve before applying) |
-| `/Tandem:core` | — | Force-load the core PM rules (usually auto-loaded) |
+| `/tandem:session-start` | any | Orient at the start of a session: read active work, recent ADRs, the board; announce the next step |
+| `/tandem:draft-okrs` | Founder | Draft quarterly OKRs from a North Star |
+| `/tandem:draft-prd` | Founder→PM | Draft a PRD from an OKR or raw notes |
+| `/tandem:draft-epic` | PM | Draft an Epic from an OKR key result or PRD section |
+| `/tandem:split-into-features` | PM | Decompose an Epic into Features |
+| `/tandem:split-into-stories` | PM | Decompose a Feature into Stories + paired Testplans |
+| `/tandem:refine-backlog` | PM | DoR gate — promote to *ready* or list the gaps; never silently promotes |
+| `/tandem:execution-strategist` | PM | Plan how to execute an Epic — group stories into batches with lanes & sub-agents |
+| `/tandem:execute-story` | Dev | Pull a *ready* Story into active work |
+| `/tandem:execute-batch` | Dev | Run a whole strategy "batch" of stories end-to-end |
+| `/tandem:autopilot` | PM | **New in 2.7** — run the whole plan unattended: phase → batches → close, with checkpoint/resume, a usage governor that pauses near your Claude limit and resumes on reset, and quality-first model tiering |
+| `/tandem:run-testplan` | QA | Run every test case; auto-file BUGs on failure |
+| `/tandem:close-out-story` | QA→PM | DoD gate (incl. AI-code review) + board update |
+| `/tandem:weekly-monitor` | PM | Friday weekly summary; flag stalls and blocks |
+| `/tandem:monthly-retro` | Founder/PM | Monthly retrospective |
+| `/tandem:fill-claude-md` | any | Author/refresh `CLAUDE.md` files across the codebase |
+| `/tandem:reflect` | any | End-of-session reflection: propose improvements (you approve before applying) |
+| `/tandem:core` | — | Force-load the core PM rules (usually auto-loaded) |
 
 Skills are model-invoked — Claude auto-loads them when your task matches — but explicit invocation always works.
 
@@ -128,7 +131,7 @@ Tandem/
 ├── .claude-plugin/
 │   ├── plugin.json            Manifest (name: Tandem)
 │   └── marketplace.json       DATA-AI-XYZ marketplace listing
-├── skills/                    The /Tandem:* skills (full lifecycle)
+├── skills/                    The /tandem:* skills (full lifecycle)
 ├── hooks/                     PostToolUse (lint) + Stop (Command-Center regen)
 ├── docs/                      Live-demo Command Center (GitHub Pages)
 ├── BOOTSTRAP-PROMPT.md        Paste-prompt installer (no-plugin path)

@@ -1,6 +1,6 @@
 ---
 name: autopilot
-description: Drive the whole plan end-to-end unattended by chaining start-phase, each chat's execute-batch (subagent-per-batch), and close-phase across one or more phases — with checkpoint/resume, fail-halt guardrails, model tiering, and a usage-governor seam; use when the operator invokes /Tandem:autopilot or asks to run the plan autonomously, hands-free, or unattended.
+description: Drive the whole plan end-to-end unattended by chaining start-phase, each chat's execute-batch (subagent-per-batch), and close-phase across one or more phases — with checkpoint/resume, fail-halt guardrails, model tiering, and a usage-governor seam; use when the operator invokes /tandem:autopilot or asks to run the plan autonomously, hands-free, or unattended.
 ---
 
 # Tandem: autopilot (PM-hat orchestrator)

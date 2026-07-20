@@ -1,6 +1,6 @@
 ---
 name: draft-epic
-description: Draft a new EPIC from an OKR key result or a PRD section. Use when the user asks to draft an epic, create an epic, write an epic, turn an OKR / PRD into an epic, or invokes /Tandem:draft-epic. Operates as PM hat. Reads the source OKR or PRD plus the EPIC template; produces 30-Epics/EPIC-NN-<slug>.md with mandatory strategic linkage (frontmatter okr: or prd_section:). Aborts if strategic linkage cannot be established.
+description: Draft a new EPIC from an OKR key result or a PRD section. Use when the user asks to draft an epic, create an epic, write an epic, turn an OKR / PRD into an epic, or invokes /tandem:draft-epic. Operates as PM hat. Reads the source OKR or PRD plus the EPIC template; produces 30-Epics/EPIC-NN-<slug>.md with mandatory strategic linkage (frontmatter okr: or prd_section:). Aborts if strategic linkage cannot be established.
 ---
 
 # Tandem: draft-epic (PM hat)
@@ -40,7 +40,7 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
    - **In scope / Out of scope** — explicit deferrals are how mid-epic creep is resisted.
    - **Success criteria** — measurable, not vibes.
    - **Dependencies, Data touched, Risks** — top 3 risks max, with one-line mitigations.
-4. Outline 3–7 Features at high level (title + one-line goal each) in the `## Features` section. **Do not create FEAT files** — `/Tandem:split-into-features` does that.
+4. Outline 3–7 Features at high level (title + one-line goal each) in the `## Features` section. **Do not create FEAT files** — `/tandem:split-into-features` does that.
 5. Set frontmatter: `status: not-started`, `created_at: <ISO 8601 now from system clock>`, other timestamp fields empty strings.
 6. **Show the file tree of what you'll create before writing.** Wait for user approval.
 
@@ -67,4 +67,4 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
 
 ## Next command
 
-Next: `/Tandem:split-into-features` — decompose this Epic into FEAT files.
+Next: `/tandem:split-into-features` — decompose this Epic into FEAT files.

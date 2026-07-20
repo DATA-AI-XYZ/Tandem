@@ -93,7 +93,7 @@ Ask these, one batch, then fill `90-Standards/PROJECT-CONTEXT.md` from the answe
 2. `npm run pm:doctor` → it must report healthy (core scripts wired, layout resolved, kit version current).
 3. `npm run pm:dash` → confirm `_00-Project-Management/42-Monitor/DASHBOARD.html` is written.
 4. Open `90-Standards/SOP.md` §17 and `90-Standards/DAILY-WORKFLOW.md` to orient on day-to-day use.
-5. Report: what was created/merged, the project type chosen, any deny rules added, and the next step (draft the first Epic, or `/Tandem:draft-epic` if the plugin is also installed).
+5. Report: what was created/merged, the project type chosen, any deny rules added, and the next step (draft the first Epic, or `/tandem:draft-epic` if the plugin is also installed).
 6. Pull future kit improvements with `npm run pm:update` (non-destructive — refreshes kit-owned files only; never your work).
 
 Honour the kit's rules throughout: closed 9-value status enum, quoted ISO-8601 timestamps
@@ -118,8 +118,8 @@ Honour the kit's rules throughout: closed 9-value status enum, quoted ISO-8601 t
 
 Both paths produce the same result. Use the **plugin** (`claude plugin install
 github:DATA-AI-XYZ/Tandem`) when you have install
-access and want zero-friction setup + the model-invoked skills (incl. `/Tandem:install`
-and `/Tandem:update`). Use **this paste-prompt** when you don't, or you want the
+access and want zero-friction setup + the model-invoked skills (incl. `/tandem:install`
+and `/tandem:update`). Use **this paste-prompt** when you don't, or you want the
 interactive discovery first. If both are used, this installer's Phase 0 detects the
 existing `_00-Project-Management/` and asks before touching it. Either way, `install.js`
 materializes the same tree from the same manifest — there is no separate scaffold to drift.

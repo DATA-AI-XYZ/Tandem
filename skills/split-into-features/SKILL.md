@@ -1,6 +1,6 @@
 ---
 name: split-into-features
-description: Split an EPIC into Feature files. Use when the user asks to split / decompose / break down an epic into features, asks to create features under an epic, or invokes /Tandem:split-into-features. Operates as PM hat. Reads an Epic file and writes FEAT-NN.M-<slug>.md files in 31-Features/EPIC-NN/, then updates the Epic's Features section with relative links.
+description: Split an EPIC into Feature files. Use when the user asks to split / decompose / break down an epic into features, asks to create features under an epic, or invokes /tandem:split-into-features. Operates as PM hat. Reads an Epic file and writes FEAT-NN.M-<slug>.md files in 31-Features/EPIC-NN/, then updates the Epic's Features section with relative links.
 ---
 
 # Tandem: split-into-features (PM hat)
@@ -41,7 +41,7 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
    - **Goal** — the slice of the Epic this delivers.
    - **User value** — one sentence on UX improvement.
    - **Scope** — bulleted breakdown.
-   - **Acceptance criteria** — testable checkboxes. Each AC must map to ≥1 story later (don't write the stories — `/Tandem:split-into-stories` does that).
+   - **Acceptance criteria** — testable checkboxes. Each AC must map to ≥1 story later (don't write the stories — `/tandem:split-into-stories` does that).
    - **Dependencies, Data touched, Risks.**
 5. Update the Epic's `## Features` section with relative links to the new FEAT files (relative from the resolved `epics` folder to the resolved `features` folder, e.g. `../31-Features/EPIC-NN/FEAT-NN.M-<slug>.md` in a canonical layout).
 6. Set frontmatter on every Feature: `status: not-started`, `created_at: <ISO 8601 now from system clock>`, other timestamp fields empty strings, `epic: EPIC-NN`.
@@ -71,4 +71,4 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
 
 ## Next command
 
-Next: `/Tandem:split-into-stories` — decompose each Feature into Stories + paired Testplans.
+Next: `/tandem:split-into-stories` — decompose each Feature into Stories + paired Testplans.

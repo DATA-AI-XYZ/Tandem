@@ -1,6 +1,6 @@
 ---
 name: execution-strategist
-description: Plan how to execute a whole epic — group its stories into "chats" that are genuinely good to run together, the way a lead plans a sprint. Use when the user asks to plan execution, strategise an epic, group stories to run together, decide what to batch, or invokes /Tandem:execution-strategist (typically with an EPIC-NN). Operates as PM hat. Takes an epic, reads all its not-done stories + paired testplans, and writes an Implementation Strategy — phases → chats, each with execution lanes (serial/parallel), sub-agents, a paste-ready trigger, a verify-before-closing command, and depends/unlocks edges — as a markdown report PLUS a structured JSON sidecar. DRY-RUN: never modifies story status.
+description: Plan how to execute a whole epic — group its stories into "chats" that are genuinely good to run together, the way a lead plans a sprint. Use when the user asks to plan execution, strategise an epic, group stories to run together, decide what to batch, or invokes /tandem:execution-strategist (typically with an EPIC-NN). Operates as PM hat. Takes an epic, reads all its not-done stories + paired testplans, and writes an Implementation Strategy — phases → chats, each with execution lanes (serial/parallel), sub-agents, a paste-ready trigger, a verify-before-closing command, and depends/unlocks edges — as a markdown report PLUS a structured JSON sidecar. DRY-RUN: never modifies story status.
 ---
 
 # Tandem: execution-strategist (PM hat)
@@ -23,7 +23,7 @@ trigger, a verify line, valid phases?), not exact-output matching.
   `41-Reports/`.
 - It does **NOT modify story status**, does **NOT** flip anything to `in-progress`, does **NOT**
   edit any story, testplan, MONITOR, or dashboard. Acting on the plan happens later via
-  `/Tandem:execute-batch`. If asked to "start"/"pull" a chat, stop and clarify —
+  `/tandem:execute-batch`. If asked to "start"/"pull" a chat, stop and clarify —
   that is `execute-batch`.
 
 ## Inputs needed
@@ -41,7 +41,7 @@ Use `Read` / `Glob` to detect existence; treat missing files as "not present", n
   `duplicate` / `archived`). This is the corpus — the whole epic, not just `ready` ones.
 - **DoR flag** — a story whose `status` is not `ready` (e.g. `not-started`) is still **included**
   but **flagged** with a visible DoR-gap marker, so the user knows that chat needs
-  `/Tandem:refine-backlog` before it can actually run. Never silently drop it.
+  `/tandem:refine-backlog` before it can actually run. Never silently drop it.
 - **Paired testplans** — for each story, read `_00-Project-Management/33-Testplans/EPIC-NN/FEAT-*/TESTPLAN-NN.M.PP-*.md`
   (used to compose the verify line — see step 6).
 - **Story frontmatter fields consumed:** `id`, `feature`, `estimate`, `priority`, `status`,
@@ -198,7 +198,7 @@ per chat carrying its id, rolled-up estimate, title, **Stories** (DoR-gap flagge
 not-`ready`), **Lanes**, **Sub-agents**, a fenced **paste-trigger**, a fenced
 **verify-before-closing** command, **Depends on / Unlocks**, and the phase/chat **outcome** line
 (if present, rendered after the phase heading and after the chat title respectively). End with the next-command stub
-`/Tandem:execute-batch <chat-id>`.
+`/tandem:execute-batch <chat-id>`.
 
 ### Empty case (handle gracefully — do NOT error)
 
@@ -222,7 +222,7 @@ there is nothing to execute — and, if the only stories are `done`, say the epi
 
 ## Next command
 
-Next: `/Tandem:execute-batch`
+Next: `/tandem:execute-batch`
 
-`/Tandem:execute-batch <chat-id>` — pull one proposed chat into a fresh working
+`/tandem:execute-batch <chat-id>` — pull one proposed chat into a fresh working
 chat. That command owns the status changes; this one does not.

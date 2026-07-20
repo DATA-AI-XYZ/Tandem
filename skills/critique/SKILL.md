@@ -69,7 +69,7 @@ Run every check for the detected type. For each check: mark **PASS**, **WARN**, 
 #### Story checks
 
 1. **Machine-testable ACs** — every AC must be verifiable by a machine (CLI command, assertion, file check, API call). Subjective or manual-only ACs are a FAIL.
-2. **DoR-readiness** — does the Story satisfy the kit's Definition of Ready checklist? Check: AC checkboxes present; `feature:` and `epic:` frontmatter set; risks section non-empty; estimate set. A Story with DoR gaps should go through `/Tandem:refine-backlog` before being pulled to work — that gate, not this skill, is the authoritative promotion path.
+2. **DoR-readiness** — does the Story satisfy the kit's Definition of Ready checklist? Check: AC checkboxes present; `feature:` and `epic:` frontmatter set; risks section non-empty; estimate set. A Story with DoR gaps should go through `/tandem:refine-backlog` before being pulled to work — that gate, not this skill, is the authoritative promotion path.
 3. **Estimate sanity / XL → split** — is the estimate set to XS / S / M / L? If the estimate is `XL`, the Story is too large: flag it for splitting before promotion. A missing estimate is a WARN.
 4. **≤5 ACs** — Story ACs must number five or fewer (≤5 ACs). More than five ACs suggests the Story is too broad and should be split.
 5. **Paired-testplan AC↔TC coverage** — if a paired Testplan exists, verify that every AC maps to at least one TC (AC↔TC coverage). If coverage is incomplete, list the uncovered ACs. If no Testplan exists yet and the Story is not in `not-started`, flag the absence.
@@ -126,7 +126,7 @@ Every finding (blocker, major, or minor) must include a **concrete suggested fix
 ## Output rules
 
 - This skill is **advisory**. It proposes edits and improvements; it never silently rewrites the artefact or edits any file on disk. All proposed changes are shown in the findings report as suggestions for the user to apply.
-- This skill does not promote status. Artefact status (e.g. `not-started` → `ready`) stays the DoR gate's job. The `/Tandem:refine-backlog` skill owns that promotion path; this critique skill complements it by surfacing quality issues upstream. Running critique before refinement reduces DoR-gate failures but does not replace the gate.
+- This skill does not promote status. Artefact status (e.g. `not-started` → `ready`) stays the DoR gate's job. The `/tandem:refine-backlog` skill owns that promotion path; this critique skill complements it by surfacing quality issues upstream. Running critique before refinement reduces DoR-gate failures but does not replace the gate.
 - Every check gets an explicit PASS / WARN / FAIL verdict — no silent omissions.
 - Proposed fixes are concrete and minimal: "Add a `type_of_work: frontend` line to frontmatter" not "fill in the missing fields".
 - If the artefact is high quality and all checks PASS, say so plainly — the skill is not obligated to find problems.
@@ -150,9 +150,9 @@ For each minor finding: check name · one-line diagnosis · **Suggested fix:** `
 **All checks PASS** _(list count only — "K checks passed")_
 
 **Recommended next step:**
-- If blockers present → fix the gaps, then run `/Tandem:critique` again, then proceed to `/Tandem:refine-backlog`.
-- If only major / minor findings → user decides whether to address them; proceed to `/Tandem:refine-backlog` when ready.
-- If all PASS → artefact is critique-clean; proceed to `/Tandem:refine-backlog` for the official DoR gate.
+- If blockers present → fix the gaps, then run `/tandem:critique` again, then proceed to `/tandem:refine-backlog`.
+- If only major / minor findings → user decides whether to address them; proceed to `/tandem:refine-backlog` when ready.
+- If all PASS → artefact is critique-clean; proceed to `/tandem:refine-backlog` for the official DoR gate.
 
 ---
 

@@ -5,7 +5,7 @@
 **Author:** <name / hat>
 **Owner:** <name / hat>
 **Source:** <which OKR KR, North Star section, or BACKLOG entry triggered this>
-**Related Epic(s):** <EPIC-NN if known, else "TBD via /Tandem:draft-epic">
+**Related Epic(s):** <EPIC-NN if known, else "TBD via /tandem:draft-epic">
 
 > PRDs in this kit are **lightweight, markdown-only documents**. They have no frontmatter (the validator doesn't scan `20-Requirements/`) and no closed-set status enum — they sit upstream of the Epic/Feature/Story graph and feed it. A PRD describes the problem and the desired end state; the Epic encodes the work commitment.
 >

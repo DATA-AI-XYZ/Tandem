@@ -54,7 +54,7 @@ Before creating anything, verify **all three** entry conditions. This is a hard 
   the phase branch the wrong base.
 - **Every phase story DoR-ready** — each resolved story carries `status: ready` in its frontmatter
   (the kit's Definition-of-Ready gate). A `not-started` / un-refined story must go through
-  `/Tandem:refine-backlog` first.
+  `/tandem:refine-backlog` first.
 
 If **all three** pass → proceed (Step 3, branch creation). If **any** fails → **abort and list the
 specific gap** — name exactly which item failed (the dirty paths, the current branch if not

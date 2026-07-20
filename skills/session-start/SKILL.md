@@ -1,6 +1,6 @@
 ---
 name: session-start
-description: Load active project context at the start of a Claude Code session. Use when the user opens a session and asks "what's going on", "what's next", "where did we leave off", or invokes /Tandem:session-start. Reads 12-Active/ACTIVE.md, the most recent ADRs, the MONITOR revision history, and any stories in `in-progress` or `blocked` — then announces the suggested hat and next step.
+description: Load active project context at the start of a Claude Code session. Use when the user opens a session and asks "what's going on", "what's next", "where did we leave off", or invokes /tandem:session-start. Reads 12-Active/ACTIVE.md, the most recent ADRs, the MONITOR revision history, and any stories in `in-progress` or `blocked` — then announces the suggested hat and next step.
 ---
 
 # Tandem: session-start (orientation)
@@ -49,7 +49,7 @@ Blocked (1):
   - STORY-NN.M.PP-<slug> — blocked on ADR-NNNN since <date>
 
 Stale in-review (1):
-  - STORY-NN.M.PP-<slug> — in-review for 5 days, run /Tandem:close-out-story
+  - STORY-NN.M.PP-<slug> — in-review for 5 days, run /tandem:close-out-story
 
 Recent ADRs:
   - ADR-NNNN — <title> (<date>)

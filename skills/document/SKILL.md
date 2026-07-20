@@ -1,6 +1,6 @@
 ---
 name: document
-description: Author the project's default markdown documentation set from accumulated PM knowledge. Use when the user asks to generate docs, write project documentation, create the documentation set, or invokes /Tandem:document. Reads PROJECT-CONTEXT.md, epics/features/stories, ADRs, and the codebase — then authors one markdown file per doc into the documentation/ folder. Authors markdown only; HTML rendering is a separate step.
+description: Author the project's default markdown documentation set from accumulated PM knowledge. Use when the user asks to generate docs, write project documentation, create the documentation set, or invokes /tandem:document. Reads PROJECT-CONTEXT.md, epics/features/stories, ADRs, and the codebase — then authors one markdown file per doc into the documentation/ folder. Authors markdown only; HTML rendering is a separate step.
 ---
 
 # Tandem: document (Technical Writer hat)
@@ -90,4 +90,4 @@ Read the following in order, resolving paths against the project root. Treat a m
 
 ## Next command
 
-Once `STORY-04.4.02` ships, `/Tandem:document-html` will render the `documentation/*.md` files as a styled HTML site. (Not yet available — markdown authoring is the final step for now.)
+Once `STORY-04.4.02` ships, `/tandem:document-html` will render the `documentation/*.md` files as a styled HTML site. (Not yet available — markdown authoring is the final step for now.)

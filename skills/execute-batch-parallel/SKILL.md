@@ -1,6 +1,6 @@
 ---
 name: execute-batch-parallel
-description: Execute one "chat" from an Implementation Strategy by fanning out one scoped sub-agent per Ready story IN PARALLEL, then reconciling the board once on the main thread. Use when the user invokes /Tandem:execute-batch-parallel with a chat id (e.g. CHAT-02), or asks to run a batch of independent stories concurrently. Operates as Dev/QA hat. Refuses to fan out unless the batch is provably file-disjoint (pm:batch-check, ADR-0075) and every story is DoR-ready — otherwise falls back to serial execute-batch. This command DOES change story status.
+description: Execute one "chat" from an Implementation Strategy by fanning out one scoped sub-agent per Ready story IN PARALLEL, then reconciling the board once on the main thread. Use when the user invokes /tandem:execute-batch-parallel with a chat id (e.g. CHAT-02), or asks to run a batch of independent stories concurrently. Operates as Dev/QA hat. Refuses to fan out unless the batch is provably file-disjoint (pm:batch-check, ADR-0075) and every story is DoR-ready — otherwise falls back to serial execute-batch. This command DOES change story status.
 ---
 
 # Tandem: execute-batch-parallel (Dev/QA hat)
@@ -45,7 +45,7 @@ failure, **do not fan out** — report the failing item and fall back to serial 
 
 1. **DoR precheck.** Every story in the chat must be `status: ready`. If any story is `ready: false`
    in the strategy or not `ready` in its frontmatter, **refuse** and name the unready story — it is
-   `unsafe` to start. (The operator runs `/Tandem:refine-backlog` first.)
+   `unsafe` to start. (The operator runs `/tandem:refine-backlog` first.)
 2. **Disjoint-file precondition (`pm:batch-check`, ADR-0075).** Run the static **batch-check** over
    the batch's stories:
 
@@ -179,7 +179,7 @@ safety gate (Step 1):
 - **DoR refusal (hard stop).** The skill **will not start** a batch if any story has unmet DoR — it
   **refuses** and names the failing story **and** the specific missing DoR item (e.g. "STORY-17.1.09
   — no paired testplan"). An unready story is never fanned out; the operator runs
-  `/Tandem:refine-backlog` on it first. (This is the Step 1 DoR precheck, restated
+  `/tandem:refine-backlog` on it first. (This is the Step 1 DoR precheck, restated
   as a guardrail: refuse, don't degrade.)
 - **WIP-limit interaction (preserve, do not raise — ADR-0077).** Batch-parallel **preserves the SOP
   §5 `in-progress` WIP limit (max 2) unchanged — it does not raise the limit.** This is safe at any
@@ -205,4 +205,4 @@ pattern in SOP §18, which chains whole chats one at a time across a phase.
 
 ## Next command
 
-Next: `/Tandem:run-testplan`
+Next: `/tandem:run-testplan`

@@ -71,7 +71,7 @@ Every finding **requires a suggested fix** — a specific, actionable remedy (a 
 
 The six-dimension lens + three-level severity ranking + one-suggested-fix-per-finding defined here is the **canonical, reusable review contract** for this kit. Other skills delegate to it rather than re-deriving their own review logic:
 
-- **`/Tandem:close-out-story`** runs the Definition-of-Done gate, whose **R14 AI-code-review** pass (FEAT-05.3) delegates to this contract: it invokes `/Tandem:peer-review` against the story's diff, then treats the resulting **blocker** count as its hard gate (blockers > 0 ⇒ DoD R14 FAILs, story does not flip to `done`).
+- **`/tandem:close-out-story`** runs the Definition-of-Done gate, whose **R14 AI-code-review** pass (FEAT-05.3) delegates to this contract: it invokes `/tandem:peer-review` against the story's diff, then treats the resulting **blocker** count as its hard gate (blockers > 0 ⇒ DoD R14 FAILs, story does not flip to `done`).
 - Keep the dimension set, the `blocker / major / minor` enum, and the suggested-fix-per-finding requirement stable here so close-out and any future caller stay in lockstep with one source of review truth.
 
 ## Emit the AI-CODE-REVIEW artefact (durable HTML output)
@@ -108,4 +108,4 @@ Beyond printing the severity-ranked findings to the thread, `peer-review` **emit
 - Top blockers (if any): <list>
 - Recommended next step:
   - Blockers present → assign findings to Dev hat; re-review after fixes.
-  - Clean → safe to merge / proceed to `/Tandem:close-out-story`.
+  - Clean → safe to merge / proceed to `/tandem:close-out-story`.

@@ -6,7 +6,7 @@ Single board for this project. Updated weekly (Friday PM-hat session) and on eve
 |---|---|
 | Drafted | _(set on first PM-hat session)_ |
 | Last updated | _(none yet — fresh install)_ |
-| State | **0 / 0 stories `done`** — no work planned yet. Start with `/Tandem:draft-okrs` → `/Tandem:draft-prd` → `/Tandem:draft-epic`. |
+| State | **0 / 0 stories `done`** — no work planned yet. Start with `/tandem:draft-okrs` → `/tandem:draft-prd` → `/tandem:draft-epic`. |
 
 **Status legend:** 🟦 Planned · 🟧 In progress · 🟢 Shipped · 🔴 Blocked
 

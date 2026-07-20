@@ -1,6 +1,6 @@
 ---
 name: update
-description: Pull Tandem kit improvements into an already-installed project without touching your work — refresh only kit-owned files (templates, standards, tooling) + regenerate the dashboard, never the operator's artefacts or folder structure. Use when the user asks to update Tandem, upgrade the PM kit, pull kit changes, refresh tooling, or invokes /Tandem:update. Thin wrapper over the canonical update.js (pm:update); shows the change diff and confirms before applying.
+description: Pull Tandem kit improvements into an already-installed project without touching your work — refresh only kit-owned files (templates, standards, tooling) + regenerate the dashboard, never the operator's artefacts or folder structure. Use when the user asks to update Tandem, upgrade the PM kit, pull kit changes, refresh tooling, or invokes /tandem:update. Thin wrapper over the canonical update.js (pm:update); shows the change diff and confirms before applying.
 ---
 
 # Tandem: update (non-destructive refresh)
@@ -32,11 +32,14 @@ manually triggered; `pm:doctor` only reports drift) and ADR-0072 (kit/user owner
 - **Confirm before applying** — only run the real `pm:update` after the operator confirms the diff.
 - **Report** — after applying, surface the count of refreshed files, the new `kitVersion`, and the
   regenerated dashboard path.
+- **Remind on restart** — if the plugin itself (not just kit files) was updated this session, the
+  final output must remind the operator to restart their Claude Code session; transient hook errors
+  referencing the old version's cache path are expected until they do (BUG-20260718-02).
 
 ## Non-negotiable rules
 - Adds **no** destructive behaviour beyond `update.js`. Never deletes or moves the operator's work.
 - Keep deterministic logic in the script — the skill only previews (diff), confirms, and reports.
 
 ## Next
-Next: `/Tandem:session-start` to re-orient after a refresh, or `/Tandem:weekly-monitor` to fold the
+Next: `/tandem:session-start` to re-orient after a refresh, or `/tandem:weekly-monitor` to fold the
 change into the Friday cadence.

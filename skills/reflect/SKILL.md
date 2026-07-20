@@ -1,6 +1,6 @@
 ---
 name: reflect
-description: End-of-session reflection that proposes updates to CLAUDE.md / SOP.md / PROJECT-CONTEXT.md based on what happened. Use when the user asks to reflect on a session, capture lessons, propose CLAUDE.md updates, or invokes /Tandem:reflect. The blog's "stop hooks reflect on what happened and propose CLAUDE.md updates" recommendation, implemented as a manual skill (less noisy than an auto-firing Stop hook that triggers on every trivial session).
+description: End-of-session reflection that proposes updates to CLAUDE.md / SOP.md / PROJECT-CONTEXT.md based on what happened. Use when the user asks to reflect on a session, capture lessons, propose CLAUDE.md updates, or invokes /tandem:reflect. The blog's "stop hooks reflect on what happened and propose CLAUDE.md updates" recommendation, implemented as a manual skill (less noisy than an auto-firing Stop hook that triggers on every trivial session).
 ---
 
 # Tandem: reflect (self-improvement)

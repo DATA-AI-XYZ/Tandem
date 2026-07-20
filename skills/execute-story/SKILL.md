@@ -62,7 +62,7 @@ Use `Read` / `Glob` to detect existence rather than assuming; treat missing file
    - Reference the bug in the story's body.
    - **Spec-error exception:** if the failure indicates the AC is wrong (budget set without measurement, vocabulary that contradicts shipped code, etc.) rather than a code defect, file an **ADR** documenting the spec correction instead of a BUG. The ADR linked from the TC's `Result:` line IS the resolution. Cite the ADR in the story body. Don't file both for the same root cause.
 
-6. **Default stop-state:** when all ACs implemented and self-review done, flip status to `in-review` and STOP. Do **not** set `completed_at` yet — that's the DoD gate via `/Tandem:close-out-story`. Do **not** auto-run `/run-testplan` or `/close-out-story` — those are deliberate next invocations the user owns, giving a QA-as-second-pair-of-eyes break between dev work and DoD sign-off.
+6. **Default stop-state:** when all ACs implemented and self-review done, flip status to `in-review` and STOP. Do **not** set `completed_at` yet — that's the DoD gate via `/tandem:close-out-story`. Do **not** auto-run `/run-testplan` or `/close-out-story` — those are deliberate next invocations the user owns, giving a QA-as-second-pair-of-eyes break between dev work and DoD sign-off.
 
    **Combine-into-one-cycle exception:** it IS appropriate to chain execute → run-testplan → close-out → MONITOR + dashboard sync all the way to `status: done` within a single execute-story invocation when:
    - The user explicitly requests it ("execute and close out together", "do the full cycle", "4-way batch", etc.), OR
@@ -99,4 +99,4 @@ helper always exits 0 and never blocks the story.
 - ADRs created: <list of paths>
 - BUGs filed: <list of paths>
 - Status now: `in-progress` | `in-review` | `blocked`
-- Next step: `/Tandem:run-testplan` if in-review; fix block if blocked
+- Next step: `/tandem:run-testplan` if in-review; fix block if blocked

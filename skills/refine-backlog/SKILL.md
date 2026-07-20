@@ -1,6 +1,6 @@
 ---
 name: refine-backlog
-description: Refine a BACKLOG item or not-started STORY by running the SOP §6 Definition of Ready checklist. Use when the user asks to refine the backlog, refine an item, promote to ready, run DoR, gate a story, do a Friday review, or invokes /Tandem:refine-backlog. Operates as PM hat. Either flips status to ready (if all DoR items pass) OR stops, lists gaps, and asks — never silently promotes.
+description: Refine a BACKLOG item or not-started STORY by running the SOP §6 Definition of Ready checklist. Use when the user asks to refine the backlog, refine an item, promote to ready, run DoR, gate a story, do a Friday review, or invokes /tandem:refine-backlog. Operates as PM hat. Either flips status to ready (if all DoR items pass) OR stops, lists gaps, and asks — never silently promotes.
 ---
 
 # Tandem: refine-backlog (PM hat)
@@ -75,8 +75,8 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
 1. Read each target item end-to-end.
 2. Walk the DoR checklist verbatim. Per item: PASS or FAIL, with a one-line reason citing what was checked.
 3. If the item is a BACKLOG entry (not a Story yet), additionally judge:
-   - **Story-sized?** Single coherent unit of work, fits an XS/S/M/L estimate → promote by creating STORY+TESTPLAN via `/Tandem:split-into-stories` (after refinement). Don't write them inside this skill.
-   - **Feature-sized?** Multi-story scope → suggest the user run `/Tandem:split-into-features` on the parent Epic, or draft a new Feature directly.
+   - **Story-sized?** Single coherent unit of work, fits an XS/S/M/L estimate → promote by creating STORY+TESTPLAN via `/tandem:split-into-stories` (after refinement). Don't write them inside this skill.
+   - **Feature-sized?** Multi-story scope → suggest the user run `/tandem:split-into-features` on the parent Epic, or draft a new Feature directly.
    - **Sunset candidate?** Captured >90 days ago, no movement → propose `wontfix` or `archived`.
 4. If all DoR items PASS for a Story → flip `status: not-started` → `ready`. Atomic edit. Do **not** set `started_at`.
 5. If any FAIL → **stop**. Show the gap list + smallest fix per gap. Ask the user before any patching action.
@@ -95,7 +95,7 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
   | STORY-NN.M.PP | ✗ fail | Missing: estimate, risks. Smallest fix: ... |
   | BACKLOG-NNNN | ✗ sunset | Captured 2025-MM-DD (>90 days), no movement — propose wontfix |
 
-- Do **not** pull anything to `in-progress` here. That's `/Tandem:execute-story`.
+- Do **not** pull anything to `in-progress` here. That's `/tandem:execute-story`.
 - After processing, surface capacity guidance: "WIP is currently N in-progress (max 2) + M in-review (max 3). You have capacity to pull K more. Top Ready candidate: STORY-NN.M.PP."
 
 ## Non-negotiable rules from CLAUDE.md
@@ -116,8 +116,8 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
 
 ## Next command
 
-Next: `/Tandem:execution-strategist`
+Next: `/tandem:execution-strategist`
 
-`/Tandem:split-into-stories <feature-path>` — if a refined item turned out to be feature-sized.
+`/tandem:split-into-stories <feature-path>` — if a refined item turned out to be feature-sized.
 
-Or, if a Story is now `ready` and within WIP capacity: `/Tandem:execute-story <story-path>` — start the work.
+Or, if a Story is now `ready` and within WIP capacity: `/tandem:execute-story <story-path>` — start the work.

@@ -1,6 +1,6 @@
 ---
 name: draft-prd
-description: Draft a Product Requirements Document from a North Star, an OKR Key Result, raw founder notes, or a BACKLOG entry that needs more spec. Use when the user asks to draft a PRD, write a PRD, write requirements, write a spec, turn notes into a PRD, or invokes /Tandem:draft-prd. Operates as Founder hat (synthesis) handing to PM hat (write). Reads strategy sources and produces 20-Requirements/PRD-<slug>.md following 91-Templates/PRD.template.md — 8 mandatory H2 sections, lightweight markdown, no frontmatter.
+description: Draft a Product Requirements Document from a North Star, an OKR Key Result, raw founder notes, or a BACKLOG entry that needs more spec. Use when the user asks to draft a PRD, write a PRD, write requirements, write a spec, turn notes into a PRD, or invokes /tandem:draft-prd. Operates as Founder hat (synthesis) handing to PM hat (write). Reads strategy sources and produces 20-Requirements/PRD-<slug>.md following 91-Templates/PRD.template.md — 8 mandatory H2 sections, lightweight markdown, no frontmatter.
 ---
 
 # Tandem: draft-prd (Founder → PM hat)
@@ -110,4 +110,4 @@ Write to `_00-Project-Management/20-Requirements/PRD-<slug>.md` using the templa
 
 ## Next command
 
-Next: `/Tandem:draft-epic` — turn this PRD into an Epic that commits the work.
+Next: `/tandem:draft-epic` — turn this PRD into an Epic that commits the work.

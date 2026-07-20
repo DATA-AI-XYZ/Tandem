@@ -1,6 +1,6 @@
 ---
 name: draft-okrs
-description: Draft quarterly OKRs from a North Star. Use when the user asks to draft OKRs, write OKRs, plan a quarter, set objectives, draft KRs / Key Results, or invokes /Tandem:draft-okrs. Operates as Founder hat. Reads 00-Strategy/NORTH-STAR.md, the previous quarter's OKRs, and recent retros; produces 00-Strategy/OKR-YYYY-Qx.md following the kit's strategy template.
+description: Draft quarterly OKRs from a North Star. Use when the user asks to draft OKRs, write OKRs, plan a quarter, set objectives, draft KRs / Key Results, or invokes /tandem:draft-okrs. Operates as Founder hat. Reads 00-Strategy/NORTH-STAR.md, the previous quarter's OKRs, and recent retros; produces 00-Strategy/OKR-YYYY-Qx.md following the kit's strategy template.
 ---
 
 # Tandem: draft-okrs (Founder hat)
@@ -69,6 +69,6 @@ The canonical layout is under `_00-Project-Management/`. Use `Read` / `Glob` to 
 
 ## Next command
 
-Next: `/Tandem:draft-prd` — turn one of these Objectives into a PRD.
+Next: `/tandem:draft-prd` — turn one of these Objectives into a PRD.
 
-Or, if you're going straight to execution-shaped strategy: `/Tandem:draft-epic` — turn a KR directly into an Epic.
+Or, if you're going straight to execution-shaped strategy: `/tandem:draft-epic` — turn a KR directly into an Epic.

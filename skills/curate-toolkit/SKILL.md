@@ -1,13 +1,13 @@
 ---
 name: curate-toolkit
-description: Rank installed AI tools (Skills, Agents, Commands, Plugins) by fit for this project and write relevance overlays under 97-AI-Reference/. Reads PROJECT-CONTEXT.md (project type / tech stack) plus the installed inventory and ranks each item HIGH / MED / LOW with a one-line rationale keyed to project type. Use when the user wants to rank or audit which installed tools are relevant vs. off-stack, or invokes /Tandem:curate-toolkit.
+description: Rank installed AI tools (Skills, Agents, Commands, Plugins) by fit for this project and write relevance overlays under _00-Project-Management/97-AI-Reference/. Reads PROJECT-CONTEXT.md (project type / tech stack) plus the installed inventory and ranks each item HIGH / MED / LOW with a one-line rationale keyed to project type. Use when the user wants to rank or audit which installed tools are relevant vs. off-stack, or invokes /tandem:curate-toolkit.
 ---
 
 # Tandem: curate-toolkit (PM hat)
 
 Operate as **PM hat**. The user has an installed set of AI tools — Skills, Agents, Commands, Plugins — and needs to know which ones are actually relevant to *this* project, and which are off-stack noise that should be deprioritised or ignored.
 
-This skill reads the project's type and stack, enumerates the installed inventory, and produces a ranked, rationale'd relevance report written as overlays under `97-AI-Reference/`. The ranking is **judgment-led and non-deterministic** — this skill describes the *procedure* and *output shape*, not a fixed ranking.
+This skill reads the project's type and stack, enumerates the installed inventory, and produces a ranked, rationale'd relevance report written as overlays under `_00-Project-Management/97-AI-Reference/`. The ranking is **judgment-led and non-deterministic** — this skill describes the *procedure* and *output shape*, not a fixed ranking.
 
 ---
 
@@ -22,7 +22,7 @@ Use `Read` / `Glob` to detect file existence. Treat any missing file as "not pre
   2. **Agents** — glob `.claude/agents/*.md` (or the repo's configured agent path); read each agent's name and stated purpose.
   3. **Commands** — glob `.claude/commands/*.md`; read each command's name and stated purpose.
   4. **Plugins** — read `plugin.json` at the repo root (if present); list each plugin entry's `name` and `description`.
-- **Existing overlays** — glob `97-AI-Reference/curate-toolkit-*.md` to check whether a prior ranking already exists. If found, note the prior run date and whether a re-rank was requested.
+- **Existing overlays** — glob `_00-Project-Management/97-AI-Reference/curate-toolkit-*.md` to check whether a prior ranking already exists. If found, note the prior run date and whether a re-rank was requested.
 - **Project root `CLAUDE.md`** — for project-specific overrides or exclusions.
 
 ---
@@ -66,7 +66,7 @@ Ranking criteria (apply in order; earlier criteria are stronger signals):
 
 Provide a **one-line rationale** for each ranking, keyed to the project type and stack (e.g. "HIGH — Next.js project; this React skill maps directly to the primary framework").
 
-### 4 · Write relevance overlays under `97-AI-Reference/`
+### 4 · Write relevance overlays under `_00-Project-Management/97-AI-Reference/`
 
 Output the ranking as one or more relevance overlay files. The overlay schema and exact field names are defined in ADR-0029 / STORY-04.3.03 — write the overlay to conform to that schema once it is available. Until STORY-04.3.03 delivers the schema, write the overlay in the interim format below and mark the file with `schema: interim` so a later migration pass can upgrade it.
 
@@ -110,9 +110,9 @@ project_type: <value from PROJECT-CONTEXT.md>
 | <name> | skill/agent/command/plugin | <file or table where referenced> | GAP — not installed; degrade to general-purpose fallback |
 ```
 
-Write the overlay to `97-AI-Reference/curate-toolkit-<YYYYMMDD>.md`. If a file for today already exists, append a numeric suffix (e.g. `-2`).
+Write the overlay to `_00-Project-Management/97-AI-Reference/curate-toolkit-<YYYYMMDD>.md`. If a file for today already exists, append a numeric suffix (e.g. `-2`).
 
-Create the `97-AI-Reference/` directory if it does not exist.
+Create the `_00-Project-Management/97-AI-Reference/` directory if it does not exist.
 
 ### 5 · Report in chat
 
@@ -142,16 +142,16 @@ After writing the overlay, report:
 - MED: list.
 - LOW: list.
 - Gaps (not installed): list with source reference.
-- Overlay written to: `97-AI-Reference/curate-toolkit-<YYYYMMDD>.md`.
+- Overlay written to: `_00-Project-Management/97-AI-Reference/curate-toolkit-<YYYYMMDD>.md`.
 - PROJECT-CONTEXT.md filled: yes / no (if no, ranking is best-effort).
 
 ---
 
 ## Next command
 
-`/Tandem:curate-toolkit` — re-run after updating PROJECT-CONTEXT.md or installing new tools to refresh the overlay.
+`/tandem:curate-toolkit` — re-run after updating PROJECT-CONTEXT.md or installing new tools to refresh the overlay.
 
-Or: `/Tandem:execute-story` — to begin executing a story, using the HIGH-ranked sub-agents as the preferred executor pool.
+Or: `/tandem:execute-story` — to begin executing a story, using the HIGH-ranked sub-agents as the preferred executor pool.
 
 ---
 
@@ -162,9 +162,11 @@ overlay authors (this skill) and overlay consumers (e.g. FEAT-04.6 dashboard ren
 
 ### Write location
 
-All overlays are written to `97-AI-Reference/` at the root of the consuming project.
-File naming: `curate-toolkit-<YYYYMMDD>.md`. Append `-2`, `-3`, etc. if a same-day file exists.
-Create the directory if absent. Never write overlays outside `97-AI-Reference/`.
+All overlays are written to `_00-Project-Management/97-AI-Reference/` — the directory
+`loadFitOverlays` resolves via `PM_ROOT/97-AI-Reference` (`PM_ROOT` = `_00-Project-Management/`;
+ADR-0029 §1 correction, BUG-20260527-01). File naming: `curate-toolkit-<YYYYMMDD>.md`. Append `-2`,
+`-3`, etc. if a same-day file exists. Create the directory if absent. Never write overlays outside
+`_00-Project-Management/97-AI-Reference/`.
 
 ### Overlay frontmatter (required)
 
@@ -184,6 +186,38 @@ project_type: <value from PROJECT-CONTEXT.md § Project type>
 | `rank` | string | `HIGH` / `MED` / `LOW` | Relevance tier for this project. |
 | `rationale` | string | one-line prose (≤ 120 chars) | Reason for the assigned rank, keyed to project type and stack. |
 | `installed` | boolean | `true` / `false` | Whether the item was found on disk at overlay-generation time. |
+
+### Example — normative item placement (Form B; ADR-0029 §4, BUG-20260527-01)
+
+**This is the layout the dashboard parser actually reads.** Per-item records live in the
+**body** (not frontmatter) as an `items:` block: each entry is a `- ` line starting at the left
+margin (never indented under `items:`), with its fields continued on lines indented 1–4 spaces
+directly below. This is the only placement `parseFitItemsFromBody` recognises — any other layout
+(including a frontmatter `items:` block sequence) is silently ignored. Write this file to
+`_00-Project-Management/97-AI-Reference/curate-toolkit-<YYYYMMDD>.md` (§4 write location above).
+
+```markdown
+---
+schema: v1
+generated_by: curate-toolkit
+generated_at: '2026-07-20T09:00:00+01:00'
+project_type: web-app
+---
+
+## Items
+
+items:
+- name: frontend-developer
+  kind: agent
+  rank: HIGH
+  rationale: Core agent — UI work spans every sprint in this React project.
+  installed: true
+- name: database-optimizer
+  kind: agent
+  rank: MED
+  rationale: Useful once the schema stabilises.
+  installed: false
+```
 
 ### Tier definitions
 
@@ -221,5 +255,5 @@ and never aborts the overlay-generation pass.
 This skill is registered via the kit's auto-discovery model (ADR-0003): placing
 `skills/curate-toolkit/SKILL.md` in the `skills/` directory is sufficient — no `plugin.json`
 skills array entry is needed or added. The public Tandem build (`npm run build:tandem`, ADR-0028)
-copies the `skills/` tree and rewrites the name token to `/Tandem:curate-toolkit`; the scrub
+copies the `skills/` tree and rewrites the name token to `/tandem:curate-toolkit`; the scrub
 gate confirms no internal token survives. Do not add this skill to `plugin.json`.

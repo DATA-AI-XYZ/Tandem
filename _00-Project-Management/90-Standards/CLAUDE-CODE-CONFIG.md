@@ -136,7 +136,7 @@ Both ship in the `Tandem` plugin (when installed) and are also documented in `BO
 
 **This kit does:**
 
-The four hot prompts (06, 07, 08, 09) are also published as model-invoked skills inside the `Tandem` plugin. Plugin skills are **namespaced** (`/Tandem:execute-story`) and **selected by description match** — Claude loads them when the user's task description matches the skill's `description` frontmatter, or when the user invokes them explicitly with `/Tandem:<skill>`.
+The four hot prompts (06, 07, 08, 09) are also published as model-invoked skills inside the `Tandem` plugin. Plugin skills are **namespaced** (`/tandem:execute-story`) and **selected by description match** — Claude loads them when the user's task description matches the skill's `description` frontmatter, or when the user invokes them explicitly with `/tandem:<skill>`.
 
 | Skill | Description hint (what Claude matches on) | Replaces paste-prompt |
 |---|---|---|
@@ -147,7 +147,7 @@ The four hot prompts (06, 07, 08, 09) are also published as model-invoked skills
 | `weekly-monitor` | Use on Friday weekly cadence. Summarises the week, updates MONITOR revision history, flags stalled stories. | `92-Prompts/09-weekly-monitor-update.md` |
 
 Skills are invoked two ways:
-- **Explicit:** user types `/Tandem:execute-story <story-path>` — guaranteed load.
+- **Explicit:** user types `/tandem:execute-story <story-path>` — guaranteed load.
 - **Implicit:** Claude reads task description, matches against skill descriptions, auto-loads.
 
 The remaining six prompts in `92-Prompts/` stay as documentation — they're used too infrequently to justify a skill, and they're more like "fill-out-the-form" templates than auto-loaded expertise.

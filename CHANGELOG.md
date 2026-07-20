@@ -2,12 +2,23 @@
 
 All notable changes to **Tandem** are tracked here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [2.7.1] — 2026-07-20
+
+**Hotfix — the marketplace now syncs in Claude Cowork / claude.ai.** Adding the repo as a custom marketplace in the Claude desktop app failed with *"Marketplace sync failed"* even though Claude Code CLI installs worked. Two causes, both fixed: the manifests carried a `$schema` URL that claude.ai tries (and fails) to resolve, and the plugin/marketplace names were not kebab-case, which claude.ai rejects (the CLI tolerates both).
+
+### Changed
+- **One-time identity rename (the only breaking bit):** the plugin's machine name is now `tandem` and the marketplace name is `data-ai-xyz` (previously capitalized as **Tandem** / **DATA-AI-XYZ**). Skill invocations become `/tandem:*` accordingly. The GitHub repo URL is unchanged — you still add the marketplace with `/plugin marketplace add DATA-AI-XYZ/Tandem`.
+- **Existing installs:** the old-name install won't update in place. Remove it, re-add the marketplace, then `/plugin install tandem@data-ai-xyz`. Your project's PM files, board, and history are untouched; `npm run pm:update` works as before afterwards.
+
+### Fixed
+- Shipped manifests no longer carry a `$schema` key, so claude.ai's server-side sync no longer aborts trying to resolve it.
+
 ## [2.7.0] — 2026-07-18
 
-**Autopilot & plan-by-usage budgeting.** Tandem can now run your whole plan unattended and tell you what every piece of work actually costs. Upgrading is safe: the status enum, the frontmatter contract, and every existing command name are unchanged — one new command (`/Tandem:autopilot`) and one new optional story field (`usage_estimate`) are added.
+**Autopilot & plan-by-usage budgeting.** Tandem can now run your whole plan unattended and tell you what every piece of work actually costs. Upgrading is safe: the status enum, the frontmatter contract, and every existing command name are unchanged — one new command (`/tandem:autopilot`) and one new optional story field (`usage_estimate`) are added.
 
 ### Added
-- **`/Tandem:autopilot`** — one command runs the existing plan end-to-end: opens each phase, runs every batch in its own fresh-context sub-agent, closes the phase. A durable checkpoint means re-running never redoes finished work (your board is always the ground truth); any failed test or raised bug halts the run and reports. Entry requires your explicit authorisation, every run is bounded by a stop condition, and a full run log is written to your reports folder.
+- **`/tandem:autopilot`** — one command runs the existing plan end-to-end: opens each phase, runs every batch in its own fresh-context sub-agent, closes the phase. A durable checkpoint means re-running never redoes finished work (your board is always the ground truth); any failed test or raised bug halts the run and reports. Entry requires your explicit authorisation, every run is bounded by a stop condition, and a full run log is written to your reports folder.
 - **Usage governor** — autopilot watches your Claude usage window and, at a configurable threshold (default 92%), finishes the current unit, checkpoints, pauses, and schedules its own resume for the window reset. No usage signal available? It pauses and asks — it never guesses.
 - **Quality-first model tiering** — orchestration and every review pass run on the highest-capability model; implementation may be assigned to cheaper models per story by complexity and risk, with automatic escalation for anything ambiguous. Review is never skipped.
 - **Usage tracking & budgeting** — executions record the actual tokens they burned, attributed to the story or batch that caused them; stories can carry a `usage_estimate` that reconciles against actuals; the board and Command Center roll usage up by feature/epic; a pre-batch projection answers "can I afford this now?". Surfaces with no data yet say so honestly — never zeros pretending to be measurements.
@@ -53,10 +64,10 @@ All notable changes to **Tandem** are tracked here. Format loosely follows [Keep
 
 ### Added
 - **Founder-facing outcome lines across the whole plan.** Every artefact now carries a plain-English "what you'll be able to do" line, authored automatically as you draft (PRD → feature → story → execution strategy) and surfaced on the Command Center — so the board reads in business terms, not just technical scope.
-- **`/Tandem:document`** — generate a coherent documentation set (`overview`, `getting-started`, `architecture`, `decisions`, `features`) from what Tandem already knows about your project, then render it to HTML.
-- **`/Tandem:curate-toolkit`** — rank your installed AI tools (skills, agents, commands, plugins) by fit for the project and write relevance overlays into the AI catalogue.
-- **`/Tandem:peer-review`** — on-demand code review of a diff, branch, PR, or file, returning blocker / major / minor findings each with a suggested fix.
-- **`/Tandem:start-phase` and `/Tandem:close-phase`** — open a phase on its own branch and close it with a retrospective and a gated merge to `main`.
+- **`/tandem:document`** — generate a coherent documentation set (`overview`, `getting-started`, `architecture`, `decisions`, `features`) from what Tandem already knows about your project, then render it to HTML.
+- **`/tandem:curate-toolkit`** — rank your installed AI tools (skills, agents, commands, plugins) by fit for the project and write relevance overlays into the AI catalogue.
+- **`/tandem:peer-review`** — on-demand code review of a diff, branch, PR, or file, returning blocker / major / minor findings each with a suggested fix.
+- **`/tandem:start-phase` and `/tandem:close-phase`** — open a phase on its own branch and close it with a retrospective and a gated merge to `main`.
 - **Cross-project portability** — a configurable folder layout (so Tandem adapts to projects that don't use the canonical numbering), a self-wiring installer + health-check (`pm:install` / `pm:doctor`), cross-platform Node hooks, and a tiered `CLAUDE.md` model.
 
 ### Changed

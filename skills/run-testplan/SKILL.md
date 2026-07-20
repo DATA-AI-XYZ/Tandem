@@ -57,7 +57,7 @@ Use `Read` / `Glob` to detect existence rather than assuming; treat missing file
 
 5. After all TCs run, update the testplan's "Sign-off" section.
 
-6. **If ALL TCs PASS** — flip testplan status to `done`. Set `completed_at` to now. Recommend `/Tandem:close-out-story` next.
+6. **If ALL TCs PASS** — flip testplan status to `done`. Set `completed_at` to now. Recommend `/tandem:close-out-story` next.
 
 7. **If ANY TC FAILed** — leave testplan as `in-progress`. Story stays `in-review`. The dev needs to fix the bugs and re-run the failed TCs.
 
@@ -83,11 +83,11 @@ Use `Read` / `Glob` to detect existence rather than assuming; treat missing file
 - BUGs filed: <list of paths>
 - Testplan status: `done` | `in-progress`
 - Recommended next step:
-  - All PASS → `/Tandem:close-out-story`
+  - All PASS → `/tandem:close-out-story`
   - Any FAIL → assign bugs to Dev hat; re-run testplan after fixes
 
 ## Next command
 
-Next: `/Tandem:close-out-story`
+Next: `/tandem:close-out-story`
 
 When every TC PASSes, close the story through the Definition of Done gate.

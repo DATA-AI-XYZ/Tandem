@@ -37,7 +37,7 @@ Operate as **PM hat**. Friday 30-minute weekly review.
 
 - Any story `in-progress` for > 5 days? Flag as stall risk.
 - Any story `blocked` for > 5 days? Escalate — Founder hat decision needed?
-- Any story `in-review` for > 3 days? Push to close-out (`/Tandem:close-out-story`).
+- Any story `in-review` for > 3 days? Push to close-out (`/tandem:close-out-story`).
 
 ### 4. Backlog hygiene
 

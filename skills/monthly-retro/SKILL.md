@@ -1,6 +1,6 @@
 ---
 name: monthly-retro
-description: Run the monthly retrospective. Use when the user asks for a monthly retro, monthly retrospective, end-of-month review, month-in-review, or invokes /Tandem:monthly-retro. Operates as Founder + PM hats jointly. Auto-detects the most recently completed full month, reads MONITOR + closed stories + ADRs + bugs from that window, and produces 14-Retros/RETRO-YYYY-MM.md from the kit's retro template.
+description: Run the monthly retrospective. Use when the user asks for a monthly retro, monthly retrospective, end-of-month review, month-in-review, or invokes /tandem:monthly-retro. Operates as Founder + PM hats jointly. Auto-detects the most recently completed full month, reads MONITOR + closed stories + ADRs + bugs from that window, and produces 14-Retros/RETRO-YYYY-MM.md from the kit's retro template.
 ---
 
 # Tandem: monthly-retro (Founder + PM hats)
@@ -93,4 +93,4 @@ Review the draft with the **founder hat**; capture any decisions that surface as
 
 ## Next command
 
-`/Tandem:weekly-monitor` — the retro's "One change" is tracked from here into next month; the weekly cadence keeps it alive. If the strategic check flagged drift, run `/Tandem:draft-okrs` next quarter to re-anchor.
+`/tandem:weekly-monitor` — the retro's "One change" is tracked from here into next month; the weekly cadence keeps it alive. If the strategic check flagged drift, run `/tandem:draft-okrs` next quarter to re-anchor.
