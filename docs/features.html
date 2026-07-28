@@ -317,8 +317,8 @@ body {
     </header>
     <main class="doc-body">
 <h1 id="features">Features</h1>
-<p>This page describes what Tandem can do, grouped by capability. Each capability is delivered by one or more <strong>skills</strong> (slash commands Claude loads on demand) and/or <strong>scripts</strong> (<code>npm run pm:*</code>). Everything below is <strong>shipped</strong> — the kit is at v2.6.0 with all planned epics complete (30 skills). For the exact order you run the lifecycle skills in, see the <a href="#">Command lifecycle</a>; for the underlying model, see <a href="#">Architecture</a>.</p>
-<p>The full feature tree lives under <code>_00-Project-Management/31-Features/</code> (63 feature files across 19 epics). The sections here summarise the major groups rather than listing every file.</p>
+<p>This page describes what Tandem can do, grouped by capability. Each capability is delivered by one or more <strong>skills</strong> (slash commands Claude loads on demand) and/or <strong>scripts</strong> (<code>npm run pm:*</code>). Everything below is <strong>shipped</strong> — the kit is at v2.7.2 with all planned epics complete (30 skills). For the exact order you run the lifecycle skills in, see the <a href="#">Command lifecycle</a>; for the underlying model, see <a href="#">Architecture</a>.</p>
+<p>The full feature tree lives under <code>_00-Project-Management/31-Features/</code> (71 feature files across 21 epics). The sections here summarise the major groups rather than listing every file.</p>
 <h2 id="strategy-planning">Strategy &amp; planning</h2>
 <p>Anchor work to a business outcome before any code is written.</p>
 <ul>
@@ -439,7 +439,7 @@ body {
 <li><strong><code>pm:monitor</code></strong> — recompute the board counts and rollups from real story statuses</li>
 <p>  (ADR-0024). A shared frontmatter-parser module backs the validator and the generators so they   read the contract identically (ADR-0067).</p>
 <li><strong><code>build:tandem</code></strong> — produce the sanitized public release behind a scrub gate that fails on</li>
-<p>  any internal-provenance token (ADR-0028/0040).</p>
+<p>  any internal-provenance token (ADR-0028/0040). The build patches the shipped manifests to   the kebab-case public identity (<code>tandem</code> / <code>data-ai-xyz</code>) the claude.ai / Cowork marketplace   sync requires (ADR-0086), then finishes with a fail-loud run of the official   <code>claude plugin validate</code> — the same check the marketplace review pipeline runs (ADR-0087).</p>
 </ul>
 <h2 id="session-helpers">Session helpers</h2>
 <ul>

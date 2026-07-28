@@ -479,6 +479,8 @@ body {
 <p>  from the real story statuses; run it after creating or deleting artefacts.</p>
 <li><strong>hook.js</strong> (internal/library — not wired to a top-level <code>pm:*</code> script; invoked directly by</li>
 <p>  <code>hooks/hooks.json</code>) — the single cross-platform entry point Claude Code&#39;s own hooks call into;   you won&#39;t normally run this by hand. See <a href="#hooks">Hooks</a> below.</p>
+<li><strong>hook-runner.js</strong> (internal/library — not wired to a top-level <code>pm:*</code> script) — a forwarding</li>
+<p>  stub to <code>hook.js</code> for any stale hook definition still calling the pre-ADR-0053 entrypoint name;   you won&#39;t normally invoke this directly.</p>
 <li><strong>install-hooks.js</strong> (internal/library — wired as <code>pm:claude-hooks</code> in <code>93-Scripts/package.json</code>,</li>
 <p>  not at the project root) — copies the kit&#39;s pre-commit hook into the host repo&#39;s git hooks   folder.</p>
 <li><strong>install.js</strong> (<code>npm run pm:install</code>) — wires the kit into a new project: merges the <code>pm:*</code></li>
