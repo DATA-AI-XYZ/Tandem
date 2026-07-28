@@ -561,9 +561,20 @@ html[data-theme="dark"] .chat-block pre { background:#0d0b09; }
 .tandem-docs { display:flex; gap:0.6rem; flex-wrap:wrap; }
 .tandem-doc { padding:0.4rem 0.75rem; background:var(--cream); border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--mono); font-size:0.78rem; color:var(--blue); text-decoration:none; transition:all var(--dur-fast) var(--ease); }
 .tandem-doc:hover { background:var(--surface-2); border-color:var(--ink-faint); color:var(--ink); }
+.tandem-starthere { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:0.75rem; }
+.start-card { display:flex; flex-direction:column; gap:0.3rem; text-align:left; padding:1rem 1.1rem; background:var(--cream); border:1px solid var(--border); border-radius:var(--r-sm); text-decoration:none; font:inherit; cursor:pointer; transition:all var(--dur-fast) var(--ease); }
+.start-card:hover { background:var(--surface-2); border-color:var(--ink-faint); transform:translateY(-1px); box-shadow:var(--shadow-sm); }
+.start-card[data-start-card="demo"] { cursor:default; border-style:dashed; }
+.start-card[data-start-card="demo"]:hover { transform:none; box-shadow:none; background:var(--cream); }
+.start-kicker { font-family:var(--mono); font-size:0.62rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-faint); }
+.start-card strong { font-family:var(--serif); font-size:1.15rem; font-weight:400; color:var(--ink); }
+.start-sub { font-family:var(--sans); font-size:0.78rem; color:var(--ink-3); line-height:1.5; }
+.tandem-install { margin:0; padding:0.9rem 1.1rem; background:var(--cream); border:1px solid var(--border); border-radius:var(--r-sm); overflow-x:auto; }
+.tandem-install code { font-family:var(--mono); font-size:0.82rem; color:var(--ink); white-space:pre; }
 @media (max-width:760px) {
   .tandem-header { grid-template-columns:1fr; }
   .tandem-counts { border-left:none; border-top:1px dashed var(--border); padding-left:0; padding-top:0.85rem; align-items:flex-start; }
+  .tandem-starthere { grid-template-columns:1fr; }
 }
 
 .age-ribbon { display:inline-block; padding:0.08rem 0.45rem; border-radius:var(--r-pill); font-family:var(--mono); font-size:0.66rem; font-weight:600; letter-spacing:0.02em; margin-left:0.35rem; }

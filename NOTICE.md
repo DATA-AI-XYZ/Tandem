@@ -1,7 +1,7 @@
 # NOTICE
 
 **Tandem** — a repo-native PM operating kit for Claude Code.
-Copyright © 2026 DATA-AI-XYZ. Released under the MIT License (see [LICENSE](LICENSE)).
+Copyright © 2026 DATAXYZ CONNECT. Released under the MIT License (see [LICENSE](LICENSE)).
 
 ## Trademarks & non-affiliation
 
@@ -29,6 +29,6 @@ own terms and privacy policy, not by Tandem.)
 ## Contact
 
 - Web: <https://www.dataxyzconnect.com>
-- Email: info@dataxyzconnect.com
+- Email: tandem@dataxyzconnect.com
 
-Maintained by DATA-AI-XYZ.
+Maintained by DATAXYZ CONNECT.

@@ -1917,16 +1917,45 @@ function buildTandemEmptyStateHtml(isKitRepo) {
   return isKitRepo ? TANDEM_KIT_DEV_EMPTY_STATE : TANDEM_CONSUMER_EMPTY_STATE;
 }
 
-// Scan the Tandem build output (`dist/tt/`) for the published plugin's manifest,
-// skill set, hook registry, and bundled docs. Drives the Tandem tab so the
-// dashboard reflects what's actually shipped rather than the source tree.
+// Turn a shipped doc filename into a human label: `getting-started.html` → "Getting started".
+// Used for the Tandem tab's bundled-docs panel and the Start-here rail (STORY-22.1.02) so the
+// public page reads as documentation rather than as a directory listing.
+// Acronyms that must not be sentence-cased into "Html" / "Adr" on a public page.
+const DOC_TITLE_ACRONYMS = new Set(['html', 'css', 'api', 'cli', 'adr', 'okr', 'prd', 'ai', 'pm', 'sop', 'ui', 'dor', 'dod']);
+function docTitleFromFilename(name) {
+  const base = String(name || '').replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+  if (!base) return String(name || '');
+  const words = base.split(/\s+/).map((w) => (DOC_TITLE_ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w));
+  return words[0].charAt(0).toUpperCase() + words[0].slice(1) + (words.length > 1 ? ' ' + words.slice(1).join(' ') : '');
+}
+
+// Scan the Tandem build output for the published plugin's manifest, skill set, hook registry,
+// and bundled docs. Drives the Tandem tab so the dashboard reflects what's actually shipped
+// rather than the source tree.
+//
+// The dist root defaults to `REPO_ROOT/dist/tt` (the kit-dev build location, ADR-0028) but may be
+// pointed elsewhere with PM_DASH_TANDEM_DIST. The release build sets it to the public tree it is
+// about to publish, so the demo board on GitHub Pages documents the exact artefact shipped
+// beside it instead of rendering the consumer empty state (ADR-0088). Both env vars default to
+// unset, so consumer and kit-dev output is unchanged — the STORY-21.5.01 gate still holds.
 function buildTandemPackage() {
-  const distRoot = path.join(REPO_ROOT, 'dist', 'tt');
+  const distOverride = process.env.PM_DASH_TANDEM_DIST;
+  const distRoot = (distOverride && distOverride.trim())
+    ? path.resolve(distOverride)
+    : path.join(REPO_ROOT, 'dist', 'tt');
   if (!existsDir(distRoot)) return null;
   let manifest = {};
   const manifestText = readFileSafe(path.join(distRoot, '.claude-plugin', 'plugin.json'));
   if (manifestText) {
     try { manifest = JSON.parse(manifestText); } catch (e) { manifest = { name: '(unparseable)', error: String(e.message) }; }
+  }
+  // Marketplace id — needed for the install block's `/plugin install <plugin>@<marketplace>`.
+  // Not present in plugin.json, so read the sibling manifest; absent/garbled leaves it empty and
+  // the renderer omits the install block rather than printing a command that would not work.
+  let marketplace = '';
+  const mpText = readFileSafe(path.join(distRoot, '.claude-plugin', 'marketplace.json'));
+  if (mpText) {
+    try { marketplace = String(JSON.parse(mpText).name || ''); } catch { marketplace = ''; }
   }
   const skills = [];
   const skillsRoot = path.join(distRoot, 'skills');
@@ -1975,23 +2004,37 @@ function buildTandemPackage() {
     let entries = [];
     try { entries = fs.readdirSync(docsRoot, { withFileTypes: true }); } catch { entries = []; }
     const dashboardDir = path.join(PM_ROOT, '42-Monitor');
+    // In a published build the board IS docs/index.html and the doc pages are its siblings, so a
+    // path relative to the dev tree's 42-Monitor/ would 404. PM_DASH_TANDEM_DOCS_BASE rebases the
+    // href; the empty string is the meaningful published value ("bare sibling filename"), so test
+    // for presence, not truthiness (ADR-0088).
+    const hrefBase = process.env.PM_DASH_TANDEM_DOCS_BASE;
+    const rebase = hrefBase !== undefined && hrefBase !== null;
     for (const e of entries) {
       if (!direntIsFile(docsRoot, e)) continue;
       if (e.name.startsWith('.')) continue; // skip dotfiles (.nojekyll etc.) — not docs
       const fp = path.join(docsRoot, e.name);
       docs.push({
         name: e.name,
-        href: path.relative(dashboardDir, fp).replace(/\\/g, '/'),
+        title: docTitleFromFilename(e.name),
+        href: rebase ? (hrefBase + e.name) : path.relative(dashboardDir, fp).replace(/\\/g, '/'),
       });
     }
     docs.sort((a, b) => a.name.localeCompare(b.name));
   }
   return {
     manifest,
+    marketplace,
     skills,
     hooks,
     docs,
-    sourceDir: rel(distRoot),
+    // "built from <path>" is a KIT-DEV affordance: it tells the maintainer which dist/tt the board
+    // scanned. When the root is overridden the dist lives outside the repo, so rel() yields a
+    // machine path — in a published build that would print e.g.
+    // `../../../../../../<user>/AppData/Local/Temp/...` on a public page, and any such path under a
+    // home directory whose name is denylisted would fail the release scrub outright. Emit nothing
+    // in the override case; the renderer already treats an empty sourceDir as "omit the line".
+    sourceDir: (distOverride && distOverride.trim()) ? '' : rel(distRoot),
   };
 }
 
@@ -3169,7 +3212,7 @@ const BROWSER_JS = [
 // d.href is already a complete path relative to the dashboard dir (built via
 // path.relative in buildTandemPackage) — do NOT prepend ../../ again (was the
 // double-prefix bug that pushed links 4 levels above the repo root).
-'    var docsHtml = tp.docs.map(function(d){ return \'<a class="tandem-doc" href="\' + escHtml(d.href) + \'" target="_blank" rel="noopener">\' + escHtml(d.name) + \' ↗</a>\'; }).join("");',
+'    var docsHtml = tp.docs.map(function(d){ return \'<a class="tandem-doc" href="\' + escHtml(d.href) + \'" target="_blank" rel="noopener">\' + escHtml(d.title || d.name) + \' ↗</a>\'; }).join("");',
 '    docsPanel = \'<div class="panel reveal"><h3>Bundled docs <span class="count-bubble">\' + tp.docs.length + \'</span></h3><div class="tandem-docs">\' + docsHtml + \'</div></div>\';',
 '  }',
 // Bundled reference — deep-links to the plugin's Templates/Prompts/Scripts/Glossary.
@@ -3180,12 +3223,54 @@ const BROWSER_JS = [
 '  var refTotal = refCounts.templates + refCounts.prompts + refCounts.scripts + refCounts.glossary;',
 '  var refsHtml = refDefs.map(function(r){ return \'<button type="button" class="tandem-doc tandem-ref" data-tandem-ref="\' + r[0] + \'" style="cursor:pointer;">\' + escHtml(r[1]) + \' <span class="count-bubble">\' + refCounts[r[0]] + \'</span></button>\'; }).join("");',
 '  var refsPanel = \'<div class="panel reveal"><h3>Bundled reference <span class="count-bubble">\' + refTotal + \'</span></h3><p class="tandem-desc" style="margin-bottom:0.85rem;">Plugin templates, prompts, scripts and glossary. Canonical home is <strong>AI Catalogue</strong> (ADR-0048) — click any to open it there.</p><div class="tandem-docs">\' + refsHtml + \'</div></div>\';',
-'  root.innerHTML = header + flow + skillsPanel + hooksPanel + docsPanel + refsPanel;',
+'  var startHere = renderStartHere(tp);',
+'  var installPanel = renderInstallBlock(tp);',
+'  root.innerHTML = startHere + installPanel + header + flow + skillsPanel + hooksPanel + docsPanel + refsPanel;',
 '  $$(".cmd-pill[data-cmd-skill]", root).forEach(function(b){ b.addEventListener("click", function(ev){ ev.stopPropagation(); openDrawer("ai-skill", b.dataset.cmdSkill); }); });',
 '  $$(".tandem-skill[data-tandem-skill]", root).forEach(function(c){ c.addEventListener("click", function(){ openDrawer("ai-skill", c.dataset.tandemSkill); }); });',
 '  $$(".tandem-ref[data-tandem-ref]", root).forEach(function(b){ b.addEventListener("click", function(){ setGroup("toolkit", { sub: b.dataset.tandemRef }); }); });',
 '  bindCmdFlowTabs(root);',
 '};',
+
+// --- Start-here rail + install block (STORY-22.1.02) ------------------------
+// The published site's front door. Guide and Playbook link into the SCANNED docs list, so a
+// document that did not ship simply has no card — never a dead link; the whole rail is skipped
+// when neither shipped. The Demo card is inert on purpose: the board around it IS the demo.
+// The install block derives every identifier from the scanned manifest + marketplace id, so it
+// cannot drift from what was published; if either is missing the block is omitted rather than
+// printing a command that would not work.
+'function findTandemDoc(tp, stem){',
+'  var docs = (tp && tp.docs) || [];',
+'  for(var i=0;i<docs.length;i++){ if(String(docs[i].name||"").replace(/\\.[^.]+$/,"") === stem) return docs[i]; }',
+'  return null;',
+'}',
+'function startCard(kind, kicker, title, sub, href){',
+'  var inner = \'<span class="start-kicker">\' + escHtml(kicker) + \'</span><strong>\' + escHtml(title) + \'</strong><span class="start-sub">\' + escHtml(sub) + \'</span>\';',
+'  if(!href) return \'<button type="button" class="start-card" data-start-card="\' + kind + \'">\' + inner + \'</button>\';',
+'  return \'<a class="start-card" data-start-card="\' + kind + \'" href="\' + escHtml(href) + \'" target="_blank" rel="noopener">\' + inner + \'</a>\';',
+'}',
+'function renderStartHere(tp){',
+'  var guide = findTandemDoc(tp, "guide");',
+'  var play  = findTandemDoc(tp, "playbook");',
+'  if(!guide && !play) return "";',
+'  var cards = "";',
+'  if(guide) cards += startCard("guide", "Read first", "Guide", "Install, bootstrap, and ship your first story — in order, with the commands.", guide.href);',
+'  cards += startCard("demo", "You are here", "Demo", "This board is a live Command Center, generated from a sample project. Every tab is explorable.", "");',
+'  if(play) cards += startCard("playbook", "Day to day", "Playbook", "Situation-to-command recipes, the hats, the gates, and what to do when one fails.", play.href);',
+'  return \'<div class="panel reveal"><h3>Start here</h3><div class="tandem-starthere">\' + cards + \'</div></div>\';',
+'}',
+'function renderInstallBlock(tp){',
+'  var m = (tp && tp.manifest) || {};',
+'  var pluginName = m.name || "";',
+'  var marketplaceName = (tp && tp.marketplace) || "";',
+'  var repo = m.repository || m.homepage || "";',
+'  var slug = String(repo).replace(/^https?:\\/\\/(www\\.)?github\\.com\\//i, "").replace(/\\.git$/i, "").replace(/\\/$/, "");',
+'  if(!pluginName || !marketplaceName || !slug || slug === String(repo)) return "";',
+'  var lines = "/plugin marketplace add " + slug + "\\n" +',
+'              "/plugin install " + pluginName + "@" + marketplaceName + "\\n" +',
+'              "/" + pluginName + ":session-start";',
+'  return \'<div class="panel reveal"><h3>Install</h3><p class="tandem-desc" style="margin-bottom:0.85rem;">Three commands in any Claude Code session. The third bootstraps the PM tree into your project.</p><pre class="tandem-install"><code>\' + escHtml(lines) + \'</code></pre></div>\';',
+'}',
 
 // --- Helper: render a generic tile-grid list of items with id+title --
 // v1.1.1 (BUG-20260529-01): `typeOrFn` may be a string OR a function(item) → string

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+:root {
+  /* Foundation */
+  --cream: #F5F0E8;
+  --cream-2: #EBE5D8;
+  --surface: #FAF8F4;
+  --surface-2: #F1ECE3;
+  --ink: #1A1714;
+  --ink-2: #3D3831;
+  --ink-3: #6B6358;
+  --ink-faint: #9E9589;
+  --border: #DDD6C8;
+  --line: #DDD6C8;
+
+  /* Brand accents */
+  --red: #D63031;
+  --red-soft: #F8E0E0;
+  --yellow: #F0B429;
+  --yellow-soft: #FAE9C0;
+  --blue: #2D6CDF;
+  --blue-soft: #DCE7F8;
+  --teal: #0D9488;
+  --teal-soft: #CFEAE6;
+
+  /* Semantic */
+  --success: var(--teal);
+  --success-soft: var(--teal-soft);
+  --warn: var(--yellow);
+  --warn-soft: var(--yellow-soft);
+  --danger: var(--red);
+  --danger-soft: var(--red-soft);
+
+  /* Shape */
+  --r: 12px;
+  --r-sm: 10px;
+  --r-lg: 16px;
+  --r-pill: 100px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(26,23,20,0.06);
+  --shadow: 0 4px 14px rgba(26,23,20,0.08);
+  --shadow-lg: 0 18px 40px rgba(26,23,20,0.16);
+
+  /* Type */
+  --serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --sans: 'Manrope', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+
+  /* Motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur: 320ms;
+
+  /* Focus */
+  --focus-ring: rgba(214,48,49,0.45);
+
+  /* Scrollbar */
+  --sb-thumb: #CFC6B7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cream: #15120F;
+    --cream-2: #1C1814;
+    --surface: #1A1612;
+    --surface-2: #221D17;
+    --ink: #F1ECE3;
+    --ink-2: #D8CFC0;
+    --ink-3: #9E9589;
+    --ink-faint: #6B6358;
+    --border: #312A22;
+    --line: #312A22;
+    --red: #E25558;
+    --red-soft: rgba(226,85,88,0.16);
+    --yellow: #F2C24A;
+    --yellow-soft: rgba(242,194,74,0.16);
+    --blue: #5B8DE8;
+    --blue-soft: rgba(91,141,232,0.18);
+    --teal: #2BB3A6;
+    --teal-soft: rgba(43,179,166,0.18);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+    --shadow: 0 6px 18px rgba(0,0,0,0.45);
+    --shadow-lg: 0 26px 50px rgba(0,0,0,0.55);
+    --focus-ring: rgba(226,85,88,0.5);
+    --sb-thumb: #2E2820;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--cream);
+  line-height: 1.65;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  padding: 0 1rem 4rem;
+}
+::selection { background: var(--yellow); color: var(--ink); }
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); border-radius: var(--r-sm); }
+
+/* Scrollbar */
+* { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--sb-thumb); border-radius: var(--r-pill); }
+
+/* Layout */
+.doc-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 3rem 0 2rem;
+}
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.75rem;
+  margin-bottom: 2.5rem;
+}
+.brand-mark {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.brand-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.brand-dot.r { background: var(--red); }
+.brand-dot.y { background: var(--yellow); }
+.brand-dot.b { background: var(--blue); }
+.doc-title {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.doc-subtitle {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Body content */
+.doc-body { }
+
+.doc-body h1 {
+  font-family: var(--serif);
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin: 2.5rem 0 0.75rem;
+  color: var(--ink);
+}
+.doc-body h2 {
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 2rem 0 0.6rem;
+  color: var(--ink);
+}
+.doc-body h3 {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 1.75rem 0 0.5rem;
+  color: var(--ink-faint);
+}
+.doc-body h4, .doc-body h5, .doc-body h6 {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.4rem;
+  color: var(--ink-2);
+}
+.doc-body p {
+  margin: 0 0 1rem;
+  color: var(--ink);
+}
+.doc-body ul, .doc-body ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+  color: var(--ink);
+}
+.doc-body li {
+  margin-bottom: 0.3rem;
+}
+.doc-body a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-decoration-color: rgba(45,108,223,0.35);
+  text-underline-offset: 2px;
+}
+.doc-body a:hover {
+  text-decoration-color: var(--blue);
+}
+.doc-body code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  color: var(--ink);
+}
+.doc-body pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+.doc-body pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+.doc-body blockquote {
+  border-left: 3px solid var(--border);
+  margin: 1rem 0;
+  padding: 0.4rem 0 0.4rem 1.1rem;
+  color: var(--ink-3);
+  font-style: italic;
+}
+.doc-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+/* Tables */
+.md-table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.md-table th {
+  background: var(--surface-2);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.md-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  vertical-align: top;
+}
+.md-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.md-table tbody tr:hover td {
+  background: var(--surface);
+}
+
+/* Footer */
+.doc-footer {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+  </style>
+</head>
+<body>
+  <div class="doc-wrap">
+    <header class="doc-header">
+      <div class="brand-mark">
+        <div class="brand-dot r"></div>
+        <div class="brand-dot y"></div>
+        <div class="brand-dot b"></div>
+      </div>
+      <h1 class="doc-title">Guide</h1>
+      <span class="doc-subtitle">Tandem · PM Operating Kit</span>
+    </header>
+    <main class="doc-body">
+<h1 id="guide">Guide</h1>
+<p>This is the end-to-end walkthrough: from an empty repo to your first story shipped and closed under the gates. Follow it once in order and you will have used every load-bearing part of Tandem. After that, <a href="#">Playbook</a> is the day-to-day lookup.</p>
+<p>If you only need prerequisites and install commands, <a href="#">Getting started</a> is the short version. This page assumes you have Node.js ≥ 18 and Claude Code.</p>
+<hr>
+<h2 id="0-install-and-bootstrap">0 · Install and bootstrap</h2>
+<pre><code class="lang-bash">/plugin marketplace add DATA-AI-XYZ/Tandem
+/plugin install tandem@data-ai-xyz</code></pre>
+<p>Then, in a Claude Code session opened on your project:</p>
+<pre><code>/tandem:session-start</code></pre>
+<p><code>session-start</code> orients the session — it reads active work, recent decisions, and the board, then tells you which hat to wear and what the next step is. On a fresh repo there is nothing to read yet, so run the installer:</p>
+<pre><code>/tandem:install</code></pre>
+<p>That materializes <code>_00-Project-Management/</code>, wires the <code>pm:*</code> scripts into <code>package.json</code>, registers the three hooks, pins your folder layout, and renders the board. Verify:</p>
+<pre><code class="lang-bash">npm run pm:doctor</code></pre>
+<p><code>pm:doctor</code> exits non-zero only on real wiring problems, so it is safe to use as a CI gate.</p>
+<blockquote><strong>One-time question.</strong> The installer asks what kind of project this is — <code>web-app</code>, <code>mobile</code>, <code>cli</code>, <code>library</code>, <code>backend-service</code>, <code>data-pipeline</code>, <code>power-platform</code>, or <code>automation</code>. The answer is written to <code>90-Standards/PROJECT-CONTEXT.md</code> and tailors later guidance. Answer honestly; you can edit the file afterwards.</blockquote>
+<hr>
+<h2 id="1-anchor-the-strategy">1 · Anchor the strategy</h2>
+<p>Every epic must trace to a business outcome, and Tandem will refuse to write one that does not. So strategy comes first.</p>
+<p>Write a North Star into <code>00-Strategy/NORTH-STAR.md</code> — one paragraph on what winning looks like beyond this quarter. Then:</p>
+<pre><code>/tandem:draft-okrs</code></pre>
+<p>This runs as the <strong>Founder</strong> hat. It reads the North Star, the previous quarter&#39;s OKRs, and any recent retros, and produces <code>00-Strategy/OKR-YYYY-Qx.md</code> with objectives and measurable key results. Expect to push back on the first draft — key results that are not numbers are not key results.</p>
+<hr>
+<h2 id="2-draft-the-prd-and-the-epic">2 · Draft the PRD and the epic</h2>
+<pre><code>/tandem:draft-prd</code></pre>
+<p>Turns an OKR key result (or raw notes) into a PRD under <code>20-Requirements/</code>. Skip it only if the scope is genuinely obvious; the PRD is what an epic points at when there is no single OKR to cite.</p>
+<pre><code>/tandem:draft-epic</code></pre>
+<p>Produces <code>30-Epics/EPIC-NN-&lt;slug&gt;.md</code>. The epic must carry either <code>okr:</code> or <code>prd_section:</code> in its frontmatter — if you cannot say which outcome it moves, Tandem asks before writing rather than inventing a justification.</p>
+<p>An epic covers goal, scope, explicit out-of-scope, measurable success criteria, dependencies, data touched, and risks. Out-of-scope is not filler: it is what stops the epic growing silently.</p>
+<hr>
+<h2 id="3-decompose">3 · Decompose</h2>
+<pre><code>/tandem:split-into-features</code></pre>
+<p>Breaks the epic into <code>FEAT-NN.M</code> files under <code>31-Features/EPIC-NN/</code>. A feature is a slice you could ship and demo on its own.</p>
+<pre><code>/tandem:split-into-stories</code></pre>
+<p>Breaks a feature into <code>STORY-NN.M.PP</code> files — <strong>and creates the paired testplan for each story in the same response</strong>. This pairing is not optional and not deferred:</p>
+<ul>
+<li>every acceptance criterion in the story maps to at least one test case in the testplan;</li>
+<li>every test case carries a runnable <code>Command:</code> that Claude can execute unattended.</li>
+</ul>
+<p>If a criterion cannot be expressed as something a machine can check, that is a signal the criterion is vague — rewrite it before moving on.</p>
+<p>Optionally, run a quality pass before refining:</p>
+<pre><code>/tandem:critique</code></pre>
+<p>Advisory only. It reviews a planning artefact against the kit&#39;s check set and reports; it never rewrites the file.</p>
+<hr>
+<h2 id="4-refine-to-ready-the-dor-gate">4 · Refine to ready (the DoR gate)</h2>
+<pre><code>/tandem:refine-backlog</code></pre>
+<p>Runs the Definition of Ready checklist as the <strong>PM</strong> hat. A story is promoted to <code>ready</code> only if all of it passes: paired testplan exists, every criterion maps to a test case, every test case has a runnable command, dependencies are done or scheduled, an estimate is set, and risks are written down.</p>
+<p>If anything is missing the command <strong>stops, lists the gaps, and asks</strong>. It never silently promotes. That refusal is the point of the gate.</p>
+<hr>
+<h2 id="5-execute">5 · Execute</h2>
+<p>For a single story:</p>
+<pre><code>/tandem:execute-story</code></pre>
+<p>For a planned group of them, first work out the order:</p>
+<pre><code>/tandem:execution-strategist</code></pre>
+<p>which groups <code>ready</code> stories into batches by dependency chain and shared-files affinity, then:</p>
+<pre><code>/tandem:execute-batch          # sequential, one batch end-to-end
+/tandem:execute-batch-parallel # file-disjoint stories concurrently, one sub-agent each</code></pre>
+<p>Execution runs as the <strong>Dev</strong> hat. The story flips to <code>in-progress</code> with a timestamp in the same edit as the status change — never as a separate save.</p>
+<p>To run the whole plan unattended:</p>
+<pre><code>/tandem:autopilot</code></pre>
+<p>Autopilot drives phase → batches → close, checkpoints as it goes, halts on any failure, pauses itself near your Claude usage limit, and resumes when the window resets.</p>
+<hr>
+<h2 id="6-verify">6 · Verify</h2>
+<pre><code>/tandem:run-testplan</code></pre>
+<p>Runs as the <strong>QA</strong> hat and executes every test case in the paired testplan. When a test case fails, Tandem files a structured <code>BUG-YYYYMMDD-NN</code> under <code>34-Bugs/</code> <strong>before</strong> reporting the failure back to you — reproduction steps, environment snapshot, a first hypothesis, and a fix direction a junior developer can act on.</p>
+<p>You do not ask for the bug. You get it.</p>
+<hr>
+<h2 id="7-close-out-the-dod-gate">7 · Close out (the DoD gate)</h2>
+<pre><code>/tandem:close-out-story</code></pre>
+<p>Runs the Definition of Done checklist: every acceptance criterion ticked, the testplan run with all test cases passing (or failures linked to bugs), project quality gates green, the AI-code review recorded, frontmatter flipped to <code>done</code> with <code>completed_at</code> set, and <code>42-Monitor/MONITOR.md</code> updated in the same response.</p>
+<p>When the last story in a phase closes:</p>
+<pre><code>/tandem:close-phase</code></pre>
+<p>which gates on every story being done, compiles the retro, and merges the phase branch.</p>
+<hr>
+<h2 id="8-watch-it">8 · Watch it</h2>
+<p>The board regenerates itself — the Stop hook runs <code>pm:dash</code> whenever your plan changes — but you can force it:</p>
+<pre><code class="lang-bash">npm run pm:all   # lint → monitor → dash → docs</code></pre>
+<p>Open <code>_00-Project-Management/42-Monitor/DASHBOARD.html</code>. That is the Command Center: the live interactive view of everything above. The published <a href="https://data-ai-xyz.github.io/Tandem/" target="_blank" rel="noopener">live demo</a> is the same file generated from a sample project.</p>
+<p>On a cadence:</p>
+<pre><code>/tandem:weekly-monitor   # Friday summary; flags stalls and blocks
+/tandem:monthly-retro    # monthly retrospective
+/tandem:reflect          # end-of-session improvements, which you approve before they apply</code></pre>
+<hr>
+<h2 id="what-to-read-next">What to read next</h2>
+<ul>
+<li><a href="#">Playbook</a> — situation-to-command recipes for everything after your first story.</li>
+<li><a href="#">Features</a> — what every skill and script does.</li>
+<li><a href="#">Architecture</a> — how the folders, skills, hooks and scripts fit together.</li>
+<li><a href="#">Decisions</a> — why the kit is built this way.</li>
+<li><a href="#">What each thing is for</a> — the per-artefact reference.</li>
+</ul>
+    </main>
+    <footer class="doc-footer">
+      Source: guide.md
+    </footer>
+  </div>
+</body>
+</html>

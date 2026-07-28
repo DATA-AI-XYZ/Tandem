@@ -2,8 +2,8 @@
   "name": "data-ai-xyz",
   "description": "Tandem — a governed PM operating system for building software with Claude Code.",
   "owner": {
-    "name": "DATA-AI-XYZ",
-    "email": "info@dataxyzconnect.com"
+    "name": "DATAXYZ CONNECT",
+    "email": "tandem@dataxyzconnect.com"
   },
   "plugins": [
     {
@@ -19,8 +19,8 @@
       ],
       "license": "MIT",
       "author": {
-        "name": "DATA-AI-XYZ",
-        "email": "info@dataxyzconnect.com"
+        "name": "DATAXYZ CONNECT",
+        "email": "tandem@dataxyzconnect.com"
       }
     }
   ]

@@ -8,7 +8,7 @@
 [![license](https://img.shields.io/badge/license-MIT-2D6CDF)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D63031)](https://code.claude.com/docs/en/plugins)
 
-[**▶ Live demo — the Tandem Command Center**](https://data-ai-xyz.github.io/Tandem/)
+[**▶ Live demo — the Tandem Command Center**](https://data-ai-xyz.github.io/Tandem/) · [**Guide**](https://data-ai-xyz.github.io/Tandem/guide.html) · [**Playbook**](https://data-ai-xyz.github.io/Tandem/playbook.html)
 
 </div>
 
@@ -153,6 +153,26 @@ Tandem/
 
 `web-app` · `mobile` · `cli` · `library` · `backend-service` · `data-pipeline` · `power-platform` · `automation` — the bootstrap injects the matching gotchas and per-type guidance.
 
+## Documentation
+
+The full set is published alongside the demo — every page is a sibling of the board:
+
+| Page | What it covers |
+|---|---|
+| [Guide](https://data-ai-xyz.github.io/Tandem/guide.html) | End to end: install → bootstrap → strategy → decompose → execute → close. Start here. |
+| [Playbook](https://data-ai-xyz.github.io/Tandem/playbook.html) | Situation-to-command recipes, the hats, the gates, and what to do when one fails. |
+| [Overview](https://data-ai-xyz.github.io/Tandem/overview.html) | What Tandem is, who it's for, and the core rules. |
+| [Getting started](https://data-ai-xyz.github.io/Tandem/getting-started.html) | Prerequisites, install, first run, troubleshooting. |
+| [Command lifecycle](https://data-ai-xyz.github.io/Tandem/command-lifecycle.html) | The canonical command chain, in order. |
+| [Features](https://data-ai-xyz.github.io/Tandem/features.html) | Every skill and script, and what each one does. |
+| [What each thing is for](https://data-ai-xyz.github.io/Tandem/what-each-thing-is-for.html) | Per-artefact reference: epics, features, stories, testplans, bugs, ADRs. |
+| [Architecture](https://data-ai-xyz.github.io/Tandem/architecture.html) | How folders, skills, hooks and scripts fit together. |
+| [Decisions](https://data-ai-xyz.github.io/Tandem/decisions.html) | The ADR digest — why the kit is built this way. |
+| [Context economics](https://data-ai-xyz.github.io/Tandem/context-economics.html) | Why the kit is frugal with context, and how that shapes the design. |
+| [HTML output convention](https://data-ai-xyz.github.io/Tandem/html-output-convention.html) | When the kit emits HTML artefacts and where they live. |
+
+Every page is also reachable from the **Tandem** tab of the [live demo](https://data-ai-xyz.github.io/Tandem/#group=tandem).
+
 ## Contributing & security
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to propose changes.
@@ -169,4 +189,4 @@ Tandem/
 ## Contact
 
 - Web: <https://www.dataxyzconnect.com>
-- Email: info@dataxyzconnect.com · Maintained by DATA-AI-XYZ
+- Email: tandem@dataxyzconnect.com · Maintained by DATAXYZ CONNECT
