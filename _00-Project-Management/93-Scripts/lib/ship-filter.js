@@ -16,8 +16,16 @@
 function shouldShipKitScript(relPath) {
   const p = String(relPath).replace(/\\/g, '/');
   if (p === '__fixtures__' || p.startsWith('__fixtures__/') || p.includes('/__fixtures__/')) return false;
+  // The tests/ tree (STORY-22.4.01 / BACKLOG-0093). Two conventions coexist in this repo: the older
+  // self-tests at the scripts root are `test-*.js`, while everything under tests/ is `*.test.js` —
+  // which the rule below never matched, so all 17 of them shipped to consumers and into the public
+  // plugin. Exclude the DIRECTORY (release-tandem passes dirs to fs.cpSync's filter, and returning
+  // false there prunes the whole subtree) AND the dotted basename (so a stray test elsewhere is
+  // still caught).
+  if (p === 'tests' || p.startsWith('tests/') || p.includes('/tests/')) return false;
   const base = p.split('/').pop() || '';
   if (/^test-.*\.js$/.test(base)) return false;   // dev self-tests (test-pm-paths.js, test-mode.js, …)
+  if (/\.test\.[cm]?js$/.test(base)) return false; // dev suites (foo.test.js / .cjs / .mjs)
   if (base === 'smoke-dashboard.js') return false; // dev smoke harness
   return true;
 }
