@@ -121,10 +121,19 @@ function buildScriptOnlyFixture() {
 // then reads back the DASHBOARD.html it wrote.
 function runGenerator(fixtureRoot) {
   const pmRoot = path.join(fixtureRoot, '_00-Project-Management');
-  const result = spawnSync(process.execPath, [GENERATOR], {
-    env: Object.assign({}, process.env, { PM_DASH_ROOT: pmRoot }),
-    encoding: 'utf8',
+  // Sandbox the home directory and clear the plugin env vars (ADR-0090): the source-resolution
+  // chain's last step probes ~/.claude/plugins/cache/, so without this the fixture would silently
+  // resolve the OPERATOR's real installed plugins and this test would stop being about the gate.
+  // USERPROFILE matters too — os.homedir() consults it on Windows.
+  const sandboxHome = fs.mkdtempSync(path.join(os.tmpdir(), 'tandem-gate-home-'));
+  const env = Object.assign({}, process.env, {
+    PM_DASH_ROOT: pmRoot, HOME: sandboxHome, USERPROFILE: sandboxHome,
   });
+  delete env.PM_DASH_TANDEM_DIST;
+  delete env.PM_DASH_TANDEM_DOCS_BASE;
+  delete env.CLAUDE_PLUGIN_ROOT;
+  const result = spawnSync(process.execPath, [GENERATOR], { env, encoding: 'utf8' });
+  try { fs.rmSync(sandboxHome, { recursive: true, force: true }); } catch (_e) { /* best effort */ }
   const htmlPath = path.join(pmRoot, '42-Monitor', 'DASHBOARD.html');
   const html = fs.existsSync(htmlPath) ? fs.readFileSync(htmlPath, 'utf8') : '';
   return { status: result.status, stdout: result.stdout, stderr: result.stderr, html };
@@ -170,10 +179,18 @@ function runConsumerMode() {
 
     const data = extractEmbeddedData(html);
     check('consumer fixture: isKitRepo signal is false', data.isKitRepo === false);
-    check('consumer fixture: tandemPackage stays null (no dist/tt/)', data.tandemPackage === null);
+    // ADR-0090 / BUG-20260729-01 superseded two assertions that used to live here:
+    //   - "tandemPackage stays null" — a consumer with the plugin installed now resolves it from
+    //     CLAUDE_PLUGIN_ROOT or the plugin cache. Null is correct ONLY when nothing is installed,
+    //     which is what the sandboxed empty HOME in runGenerator() guarantees for this fixture.
+    //   - "empty-state carries an N/A note" — the copy deliberately changed: "Not applicable — the
+    //     Tandem build pipeline runs only in the kit's source repo" described an internal concern
+    //     the reader could not act on, and rendered as a single 122px line.
+    // The gate itself (isKitRepo) is unchanged, which is what this test exists to protect.
+    check('consumer fixture: tandemPackage is null when NOTHING is installed', data.tandemPackage === null);
     check(
-      'consumer fixture: empty-state copy carries a consumer-appropriate N/A note',
-      /not applicable/i.test(data.tandemEmptyStateHtml || '')
+      'consumer fixture: fallback copy points at the published docs instead of an internal pipeline',
+      /guide\.html/.test(data.tandemEmptyStateHtml || '') && !/not applicable/i.test(data.tandemEmptyStateHtml || '')
     );
     check(
       'consumer fixture: empty-state copy does not reference the kit-only build script',
@@ -228,7 +245,13 @@ function runKitMode() {
     else {
       const data = extractEmbeddedData(html);
       check('kit fixture (pre-build): isKitRepo signal is true (markers alone are enough)', data.isKitRepo === true);
-      check('kit fixture (pre-build): tandemPackage stays null (no dist/tt/ yet)', data.tandemPackage === null);
+      // ADR-0090: a kit repo with .claude-plugin/ markers now describes ITSELF before its first
+      // build, instead of reporting "no build found". `dist/tt` is still a candidate — it just no
+      // longer has to be the only one, and the higher semver wins between the two.
+      check('kit fixture (pre-build): resolves the repo itself, origin kit-repo',
+        !!data.tandemPackage && data.tandemPackage.origin === 'kit-repo');
+      check('kit fixture (pre-build): reports the repo manifest version',
+        !!data.tandemPackage && data.tandemPackage.manifest.version === '9.9.9');
       check(
         'kit fixture (pre-build): empty-state keeps the pre-fix build-script instruction unchanged',
         (data.tandemEmptyStateHtml || '').includes(KIT_BUILD_SCRIPT)

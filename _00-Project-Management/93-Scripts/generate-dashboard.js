@@ -1906,12 +1906,30 @@ function detectIsKitRepo() {
   return false;
 }
 
-// Empty-state copy for the Tandem tab when there is no build output to show. Computed
-// server-side (rather than hard-coded in the client bundle) so the kit-dev instruction
+// Public site, used only by the last-resort fallback panel below. The per-origin doc hrefs are
+// DERIVED from the scanned manifest (pagesBaseFromRepo) rather than this constant, so a fork links
+// itself. Declared here, above its first use — `const` has no hoisting, and referencing it from the
+// empty-state literal before this line is a module-load ReferenceError.
+const TANDEM_PUBLIC_SITE = 'https://data-ai-xyz.github.io/Tandem/';
+
+// Empty-state copy for the Tandem tab when NO package source resolves at all (ADR-0090 — with the
+// resolution chain in place this is now a genuine last resort, not the normal consumer path).
+// Computed server-side (rather than hard-coded in the client bundle) so the kit-dev instruction
 // text physically cannot appear anywhere in a consumer-context build — see the AC on
 // BUG-20260618-01: a consumer install must never be told to run a script it doesn't have.
 const TANDEM_KIT_DEV_EMPTY_STATE = '<div class="panel"><h3>Tandem plugin</h3><div class="empty">No Tandem build found at <code>dist/tt/</code>. Run <code>npm run build:tandem</code> to publish the plugin and regenerate this dashboard.</div></div>';
-const TANDEM_CONSUMER_EMPTY_STATE = '<div class="panel"><h3>Tandem plugin</h3><div class="empty">Not applicable — the Tandem build pipeline runs only in the kit\'s source repo.</div></div>';
+// Consumer fallback: BUG-20260729-01 — the old copy ("Not applicable — the Tandem build pipeline
+// runs only in the kit's source repo") described an internal concern the reader cannot act on, and
+// rendered as a single 122px line. Point at the published documentation instead, so the tab is
+// worth opening even when no installed package could be located.
+const TANDEM_CONSUMER_EMPTY_STATE =
+  '<div class="panel"><h3>Tandem plugin</h3>' +
+  '<div class="empty">Couldn\'t locate the installed Tandem plugin on this machine, so there\'s nothing local to describe here. The documentation is published:</div>' +
+  '<div class="tandem-docs" style="margin-top:0.85rem;">' +
+  '<a class="tandem-doc" href="' + TANDEM_PUBLIC_SITE + 'guide.html" target="_blank" rel="noopener">Guide ↗</a>' +
+  '<a class="tandem-doc" href="' + TANDEM_PUBLIC_SITE + 'playbook.html" target="_blank" rel="noopener">Playbook ↗</a>' +
+  '<a class="tandem-doc" href="' + TANDEM_PUBLIC_SITE + '" target="_blank" rel="noopener">Live demo ↗</a>' +
+  '</div></div>';
 
 function buildTandemEmptyStateHtml(isKitRepo) {
   return isKitRepo ? TANDEM_KIT_DEV_EMPTY_STATE : TANDEM_CONSUMER_EMPTY_STATE;
@@ -1920,6 +1938,95 @@ function buildTandemEmptyStateHtml(isKitRepo) {
 // Turn a shipped doc filename into a human label: `getting-started.html` → "Getting started".
 // Used for the Tandem tab's bundled-docs panel and the Start-here rail (STORY-22.1.02) so the
 // public page reads as documentation rather than as a directory listing.
+/* ------------------------------------------------------------------
+ * Tandem package source resolution (ADR-0090)
+ *
+ * The tab's job is to describe THE PLUGIN YOU HAVE. A build output is only one place that can
+ * live; on a consumer machine the plugin is installed in the Claude Code plugin cache. Before
+ * this chain existed, `buildTandemPackage()` scanned `dist/tt` only, so every consumer install
+ * rendered a one-line "Not applicable" panel (BUG-20260729-01).
+ * ------------------------------------------------------------------ */
+
+// Cache layout: ~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/ (ADR-0086 identity).
+const TANDEM_CACHE_MARKETPLACE = 'data-ai-xyz';
+const TANDEM_CACHE_PLUGIN = 'tandem';
+
+// Compare dotted versions numerically. Non-semver / missing sorts lowest rather than throwing —
+// discovery must degrade, never break the board.
+function compareVersions(a, b) {
+  const pa = String(a || '0').split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = String(b || '0').split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d;
+  }
+  return 0;
+}
+
+function readPluginVersion(root) {
+  const txt = readFileSafe(path.join(root, '.claude-plugin', 'plugin.json'));
+  if (!txt) return null;
+  try { return JSON.parse(txt).version || null; } catch { return null; }
+}
+
+function hasPluginManifest(root) {
+  return !!root && fs.existsSync(path.join(root, '.claude-plugin', 'plugin.json'));
+}
+
+// github.com/<owner>/<repo> -> https://<owner>.github.io/<repo>/ (GitHub Pages convention).
+// Returns null for anything that isn't a GitHub URL, so callers fall back to relative hrefs.
+function pagesBaseFromRepo(repoUrl) {
+  const m = String(repoUrl || '').match(/^https?:\/\/(?:www\.)?github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/i);
+  if (!m) return null;
+  return 'https://' + m[1].toLowerCase() + '.github.io/' + m[2] + '/';
+}
+
+// Highest-semver installed version in the plugin cache. Best-effort: any failure yields no
+// candidate. Sorted by VERSION, never mtime — a re-download or a copy rewrites mtimes.
+function discoverCachedPlugin() {
+  let home;
+  try { home = os.homedir(); } catch { return null; }
+  if (!home) return null;
+  const base = path.join(home, '.claude', 'plugins', 'cache', TANDEM_CACHE_MARKETPLACE, TANDEM_CACHE_PLUGIN);
+  if (!existsDir(base)) return null;
+  let entries = [];
+  try { entries = fs.readdirSync(base, { withFileTypes: true }); } catch { return null; }
+  const found = entries
+    .filter((e) => direntIsDir(base, e))
+    .map((e) => ({ root: path.join(base, e.name), version: e.name }))
+    .filter((c) => hasPluginManifest(c.root))
+    .sort((a, b) => compareVersions(b.version, a.version));
+  return found[0] || null;
+}
+
+// Ordered resolution. Returns { root, origin } or null. `origin` decides how hrefs and sourceDir
+// are emitted, so it is carried into the payload rather than recomputed client-side.
+function resolveTandemSource() {
+  const override = process.env.PM_DASH_TANDEM_DIST;
+  if (override && override.trim()) return { root: path.resolve(override), origin: 'override' };
+
+  // Kit-dev: the repo itself and its last build are both candidates. Pick the HIGHER VERSION —
+  // a stale dist/tt used to win by default and made the dev board advertise an old release.
+  const local = [];
+  if (hasPluginManifest(REPO_ROOT)) local.push({ root: REPO_ROOT, origin: 'kit-repo', version: readPluginVersion(REPO_ROOT) });
+  const dist = path.join(REPO_ROOT, 'dist', 'tt');
+  if (hasPluginManifest(dist)) local.push({ root: dist, origin: 'dist', version: readPluginVersion(dist) });
+  if (local.length) {
+    local.sort((a, b) => compareVersions(b.version, a.version));
+    return local[0];
+  }
+
+  // Consumer: the installed plugin. CLAUDE_PLUGIN_ROOT is exported into the hook environment;
+  // the cache probe covers a manual `npm run pm:dash`, where that variable is absent.
+  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+  if (pluginRoot && pluginRoot.trim() && hasPluginManifest(pluginRoot)) {
+    return { root: path.resolve(pluginRoot), origin: 'plugin-root' };
+  }
+  const cached = discoverCachedPlugin();
+  if (cached) return { root: cached.root, origin: 'plugin-cache', version: cached.version };
+  return null;
+}
+
 // Acronyms that must not be sentence-cased into "Html" / "Adr" on a public page.
 const DOC_TITLE_ACRONYMS = new Set(['html', 'css', 'api', 'cli', 'adr', 'okr', 'prd', 'ai', 'pm', 'sop', 'ui', 'dor', 'dod']);
 function docTitleFromFilename(name) {
@@ -1939,10 +2046,13 @@ function docTitleFromFilename(name) {
 // beside it instead of rendering the consumer empty state (ADR-0088). Both env vars default to
 // unset, so consumer and kit-dev output is unchanged — the STORY-21.5.01 gate still holds.
 function buildTandemPackage() {
-  const distOverride = process.env.PM_DASH_TANDEM_DIST;
-  const distRoot = (distOverride && distOverride.trim())
-    ? path.resolve(distOverride)
-    : path.join(REPO_ROOT, 'dist', 'tt');
+  const source = resolveTandemSource();
+  if (!source) return null;
+  const distRoot = source.root;
+  const origin = source.origin;
+  // Only the local kit-dev origins are worth naming on the board; every other origin sits outside
+  // the repo, where rel() would print a machine path (ADR-0088's blocker, generalised by ADR-0090).
+  const isLocalOrigin = (origin === 'kit-repo' || origin === 'dist');
   if (!existsDir(distRoot)) return null;
   let manifest = {};
   const manifestText = readFileSafe(path.join(distRoot, '.claude-plugin', 'plugin.json'));
@@ -2008,11 +2118,20 @@ function buildTandemPackage() {
     // path relative to the dev tree's 42-Monitor/ would 404. PM_DASH_TANDEM_DOCS_BASE rebases the
     // href; the empty string is the meaningful published value ("bare sibling filename"), so test
     // for presence, not truthiness (ADR-0088).
-    const hrefBase = process.env.PM_DASH_TANDEM_DOCS_BASE;
+    //
+    // For the installed-plugin origins there is nothing local to link: a relative path would point
+    // into the plugin cache under the operator's HOME and put that path on the board. Link the
+    // PUBLISHED pages instead, at a base derived from the scanned manifest (ADR-0090).
+    let hrefBase = process.env.PM_DASH_TANDEM_DOCS_BASE;
+    if (origin === 'plugin-root' || origin === 'plugin-cache') {
+      hrefBase = pagesBaseFromRepo(manifest.repository || manifest.homepage) || TANDEM_PUBLIC_SITE;
+    }
     const rebase = hrefBase !== undefined && hrefBase !== null;
     for (const e of entries) {
       if (!direntIsFile(docsRoot, e)) continue;
-      if (e.name.startsWith('.')) continue; // skip dotfiles (.nojekyll etc.) — not docs
+      if (e.name.startsWith('.')) continue;         // dotfiles (.nojekyll etc.) — not docs
+      if (!/\.html?$/i.test(e.name)) continue;      // only RENDERED pages are linkable docs
+      if (e.name.toLowerCase() === 'index.html') continue; // the board itself, not a doc
       const fp = path.join(docsRoot, e.name);
       docs.push({
         name: e.name,
@@ -2025,16 +2144,17 @@ function buildTandemPackage() {
   return {
     manifest,
     marketplace,
+    origin,
     skills,
     hooks,
     docs,
-    // "built from <path>" is a KIT-DEV affordance: it tells the maintainer which dist/tt the board
-    // scanned. When the root is overridden the dist lives outside the repo, so rel() yields a
-    // machine path — in a published build that would print e.g.
-    // `../../../../../../<user>/AppData/Local/Temp/...` on a public page, and any such path under a
-    // home directory whose name is denylisted would fail the release scrub outright. Emit nothing
-    // in the override case; the renderer already treats an empty sourceDir as "omit the line".
-    sourceDir: (distOverride && distOverride.trim()) ? '' : rel(distRoot),
+    // "built from <path>" is a KIT-DEV affordance: it tells the maintainer which local tree the
+    // board scanned. Every other origin sits outside the repo, so rel() yields a machine path — in
+    // a published build that would print e.g. `../../../../../../<user>/AppData/Local/Temp/...` on
+    // a public page, and any such path under a home directory whose name is denylisted would fail
+    // the release scrub outright. Emit nothing unless the origin is local; the renderer already
+    // treats an empty sourceDir as "omit the line".
+    sourceDir: isLocalOrigin ? rel(distRoot) : '',
   };
 }
 
