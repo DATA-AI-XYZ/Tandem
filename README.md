@@ -1,12 +1,20 @@
+<!-- Trendshift badge. DO NOT UNCOMMENT until Tandem has actually reached GitHub Trending and
+     Trendshift has issued a repository ID; then swap REPLACE_WITH_ID for that ID. Shipping a
+     trending badge we have not earned is exactly the overclaim this README is written to avoid.
+<a href="https://trendshift.io/repositories/REPLACE_WITH_ID" target="_blank">
+  <img src="https://trendshift.io/api/badge/repositories/REPLACE_WITH_ID" alt="DATA-AI-XYZ/Tandem | Trendshift" width="250" height="55" />
+</a>
+-->
+
 <div align="center">
 
 # Tandem
 
-**Tandem — the Claude Code project-management plugin.** Your co-pilot for shipping ideas without the chaos.
+**The Claude Code project-management plugin.** Tandem replaces the chat you babysit with a governed pipeline — North Star → OKRs → PRD → Epic → Story → tested ship — where every step is a markdown artefact in your repo and every gate is checked rather than assumed. Solo pace, team discipline.
 
-[![version](https://img.shields.io/badge/version-2.7.2-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases)
-[![license](https://img.shields.io/badge/license-MIT-2D6CDF)](LICENSE)
-[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D63031)](https://code.claude.com/docs/en/plugins)
+<!-- one line, no trailing spaces: GFM turns line breaks inside a paragraph into <br>, which
+     stacks the badges vertically instead of rendering them as a row. -->
+[![version](https://img.shields.io/badge/version-2.7.3-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases) [![license](https://img.shields.io/badge/license-MIT-2D6CDF)](LICENSE) [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D63031)](https://code.claude.com/docs/en/plugins) [![GitHub stars](https://img.shields.io/github/stars/DATA-AI-XYZ/Tandem?labelColor=1A1714&color=E8A33D)](https://github.com/DATA-AI-XYZ/Tandem/stargazers)
 
 [**▶ Live demo — the Tandem Command Center**](https://data-ai-xyz.github.io/Tandem/) · [**Guide**](https://data-ai-xyz.github.io/Tandem/guide.html) · [**Playbook**](https://data-ai-xyz.github.io/Tandem/playbook.html)
 
@@ -15,6 +23,20 @@
 ---
 
 Tandem is a Claude Code plugin that takes you from idea to production — without the chaos. You drive the whole plan with slash commands; Tandem makes sure nothing slips: no stories go in-progress without a testplan, no work ships without passing its gates, no decision disappears into the chat log. The result is a team-quality delivery rhythm, at solo-founder pace.
+
+---
+
+## Why this exists
+
+Building with Claude Code, the thing I kept losing wasn't the code — it was the reasoning. A plan gets settled in a long, genuinely good conversation: scope, trade-offs, what's explicitly out. Two days later the only record is a scrollback nobody will read again, me included. The decision that actually mattered — *we're not doing multi-tenant yet, and here's why* — is somewhere around message forty, unlabelled and unsearchable. The next session starts from a worse position than the last one ended.
+
+The second problem is structural. On a team, someone stops half-finished work from being called done: a PM who returns a story with no acceptance criteria, a QA engineer who asks which test proves it. Solo, or in a team of three, nobody holds that line — not because you don't know better, but because you're also the person who wants to ship, and there's no one in the room to say no. AI sharpens this rather than softening it. Ask whether the work is complete and you will usually be told it is.
+
+So Tandem is the missing PM and QA function, written as files and gates instead of people. Plans, decisions and test evidence live in the repo as markdown, versioned next to the code they describe. The gates are mechanical, not advisory: a Story cannot enter *in-progress* without a paired Testplan, and cannot reach *done* without clearing its Definition of Done. "It's basically finished" stops being something either of us can say.
+
+<!-- TODO(peter): add the specific origin story here — the project where this actually bit you and
+     what it cost. One short, concrete paragraph. Keep it below the universal framing above so the
+     section still reads for someone who has never seen that project. -->
 
 ---
 
@@ -37,7 +59,20 @@ Most "AI project management" is a chat log. Tandem is a contract:
 - **Auto bug-raising** — the moment a test case fails, a structured BUG file is filed before the failure is even reported back to you.
 - **A living Command Center** — a single self-contained HTML view of your entire plan, regenerated automatically. (That's the [live demo](https://data-ai-xyz.github.io/Tandem/) above.)
 
-## The lifecycle
+## The lifecycle — three sessions in a loop
+
+![Tandem's three sessions: Planning, Development and Cadence, with the weekly and monthly review feeding back into planning](docs/tandem-lifecycle.gif)
+
+The work splits into three kinds of session, and the third one feeds the first:
+
+- **Planning — decide what to build.** `draft-okrs` · `draft-prd` · `draft-epic` · `split-into-features` · `split-into-stories` · `refine-backlog`
+- **Development — build it, prove it, close it.** `execution-strategist` · `execute-batch` · `run-testplan` · `close-out-story` · `close-phase`
+- **Cadence — look back and re-aim.** `weekly-monitor` · `monthly-retro` · `reflect` — and the review output is the input to the next `draft-okrs`.
+
+The split is enforceable, not just conceptual: `/tandem:mode` sets a persistent conversation Mode (Plan · Dev · Dual · Neutral) that survives across turns, so a planning session doesn't quietly drift into writing code.
+
+<details>
+<summary><strong>The full command chain, artefact by artefact</strong></summary>
 
 ```mermaid
 flowchart LR
@@ -55,6 +90,22 @@ flowchart LR
 ```
 
 Every arrow is a slash command. Every box is a markdown artefact in your repo.
+
+</details>
+
+## What people actually use it for
+
+Five concrete jobs. Every command named below exists today — none of this is roadmap.
+
+**Taking a vague idea to a shipped, tested slice.** The main chain: `/tandem:draft-epic` frames the outcome, `/tandem:split-into-features` and `/tandem:split-into-stories` decompose it into stories with paired testplans, `/tandem:refine-backlog` runs the Definition of Ready gate, and `/tandem:close-out-story` runs the Definition of Done — AI code review included — before anything is marked done. Stop at any link you like; the artefacts are useful on their own.
+
+**Clearing a phase without sitting over it.** `/tandem:autopilot` takes a phase and runs it — batch after batch, story after story — checkpointing as it goes, halting on the first gate failure instead of pushing past it, and pausing itself as it approaches your Claude usage limit so it can resume when the window resets.
+
+**Keeping the reason, not just the change.** Non-obvious decisions become Architecture Decision Records in the same edit that makes them, so the *why* lands in the repo rather than the scrollback. Later, `git log` tells you what changed and the ADR tells you what you were thinking.
+
+**Picking up work you've forgotten.** `/tandem:session-start` reads your in-progress and blocked stories, the recent ADRs and the monitor board's revision history, then says where you are and what the next step is. It's the difference between opening a project cold and opening it briefed.
+
+**Cutting an overloaded toolkit down to what this repo needs.** `/tandem:curate-toolkit` ranks everything you have installed by fit for this project — see [below](#ranking-the-tools-youve-installed).
 
 ## Install
 
@@ -133,6 +184,14 @@ The headline feature. A single self-contained HTML file, regenerated from your m
 ![Tandem Command Center — light](docs/screenshot-light.png)
 ![Tandem Command Center — dark](docs/screenshot-dark.png)
 -->
+
+## Ranking the tools you've installed
+
+The marketplaces have got noisy. A working Claude Code setup can carry dozens of Skills, Agents, Commands and Plugins, most of them irrelevant to the project actually in front of you — and every one is a candidate the model has to weigh before it does anything.
+
+`/tandem:curate-toolkit` audits the lot. It enumerates every installed **Skill, Agent, Command and Plugin**, then ranks each one **HIGH / MED / LOW** for fit against this project's type and stack, with a one-line rationale per item — *"LOW — data-pipeline project; this React skill is off-stack"*. Anything referenced somewhere in the project but not actually installed is reported as a gap rather than passed over in silence.
+
+The ranking is written as a relevance overlay under `_00-Project-Management/97-AI-Reference/`, so it's a file you can read, diff and correct — not advice that scrolls away. Re-run it when the stack changes or after you install something new.
 
 ## What's inside
 

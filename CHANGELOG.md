@@ -2,6 +2,21 @@
 
 All notable changes to **Tandem** are tracked here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [2.7.3] — 2026-07-30
+
+**Documentation and discovery only — no behaviour changes.** Nothing to do; update whenever it suits you.
+
+### Changed
+- **The README is now a proper landing page.** A clearer headline that names the pipeline it governs (North Star → OKRs → PRD → Epic → Story → tested ship), a new *Why this exists* section on the problem Tandem solves, and *What people actually use it for* — five concrete jobs, each mapped to a command that exists today.
+- **The lifecycle is now shown as three sessions in a loop** — Planning, Development, and a Cadence session whose weekly/monthly review feeds the next quarter's planning — as an animated diagram. The original command-chain diagram is preserved beneath it in a collapsible section.
+- **`/tandem:curate-toolkit` has its own section in the README.** It was previously one row in the command table, which undersold it: it enumerates every installed Skill, Agent, Command and Plugin, ranks each HIGH/MED/LOW for fit against your project's type and stack, and writes the result as a relevance overlay you can read and correct.
+- **Plugin discovery metadata expanded** — `plugin.json` now carries 20 keywords covering the ecosystem, domain and function terms people actually search, up from 9. This only affects how Tandem is found in marketplace and topic search.
+
+### Removed
+- The `mcp` keyword. Tandem ships no MCP server, so the topic was inaccurate — it bought reach with a claim that wasn't true.
+
+---
+
 ## [2.7.2] — 2026-07-20
 
 **Quality hardening — every release is now pre-checked against the official plugin validator.** No action needed; update as usual.
