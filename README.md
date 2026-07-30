@@ -1,11 +1,3 @@
-<!-- Trendshift badge. DO NOT UNCOMMENT until Tandem has actually reached GitHub Trending and
-     Trendshift has issued a repository ID; then swap REPLACE_WITH_ID for that ID. Shipping a
-     trending badge we have not earned is exactly the overclaim this README is written to avoid.
-<a href="https://trendshift.io/repositories/REPLACE_WITH_ID" target="_blank">
-  <img src="https://trendshift.io/api/badge/repositories/REPLACE_WITH_ID" alt="DATA-AI-XYZ/Tandem | Trendshift" width="250" height="55" />
-</a>
--->
-
 <div align="center">
 
 # Tandem

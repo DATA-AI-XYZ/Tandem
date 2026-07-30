@@ -1,6 +1,10 @@
 ---
 type: bug
 id: BUG-YYYYMMDD-NN
+title: ''                    # REQUIRED. The symptom, same text as the H1 below. No apostrophes.
+                             # generate-dashboard.js renders `fm.title || '(no title)'` — it does
+                             # NOT fall back to the H1, so omitting this shows "(no title)" on the
+                             # board and in search.
 epic: EPIC-NN
 feature: FEAT-NN.M
 story: STORY-NN.M.PP        # the story whose testplan exposed it (or "exploratory")
