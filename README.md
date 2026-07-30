@@ -6,7 +6,7 @@
 
 <!-- one line, no trailing spaces: GFM turns line breaks inside a paragraph into <br>, which
      stacks the badges vertically instead of rendering them as a row. -->
-[![version](https://img.shields.io/badge/version-2.7.3-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases) [![license](https://img.shields.io/badge/license-MIT-2D6CDF)](LICENSE) [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D63031)](https://code.claude.com/docs/en/plugins) [![GitHub stars](https://img.shields.io/github/stars/DATA-AI-XYZ/Tandem?labelColor=1A1714&color=E8A33D)](https://github.com/DATA-AI-XYZ/Tandem/stargazers)
+[![version](https://img.shields.io/badge/version-2.7.3-1A1714)](https://github.com/DATA-AI-XYZ/Tandem/releases) [![license](https://img.shields.io/badge/license-MIT-2D6CDF)](LICENSE) [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D63031)](https://code.claude.com/docs/en/plugins) [![GitHub stars](https://img.shields.io/github/stars/DATA-AI-XYZ/Tandem?labelColor=1A1714&color=E8A33D)](https://github.com/DATA-AI-XYZ/Tandem/stargazers) [![Listed on ClaudePluginHub](https://www.claudepluginhub.com/badge/data-ai-xyz-tandem)](https://www.claudepluginhub.com/plugins/data-ai-xyz-tandem?ref=badge)
 
 [**▶ Live demo — the Tandem Command Center**](https://data-ai-xyz.github.io/Tandem/) · [**Guide**](https://data-ai-xyz.github.io/Tandem/guide.html) · [**Playbook**](https://data-ai-xyz.github.io/Tandem/playbook.html)
 
@@ -25,10 +25,6 @@ Building with Claude Code, the thing I kept losing wasn't the code — it was th
 The second problem is structural. On a team, someone stops half-finished work from being called done: a PM who returns a story with no acceptance criteria, a QA engineer who asks which test proves it. Solo, or in a team of three, nobody holds that line — not because you don't know better, but because you're also the person who wants to ship, and there's no one in the room to say no. AI sharpens this rather than softening it. Ask whether the work is complete and you will usually be told it is.
 
 So Tandem is the missing PM and QA function, written as files and gates instead of people. Plans, decisions and test evidence live in the repo as markdown, versioned next to the code they describe. The gates are mechanical, not advisory: a Story cannot enter *in-progress* without a paired Testplan, and cannot reach *done* without clearing its Definition of Done. "It's basically finished" stops being something either of us can say.
-
-<!-- TODO(peter): add the specific origin story here — the project where this actually bit you and
-     what it cost. One short, concrete paragraph. Keep it below the universal framing above so the
-     section still reads for someone who has never seen that project. -->
 
 ---
 
@@ -127,7 +123,12 @@ On install Tandem will:
 
 Two layers keep you current — the **plugin** and your project's **kit files**:
 
-1. **Update the plugin** (interactive — the CLI has no update command): in any Claude Code session run `/plugin`, update the `data-ai-xyz` marketplace, then update/reinstall **tandem**. `claude plugin list` should then show the new version.
+1. **Update the plugin** — two commands, no interactive session needed:
+   ```bash
+   claude plugin marketplace update data-ai-xyz   # refresh the marketplace
+   claude plugin update tandem@data-ai-xyz        # pull the new version
+   ```
+   `claude plugin list` should then show the new version. (Prefer the UI? `/plugin` in any session does the same thing.)
 2. **Refresh your project**: inside each project that uses Tandem, run `npm run pm:update` — it non-destructively refreshes the kit's scripts/templates to the plugin's version and never touches your stories, decisions, or board.
 3. **Restart your session**: after updating the plugin, restart Claude Code — until you do, hook errors mentioning the old version's cache path are expected and harmless.
 
