@@ -42,6 +42,7 @@ Use `Read` / `Glob` to detect existence rather than assuming; treat missing file
 2. **Flip story status:** `ready` (or `not-started`) → `in-progress`. Set `started_at` to now (ISO 8601 + offset, from system clock). Atomic edit. Update the resolved ACTIVE.md if one exists — skip silently if it doesn't.
 
 3. **Implement the story:**
+   - **Scope discipline:** deliver the story at the scope its ACs define. Don't add refactors, cleanup, or adjacent actions the ACs don't imply — route out-of-scope discoveries to a BACKLOG or BUG item instead of doing them. If an AC seems wrong, say so in one line and continue as written.
    - **Resolve the sub-agent before implementing:** use the story's `suggested_agents:` if set, else the PROJECT-CONTEXT `type_of_work → sub-agent` map, else discipline-only / `general-purpose`. An unknown or uninstalled agent never blocks — degrade to the next step. Name the chosen sub-agent, and dispatch suitable implementation work to it (SOP §18). See SOP §11.3 / FEAT-03.1.
    - Work the acceptance criteria one at a time.
    - For each AC, write the code AND wire the corresponding TC's setup.
@@ -93,6 +94,8 @@ helper always exits 0 and never blocks the story.
 - Templates rule — never redraft section headings.
 
 ## End-of-session summary (always emit)
+
+Only report a status you can point to a gate or tool result from this session for; anything unverified is stated as unverified.
 
 - ACs ticked: X / Y
 - TCs run: X / Y (PASS / FAIL counts)

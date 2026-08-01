@@ -11,3 +11,6 @@ demo-fixture/_00-Project-Management/42-Monitor/DASHBOARD.html
 
 # Tandem conversation-mode state — machine/session-local (joined session IDs)
 .tandem-mode.json
+
+# Playwright MCP scratch output
+.playwright-mcp/

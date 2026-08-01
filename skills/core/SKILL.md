@@ -91,6 +91,10 @@ On any non-obvious decision (library choice, schema field name, threshold settin
 
 Every new artefact starts from `91-Templates/<TYPE>.template.md`. Do not redraft section headings from memory.
 
+### Deliverable length — convention, not gate
+
+Match section length to substance — cover what the ACs need and stop; don't pad sections to look complete. This covers every producer skill at once; it is a writing convention, not a new MANDATORY gate.
+
 ### Strategy linkage
 
 Every EPIC must have `okr:` or `prd_section:` in frontmatter. Reject epics without strategic linkage — ask "What business outcome does this move?" before writing.

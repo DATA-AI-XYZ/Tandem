@@ -84,7 +84,7 @@ Wait for edits before saving.
 
 Write to `_00-Project-Management/20-Requirements/PRD-<slug>.md` using the template verbatim. Plain markdown — **no frontmatter** (matches the kit's existing PRD convention; validator does not scan `20-Requirements/`). Set the document `Status:` field at the top to `draft` and the `Date:` to today.
 
-**Auto-dispatch write-outcomes:** Before saving, spawn a sub-agent with the PRD's technical content (Problem through Open questions) plus the `write-outcomes` skill. Capture the returned single-line outcome (founder voice, no label or quotes) and insert it as a founder-facing summary immediately below the `Status:` line. It is one outcome sentence, not a re-digest of every section.
+**Write-outcomes, inline-first:** Before saving, apply the `write-outcomes` rules inline to the PRD's technical content (Problem through Open questions) to produce the outcome line; dispatch a sub-agent only under [ADR-0105](../../_00-Project-Management/40-Decisions/ADR-0105-write-outcomes-inline-first.md)'s named conditions (this producer's own context is near its limit, or an isolation-worthy batch run). Insert the single-line outcome (founder voice, no label or quotes) as a founder-facing summary immediately below the `Status:` line. It is one outcome sentence, not a re-digest of every section.
 
 ## Output rules
 

@@ -210,6 +210,10 @@ other checkpointed pause is resumed (board-wins reconciliation, ADR-0083).
 - ADR-on-the-spot for any non-obvious decision made while driving the run; BUG auto-raise on any
   TC failure or defect, filed before the halt is reported.
 
+## End-of-turn completion check
+
+Before ending a turn, check your last paragraph: if it is a plan, a question, or a promise of work not yet done, do that work now. End only when the batch is complete or blocked on operator input.
+
 ## End-of-session summary (always emit, on halt, pause, or stop-condition exit)
 
 - Run id, scope (phases in target), stop condition.

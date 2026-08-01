@@ -107,6 +107,7 @@ never blocks the chat.
 
 ## Non-negotiable rules from CLAUDE.md
 
+- **Scope discipline** — deliver each story at the scope its ACs define. Don't add refactors, cleanup, or adjacent actions the ACs don't imply — route out-of-scope discoveries to a BACKLOG or BUG item instead of doing them. If an AC seems wrong, say so in one line and continue as written.
 - **Atomic finalisation** per story (status flip + `completed_at` + MONITOR + dashboard) before the
   next — the recovery contract depends on it.
 - Status enum is the closed set of nine; DoR gate before `in-progress`, DoD gate before `done`.

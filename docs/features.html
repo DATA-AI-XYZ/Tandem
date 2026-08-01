@@ -408,8 +408,8 @@ body {
 <h2 id="founder-facing-outcomes">Founder-facing outcomes</h2>
 <p>Every planning artefact carries a plain-English &quot;what you&#39;ll be able to do&quot; line so the plan reads in business terms.</p>
 <ul>
-<li><strong><code>write-outcomes</code></strong> (dispatch-only) — a shared skill the producer skills spawn via a</li>
-<p>  sub-agent to turn an artefact&#39;s technical scope into one founder-outcome line (ADR-0059).</p>
+<li><strong><code>write-outcomes</code></strong> (inline-first, ADR-0105) — the shared rulebook producer skills apply</li>
+<p>  inline by default to turn an artefact&#39;s technical scope into one founder-outcome line;   sub-agent dispatch remains a named-conditions fallback (voice + output contract from ADR-0059,   unchanged).</p>
 <li>Outcomes are authored automatically across the planning tree (PRD → feature → story →</li>
 <p>  chat/phase strategy), with a <code>refine-backlog</code> fill-if-missing safety net, and rendered on the   board as the chat-card lead, the phase subtitle, and in the artefact drawer.</p>
 </ul>

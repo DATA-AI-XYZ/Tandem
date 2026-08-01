@@ -442,9 +442,31 @@ function ageDays(iso) {
   return Math.floor((Date.now() - t) / 86400000);
 }
 
-// STORY-15.2.04 — resolve the display name for this project.
-// Precedence: .claude-pm-config.json `projectName` > host package.json `name`
-// > repo folder basename (hyphens/underscores → spaces). Never throws.
+// STORY-23.1.03 / ADR-0093 — read PROJECT-CONTEXT.md's "Project name:" field.
+// Placeholder-aware: the template ships with `_<fill in>_` (and the field can
+// be left blank) until an operator fills it in — either must resolve to "no
+// value here", not a literal placeholder string leaking into the header.
+// Never throws; returns null on any miss.
+function resolveProjectContextName() {
+  try {
+    const pcPath = path.join(PM_ROOT, '90-Standards', 'PROJECT-CONTEXT.md');
+    if (!fs.existsSync(pcPath)) return null;
+    const text = fs.readFileSync(pcPath, 'utf8');
+    const m = /^-\s*\*\*Project name:\*\*\s*(.+?)\s*$/m.exec(text);
+    if (!m) return null;
+    const val = m[1].trim();
+    if (!val || /^_.*_$/.test(val)) return null; // unfilled `_<fill in>_` template marker
+    return val;
+  } catch (_e) {
+    return null;
+  }
+}
+
+// STORY-15.2.04 / ADR-0070, extended by STORY-23.1.03 / ADR-0093 — resolve the
+// display name for this project.
+// Precedence: .claude-pm-config.json `projectName` > PROJECT-CONTEXT.md
+// "Project name:" (skip if unfilled) > host package.json `name` > repo folder
+// basename (hyphens/underscores → spaces). Never throws.
 function resolveProjectName() {
   // (a) .claude-pm-config.json
   try {
@@ -456,7 +478,10 @@ function resolveProjectName() {
       }
     }
   } catch (_e) { /* ignore */ }
-  // (b) host package.json name
+  // (b) PROJECT-CONTEXT.md "Project name:" field
+  const fromContext = resolveProjectContextName();
+  if (fromContext) return fromContext;
+  // (c) host package.json name
   try {
     const pkgPath = path.join(REPO_ROOT, 'package.json');
     if (fs.existsSync(pkgPath)) {
@@ -466,8 +491,37 @@ function resolveProjectName() {
       }
     }
   } catch (_e) { /* ignore */ }
-  // (c) repo folder basename humanized
+  // (d) repo folder basename humanized
   return path.basename(REPO_ROOT).replace(/[-_]+/g, ' ').trim() || 'My Project';
+}
+
+// STORY-23.1.03 AC-4 — Tandem identity badge: inline the pinned asset when
+// present, otherwise recreate the circular triangle mark inline. Both paths
+// yield an element carrying class="logo-badge" so the rail head always has a
+// badge (the operator still owes the final SVG/PNG — this ships the slot +
+// fallback so the brand story isn't blocked on that asset, per the story's
+// own Gotcha note). Resolved relative to __dirname (not PM_ROOT) because the
+// asset ships with the generator itself, like the vendored font files.
+const BADGE_ASSET_PATH = path.join(__dirname, 'assets', 'tandem-badge.svg');
+const BUILTIN_BADGE_SVG = '<svg class="logo-badge" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tandem badge"><circle cx="100" cy="100" r="100" fill="#1C1713"/><polygon points="50.0,142.0 148.0,142.0 128.0,50.0" fill="none" stroke="#2E6CE7" stroke-width="4.5" stroke-linejoin="round"/><polygon points="71.1,131.0 133.8,131.0 121.0,72.1" fill="none" stroke="#F5B726" stroke-width="4.5" stroke-linejoin="round"/><polygon points="91.1,120.5 120.5,120.5 114.5,92.9" fill="none" stroke="#D72D2D" stroke-width="4.5" stroke-linejoin="round"/></svg>';
+
+function resolveBadgeMarkup() {
+  try {
+    if (fs.existsSync(BADGE_ASSET_PATH)) {
+      const raw = fs.readFileSync(BADGE_ASSET_PATH, 'utf8').trim();
+      if (raw) {
+        // Ensure the inlined asset carries the logo-badge contract class
+        // regardless of what the source SVG file authored.
+        if (/<svg\b[^>]*\bclass\s*=/.test(raw)) {
+          return raw.replace(/(<svg\b[^>]*\bclass\s*=\s*")([^"]*)(")/, function (m, pre, cls, post) {
+            return (' ' + cls + ' ').indexOf(' logo-badge ') !== -1 ? m : pre + cls + ' logo-badge' + post;
+          });
+        }
+        return raw.replace(/<svg\b/, '<svg class="logo-badge"');
+      }
+    }
+  } catch (_e) { /* fall through to built-in recreation */ }
+  return BUILTIN_BADGE_SVG;
 }
 
 function escapeHtml(s) {
@@ -626,6 +680,61 @@ function stripHtmlCommentsOutsideFences(md) {
   return out.join('\n');
 }
 
+/* ============================================================
+ * Cross-reference resolution (STORY-23.3.02)
+ *
+ * function resolveCrossRefs(html, idIndex, selfId) — build-time link
+ * resolution: scans an already-rendered bodyHtml string for artefact-ID
+ * patterns (STORY-/FEAT-/EPIC-/TESTPLAN-/BUG-/ADR-) and wraps any that
+ * resolve against idIndex in a `.xref-pill.xref-inline` button the client's
+ * existing wireDrawerLinks() already knows how to bind (same class the
+ * frontmatter-derived cross-reference pills use, so one click handler covers
+ * both). Runs ONCE per item, at build time, against the compiled artefact
+ * index — never at click time against the filesystem (the board is offline).
+ * IDs that don't resolve, and the item's own id, are left as inert plain
+ * text: no dead link, no console error, nothing to click.
+ *
+ * Tag-aware by construction: splits on `<...>` boundaries and only rewrites
+ * text OUTSIDE tags, so attribute values and tag names are never touched —
+ * the XSS discipline the drawer's body pipeline already relies on (bodyHtml
+ * is markdown-escaped by mdToHtml before this ever runs; this pass only ever
+ * *wraps* already-escaped substrings in a fixed-shape element, never injects
+ * unescaped content).
+ *
+ * Fence-aware (CHAT-04 review, anno-5): also tracks <pre> depth and skips
+ * rewriting text runs inside <pre>...</pre> — code blocks are the one place
+ * in an artefact where text is meant to be literal (shell transcripts,
+ * mermaid/PlantUML source, Command: fences meant to be copied verbatim), and
+ * splicing a clickable button into them is exactly wrong there.
+ * ============================================================ */
+const XREF_ID_RE = /\b(STORY|TESTPLAN|FEAT|EPIC|BUG|ADR)-[A-Za-z0-9.]+\b/g;
+
+function resolveCrossRefs(html, idIndex, selfId) {
+  if (!html || !idIndex) return html || '';
+  // Split on tags, keeping the delimiters — odd indices are the literal `<...>`
+  // tags (left untouched); even indices are the text runs we may rewrite.
+  const parts = html.split(/(<[^>]+>)/);
+  let preDepth = 0;
+  for (let i = 0; i < parts.length; i++) {
+    if (i % 2 === 1) {
+      // A literal tag — track <pre> nesting, never rewritten either way.
+      if (/^<pre\b/i.test(parts[i])) preDepth++;
+      else if (/^<\/pre>/i.test(parts[i])) preDepth = Math.max(0, preDepth - 1);
+      continue;
+    }
+    if (preDepth > 0) continue; // inside a code fence — leave text verbatim
+    const seg = parts[i];
+    if (!seg || seg.indexOf('-') === -1) continue; // fast skip: every ID pattern needs a hyphen
+    parts[i] = seg.replace(XREF_ID_RE, (m) => {
+      if (m === selfId) return m; // no self-link
+      const type = idIndex.get(m);
+      if (!type) return m; // unresolvable — stays inert plain text
+      return '<button type="button" class="xref-pill xref-inline" data-xref-type="' + type + '" data-xref-id="' + m + '">' + m + '</button>';
+    });
+  }
+  return parts.join('');
+}
+
 // Minimal markdown → HTML. Handles headings, paragraphs, fenced code, inline
 // code, lists (ul/ol), blockquotes, tables, links, bold/italic, hr, images,
 // and a small allow-listed raw-HTML block passthrough (STORY-21.5.02).
@@ -710,8 +819,21 @@ function mdToHtml(md) {
     // render as visible escaped literal text. Anything NOT on this small
     // allow-list (e.g. <script>) intentionally falls through to normal
     // paragraph handling below and stays escaped.
-    const rawHtml = line.match(/^\s*(<\/?(?:div|p)(?:\s[^<>]*)?>)\s*$/i);
-    if (rawHtml) { flushPara(); closeList(); flushTable(); flushBlockquote(); out += rawHtml[1] + '\n'; continue; }
+    // BUG-20260731-03: the tag name and its attribute string are captured
+    // separately so the attribute string can be filtered — only `class` is
+    // re-emitted (the README-centering use case); on*=, style=, id=, and any
+    // other attribute (incl. arbitrary data-*) are dropped. Without this,
+    // every attribute an author put on the line rode through unfiltered
+    // (e.g. onclick=) straight into bodyHtml, which every drawer render path
+    // assigns into body.innerHTML.
+    const rawHtml = line.match(/^\s*(<\/?(?:div|p))(\s[^<>]*)?>\s*$/i);
+    if (rawHtml) {
+      flushPara(); closeList(); flushTable(); flushBlockquote();
+      const attrs = rawHtml[2] || '';
+      const cls = attrs.match(/\sclass\s*=\s*"([A-Za-z0-9 _-]*)"/i);
+      out += rawHtml[1] + (cls ? ' class="' + cls[1] + '"' : '') + '>\n';
+      continue;
+    }
     // Table detection: header line followed by separator
     if (line.indexOf('|') !== -1 && i + 1 < lines.length && /^\s*\|?\s*:?-+:?(\s*\|\s*:?-+:?)+\s*\|?\s*$/.test(lines[i + 1])) {
       flushPara(); closeList(); flushBlockquote();
@@ -780,6 +902,17 @@ function extractSection(md, heading) {
 
 const diagnostics = { unparseable: [], warnings: [] };
 
+// Fallback title for artefacts whose frontmatter omits `title:` — derived from the body's
+// first H1 with any leading "<ID> · " prefix stripped so the symptom/subject stands alone.
+// The frontmatter field remains the contract (validator R24, BUG-20260731-01); this keeps
+// legacy or hand-dropped files readable on the board instead of "(no title)".
+function titleFromBody(body) {
+  const m = /^#\s+(.+?)\s*$/m.exec(body || '');
+  if (!m) return null;
+  const stripped = m[1].replace(/^[A-Z][A-Z0-9]*-[^\s·]+\s*·\s*/, '').trim();
+  return stripped || null;
+}
+
 function buildPmCorpus() {
   const all = {};
   for (const [type, subdir] of Object.entries(SCAN_DIRS)) {
@@ -809,7 +942,7 @@ function buildPmCorpus() {
       const record = {
         type,
         id: fm.id || fileIdFromName(f) || path.basename(f, '.md'),
-        title: fm.title || '(no title)',
+        title: fm.title || titleFromBody(body) || '(no title)',
         status: (fm.status || 'not-started').toString().trim().toLowerCase(),
         epic: fm.epic || null,
         feature: fm.feature || null,
@@ -1219,7 +1352,13 @@ function buildPluginRecord(entry) {
     kind: 'plugin',
     name: manifest.name || entry.key,
     description: manifest.description || '',
-    version: manifest.version || entry.version || '',
+    // BUG-20260801-02 (m3) — normalise the "unknown" version sentinel once, here, at
+    // the record source: marketplace installs whose manifest omits a version carry the
+    // literal string "unknown" in entry.version, which used to render as a live
+    // "vunknown" badge on 9/21 tiles (and in the drawer). Both the tile's truthy check
+    // and the drawer's `if(item.version)` skip a falsy '' cleanly, so normalising here
+    // fixes both surfaces without touching either renderer.
+    version: (() => { const v = manifest.version || entry.version || ''; return v === 'unknown' ? '' : v; })(),
     author: (manifest.author && manifest.author.name) || (typeof manifest.author === 'string' ? manifest.author : ''),
     homepage: manifest.homepage || '',
     repository: manifest.repository || '',
@@ -1321,6 +1460,7 @@ function loadFitOverlays() {
         rank,
         rationale: fm.rationale || '',
         installed: fm.installed !== false,
+        display_group: fm.display_group || '',
       });
     }
   }
@@ -1359,7 +1499,12 @@ function parseFitItemsFromBody(body) {
     const rank = (raw.rank || '').toString().toUpperCase();
     const rationale = raw.rationale || '';
     const installed = raw.installed !== 'false' && raw.installed !== false;
-    return { name, kind, rank, rationale, installed };
+    // STORY-23.6.02 / ADR-0029 §2 forward-compatible extension — curate-toolkit
+    // (skills/curate-toolkit/SKILL.md, 2026-07-31) marks kit-native records with
+    // this optional field so renderers can group them without re-deriving
+    // provenance. Open-world: absent on every pre-existing overlay entry.
+    const display_group = raw.display_group || '';
+    return { name, kind, rank, rationale, installed, display_group };
   });
 }
 
@@ -1374,6 +1519,10 @@ function applyFitRanks(items, kind, fitOverlays) {
     if (!entry) continue; // no-overlay fallback — item still renders in "Other"
     const r = entry.rank;
     if (r === 'HIGH' || r === 'MED' || r === 'LOW') it.fitRank = r;
+    // STORY-23.6.02 — kit-first pinning is PURELY overlay-driven (AC-3: no overlay
+    // present -> no pinned group, ever). Only 'kit' is a recognised value; any other
+    // string is ignored (open-world, forward-compatible per ADR-0029 §2).
+    if (entry.display_group === 'kit') it.displayGroup = 'kit';
   }
 }
 
@@ -1555,6 +1704,17 @@ function computeCounts(pm) {
   return counts;
 }
 
+// CHAT-04 review (anno-4): the Plan view's own client renderer (RENDERERS.plan)
+// only ever reads these fields off epic/feature/story/testplan nodes — never
+// bodyHtml/readmeHtml — and resolves the FULL record through findArtefact()
+// against D.story/D.testplan/etc when a tile is actually clicked open. Storing
+// full object references here (as before) meant JSON.stringify(data) emitted
+// every epic/feature/story body a second time inside data.plan — ~3.8 MB
+// (~21% of window.__DATA) of byte-identical duplication with zero read benefit.
+function planEpicLite(e) { return { id: e.id, title: e.title, status: e.status, okr: e.okr, prd_section: e.prd_section, deliverableHtml: e.deliverableHtml }; }
+function planFeatureLite(f) { return { id: f.id, title: f.title, status: f.status, deliverableHtml: f.deliverableHtml }; }
+function planStoryLite(s) { return { id: s.id, title: s.title, status: s.status }; }
+
 function buildPlanTree(pm) {
   // Group features by epic, stories by feature, testplans by story.
   const byEpic = new Map();
@@ -1563,7 +1723,7 @@ function buildPlanTree(pm) {
     // line once here (thin-input rule enforced inside buildDeliverableLine),
     // so the Plan → Roadmap timeline renderer only has to inject it verbatim.
     e.deliverableHtml = buildDeliverableLine(e.outcome, 'epic-deliverable');
-    byEpic.set(e.id, { epic: e, features: [] });
+    byEpic.set(e.id, { epic: planEpicLite(e), features: [] });
   }
   const orphanFeats = [];
   for (const f of pm.feature) {
@@ -1572,7 +1732,7 @@ function buildPlanTree(pm) {
     // "deliverable per phase" AC).
     f.deliverableHtml = buildDeliverableLine(f.outcome, 'feat-deliverable');
     const ep = byEpic.get(f.epic);
-    const node = { feature: f, stories: [] };
+    const node = { feature: planFeatureLite(f), stories: [] };
     if (ep) ep.features.push(node);
     else orphanFeats.push(node);
   }
@@ -1584,14 +1744,16 @@ function buildPlanTree(pm) {
   }
   for (const ep of byEpic.values()) {
     for (const fn of ep.features) {
-      fn.stories = (storyByFeat.get(fn.feature.id) || []).slice();
+      fn.stories = (storyByFeat.get(fn.feature.id) || []).map(planStoryLite);
     }
   }
-  // Map testplans to stories by id mirror
+  // Map testplans to stories by id mirror — only the id is ever read
+  // (RENDERERS.plan renders `tp.id` as a linked badge on the story tile;
+  // the drawer resolves the full testplan record via findArtefact when clicked).
   const tpByStory = new Map();
   for (const tp of pm.testplan) {
     const sid = tp.id.replace(/^TESTPLAN-/, 'STORY-');
-    tpByStory.set(sid, tp);
+    tpByStory.set(sid, { id: tp.id });
   }
   return { byEpic: Array.from(byEpic.values()), orphanFeats, tpByStory: Object.fromEntries(tpByStory) };
 }
@@ -1780,6 +1942,425 @@ function buildExecutionStrategy() {
     }))
     .sort((a, b) => String(a.epic).localeCompare(String(b.epic), 'en', { numeric: true }));
   return out;
+}
+
+/* ============================================================
+ * STORY-23.4.01/02 — Build → Phases: flatten every epic's execution-
+ * strategy phases into one server-rendered, three-level (phase → chat →
+ * story) list. Unlike the old per-epic "impl" selector, `id` is
+ * self-contained ("<epicId>:phase<index>") so findArtefact("phase", id)
+ * (STORY-23.3.02) resolves it with no STATE.implEpic scoping needed —
+ * every phase across every epic renders flat, in epic then phase order.
+ * ============================================================ */
+function flattenPhases(executionStrategy) {
+  const epics = (executionStrategy && executionStrategy.epics) || [];
+  const out = [];
+  for (const e of epics) {
+    const list = Array.isArray(e.phases) ? e.phases : [];
+    list.forEach((p, idx) => {
+      out.push({
+        id: e.epic + ':phase' + idx,
+        epic: e.epic,
+        name: (p && p.name) || '',
+        outcome: (p && p.outcome) || '',
+        chats: Array.isArray(p && p.chats) ? p.chats : [],
+      });
+    });
+  }
+  return out;
+}
+
+// A chat counts as executed either by its own manually-flipped `executed`
+// flag or — same reconciliation the old client-side "impl" view applied —
+// when every story it lists is `done` in the freshest story records this
+// same generation pass just scanned (sidecars are frozen snapshots that lag
+// reality; AI-CODE-REVIEW precedent: STORY-23.3.x "live vs snapshot").
+function phaseChatDone(chat, statusMap) {
+  const ids = (chat.stories || []).map((s) => (s && s.id) || s).filter(Boolean);
+  if (chat.executed) return true;
+  if (!ids.length) return false;
+  return ids.every((id) => statusMap.get(id) === 'done');
+}
+
+// One of the CSS-covered `.pill[data-status]` enum values (never a bespoke
+// label) so both the phase header pill and each chat-tile pill pick up the
+// same palette every other status pill in the dashboard already uses.
+function phaseChatStatus(chat, statusMap) {
+  const ids = (chat.stories || []).map((s) => (s && s.id) || s).filter(Boolean);
+  const live = ids.map((id) => statusMap.get(id) || '');
+  if (chat.executed || (ids.length && live.every((s) => s === 'done'))) return 'done';
+  if (live.indexOf('blocked') !== -1) return 'blocked';
+  if (live.some((s) => s === 'in-progress' || s === 'done' || s === 'in-review')) return 'in-progress';
+  return 'ready';
+}
+
+// AI-CODE-REVIEW-CHAT-05 anno-4 — rolling up from phaseChatDone() alone lost the
+// mid-flight/blocked signal: a phase whose chats were partially started (but none
+// fully done) reported "ready", contradicting its own in-progress/blocked chat tiles,
+// and "blocked" never propagated to phase level at all. Derive from each chat's own
+// phaseChatStatus() instead, so blocked propagates and in-progress isn't flattened to
+// ready. execCount (the ratio digits) stays keyed off phaseChatDone() unchanged.
+function phaseGroupStatus(chats, statusMap) {
+  if (!chats.length) return 'not-started';
+  const st = chats.map((c) => phaseChatStatus(c, statusMap));
+  if (st.every((s) => s === 'done')) return 'done';
+  if (st.includes('blocked')) return 'blocked';
+  if (st.some((s) => s === 'done' || s === 'in-progress')) return 'in-progress';
+  return 'ready';
+}
+
+function ssrPill(status) {
+  const s = status || 'not-started';
+  return '<span class="pill" data-status="' + escapeHtml(s) + '">' + escapeHtml(s) + '</span>';
+}
+
+// Server-rendered chat tile — class stays the bare `chat-tile` testplan pin
+// (TESTPLAN-23.4.01 TC-01); state rides on `data-status`/`data-epic`, not
+// extra classes. `data-epic` lets the click delegate scope findArtefact's
+// "impl" lookup (chat ids repeat across epics) without touching STATE.
+function chatTileHtml(chat, epicId, statusMap) {
+  const status = phaseChatStatus(chat, statusMap);
+  const chatId = escapeHtml(chat.id || '');
+  const estimate = chat.estimate ? escapeHtml(chat.estimate) : '—';
+  const stories = Array.isArray(chat.stories) ? chat.stories : [];
+  const chips = stories.length
+    ? '<div class="story-chips">' + stories.map((s) => {
+      const sid = (s && s.id) || s;
+      if (!sid) return '';
+      const sStatus = statusMap.get(sid) || (s && s.status) || 'not-started';
+      const shortId = String(sid).replace(/^STORY-/, '');
+      return '<button type="button" class="story-chip ' + escapeHtml(sStatus) + '" data-drawer="1" data-type="story" data-id="' + escapeHtml(sid) + '" data-status="' + escapeHtml(sStatus) + '">' + escapeHtml(shortId) + '</button>';
+    }).join('') + '</div>'
+    : '<div class="empty">no stories in this chat yet</div>';
+  return '<div class="chat-tile" data-drawer="1" data-type="impl" data-id="' + chatId + '" data-epic="' + escapeHtml(epicId) + '" data-status="' + escapeHtml(status) + '" role="button" tabindex="0">'
+    + '<div class="chat-tile-head"><span class="tile-id">' + chatId + '</span>' + ssrPill(status) + '</div>'
+    + '<div class="chat-tile-title">' + escapeHtml(chat.title || '—') + '</div>'
+    + '<div class="chat-tile-meta"><span class="lab">Estimate</span> ' + estimate + '</div>'
+    + chips
+    + '</div>';
+}
+
+// The section body for `<section id="sec-build:phases">` — real interpolated
+// data baked in at generation time (ADR-0094/0095 precedent: buildRailHtml /
+// buildSubNavHtml), not a client RENDERERS entry. AC-3: a project with no
+// execution strategy renders a deliberate `.empty` state, never a broken group.
+function buildPhaseGroupsHtml(phases, storyRecords) {
+  const intro = '<div class="view-intro"><div class="vi-title">Build · Phases</div>'
+    + '<div class="vi-source">Reads <code>41-Reports/EXECUTION-STRATEGY-*.json</code> sidecars written by the execution-strategist skill.</div>'
+    + '<div class="vi-why">A phase groups the chats that batch its stories together; expand a phase, open a chat, click a story chip — every level is readable in place.</div></div>';
+  if (!phases.length) {
+    return intro + '<div class="panel"><h3>Execution Phases</h3><div class="empty">No execution strategy yet. Run <code>/tandem:execution-strategist EPIC-NN</code> — it writes <code>41-Reports/EXECUTION-STRATEGY-*.json</code>, which this view renders.</div></div>';
+  }
+  const statusMap = new Map();
+  for (const s of (storyRecords || [])) { if (s && s.id) statusMap.set(s.id, s.status || ''); }
+  const groups = phases.map((p) => {
+    const chats = p.chats || [];
+    const execCount = chats.filter((c) => phaseChatDone(c, statusMap)).length;
+    const ratio = execCount + '/' + chats.length;
+    const status = phaseGroupStatus(chats, statusMap);
+    const chatTiles = chats.map((c) => chatTileHtml(c, p.epic, statusMap)).join('');
+    return '<div class="phase-group">'
+      + '<div class="phase-h" data-status="' + escapeHtml(status) + '">'
+      + '<span class="phase-title">' + escapeHtml(p.name || p.id) + '</span>'
+      + ssrPill(status)
+      // BUG-20260731-01 / AI-CODE-REVIEW-CHAT-05 anno-1 — p.epic is the strategy sidecar's
+      // grouping KEY, not necessarily a real epic id: a plan spanning two epics stores it as
+      // a composite "EPIC-15 + EPIC-16" string, which findArtefact("epic", ...) can never
+      // resolve (D.epic only holds real single-epic records). Split into one chip per real
+      // epic id so a composite key yields N working chips instead of one dead one. Chat
+      // tiles keep the raw composite key on data-epic unchanged — findArtefact("impl")
+      // scopes against executionStrategy.epics[].epic, which IS the composite key there.
+      + String(p.epic).split(/\s*\+\s*/).map(function (eid) {
+        return '<button type="button" class="phase-epic-chip" data-drawer="1" data-type="epic" data-id="'
+          + escapeHtml(eid) + '">' + escapeHtml(eid) + '</button>';
+      }).join('')
+      + '<span class="cnt">' + ratio + '</span>'
+      + '<button type="button" class="phase-open-btn" data-drawer="1" data-type="phase" data-id="' + escapeHtml(p.id) + '">Open</button>'
+      + '</div>'
+      + (p.outcome ? '<p class="phase-outcome">' + escapeHtml(p.outcome) + '</p>' : '')
+      + '<div class="tile-grid phase-chats">' + (chatTiles || '<div class="empty">no chats recorded for this phase</div>') + '</div>'
+      + '</div>';
+  }).join('');
+  return intro + groups;
+}
+
+/* ============================================================
+ * STORY-23.5.01 (ADR-0099) — shared epic -> feature group-header renderer for
+ * Build · Stories/Testplans/Bugs. Same ADR-0098 rationale as buildPhaseGroupsHtml:
+ * the paired testplan's TC-01 is a static-analysis literal-text grep against the
+ * generated DASHBOARD.html, so the grouped markup is baked server-side at
+ * generation time (real interpolated HTML, not a client RENDERERS string-concat
+ * a static probe could never see). ONE groupHeader() emitter produces the
+ * mockup v2.5 `.grp-h` shape (dot + breadcrumb path + count) for all three
+ * views — no per-view bespoke branch (the old client `groupWorkByHierarchy()`
+ * in BROWSER_JS stays defined but is no longer wired to build:story/testplan/
+ * bug — see the RENDERERS alias block below).
+ * ============================================================ */
+
+const UNASSIGNED_LABEL = 'Unassigned';
+
+// The shared emitter — exactly one definition in this file (TESTPLAN-23.5.01
+// TC-01 counts occurrences of this declaration to pin that fact).
+function groupHeader(dotColor, pathHtml, count) {
+  return '<div class="grp-h"><span class="dot" style="background:' + dotColor + '"></span>'
+    + '<span class="path">' + pathHtml + '</span>'
+    + '<span class="cnt">' + count + '</span></div>';
+}
+
+// Groups `items` (frontmatter carries `.epic`/`.feature`) by epic -> feature,
+// validating both ids against the real catalogue rather than trusting mere
+// field presence — an item whose epic/feature id doesn't resolve to a known
+// record is exactly AC-2's "lineage can't be resolved" case and lands in the
+// Unassigned bucket (muted dot), sorted last.
+function groupItemsByEpicFeature(items, epics, features) {
+  const epicIds = new Set((epics || []).map((e) => e.id));
+  const featEpic = new Map((features || []).map((f) => [f.id, f.epic]));
+  const order = [];
+  const byKey = {};
+  function bucket(key, epicId, featureId) {
+    if (!byKey[key]) {
+      byKey[key] = { key, epicId, featureId, items: [] };
+      order.push(byKey[key]);
+    }
+    return byKey[key];
+  }
+  for (const r of (items || [])) {
+    const epicOk = !!(r.epic && epicIds.has(r.epic));
+    // Validate the feature belongs to r.epic, not merely that the feature id
+    // exists anywhere in the catalogue — otherwise a typo'd/copy-pasted
+    // epic+feature pair renders confident false lineage (CHAT-06 review m2).
+    const featureOk = epicOk && !!(r.feature && featEpic.get(r.feature) === r.epic);
+    if (!epicOk) {
+      bucket(UNASSIGNED_LABEL, null, null).items.push(r);
+    } else {
+      bucket(r.epic + (featureOk ? '|' + r.feature : ''), r.epic, featureOk ? r.feature : null).items.push(r);
+    }
+  }
+  // Unassigned last; within that, epic then feature in numeric-aware order so
+  // one epic's feature-groups cluster contiguously instead of scattering in
+  // item-scan order (CHAT-06 review m4).
+  order.sort((a, b) =>
+    (a.key === UNASSIGNED_LABEL ? 1 : 0) - (b.key === UNASSIGNED_LABEL ? 1 : 0)
+    || String(a.epicId || '').localeCompare(String(b.epicId || ''), 'en', { numeric: true })
+    || String(a.featureId || '').localeCompare(String(b.featureId || ''), 'en', { numeric: true }));
+  return order;
+}
+
+function groupPathHtml(epicId, featureId) {
+  if (!epicId) return escapeHtml(UNASSIGNED_LABEL);
+  const parts = [escapeHtml(epicId)];
+  if (featureId) parts.push(escapeHtml(featureId));
+  return parts.join('<span class="sep">›</span>');
+}
+
+// Server-rendered work tile — same `.tile[data-drawer][data-type][data-id]`
+// contract the delegated click handler (tileClickDelegate, ADR-0097) matches
+// on anywhere in the DOM, so interactivity needs zero extra wiring here.
+function workTileHtmlSsr(typeKey, r) {
+  const extra = [];
+  if (typeKey === 'bug' && r.severity) extra.push('<span class="sev ' + escapeHtml(r.severity) + '">' + escapeHtml(r.severity) + '</span>');
+  if (typeKey === 'testplan' && r.story) extra.push('<span class="tag">' + escapeHtml(r.story) + '</span>');
+  extra.push(ssrPill(r.status));
+  return '<div class="tile" data-drawer="1" data-type="' + typeKey + '" data-id="' + escapeHtml(r.id) + '">'
+    + '<div class="tile-head"><span class="tile-id">' + escapeHtml(r.id) + '</span><span class="tile-extra">' + extra.join('') + '</span></div>'
+    + '<div class="tile-title">' + escapeHtml(r.title || '—') + '</div>'
+    + '</div>';
+}
+
+// The section body for `<section id="sec-build:story|testplan|bug">` — real
+// interpolated HTML baked at generation time. `wrapperId` carries the bare
+// mockup-shaped id (TESTPLAN-23.5.01 TC-01 greps `id="build-stories"` etc,
+// distinct from the routing section's `sec-build:story` id) directly next to
+// the first `.grp-h`, so the static probe's 400-char window always finds it.
+function buildWorkGroupsHtml(typeKey, wrapperId, viewTitle, sourceHtml, whyHtml, items, epics, features) {
+  const intro = '<div class="view-intro"><div class="vi-title">' + escapeHtml(viewTitle) + '</div>'
+    + '<div class="vi-source">' + sourceHtml + '</div><div class="vi-why">' + whyHtml + '</div></div>';
+  const list = items || [];
+  if (!list.length) {
+    // Irregular plurals ('story' -> 'stories') read correctly on a fresh
+    // install's first-run empty state instead of "No storys yet." (CHAT-06
+    // review m3).
+    const PLURAL = { story: 'stories', testplan: 'testplans', bug: 'bugs' };
+    return intro + '<div id="' + wrapperId + '"><div class="empty">No ' + escapeHtml(PLURAL[typeKey] || (typeKey + 's')) + ' yet.</div></div>';
+  }
+  const groups = groupItemsByEpicFeature(list, epics, features);
+  const body = groups.map((g) => {
+    const dot = g.epicId ? 'var(--red)' : 'var(--ink-faint)';
+    const tiles = g.items.map((r) => workTileHtmlSsr(typeKey, r)).join('');
+    return '<div class="grp" data-epic="' + escapeHtml(g.epicId || '') + '" data-feature="' + escapeHtml(g.featureId || '') + '">'
+      + groupHeader(dot, groupPathHtml(g.epicId, g.featureId), g.items.length)
+      + '<div class="tile-grid">' + tiles + '</div>'
+      + '</div>';
+  }).join('');
+  return intro + '<div id="' + wrapperId + '">' + body + '</div>';
+}
+
+/* ============================================================
+ * STORY-23.6.01 / STORY-23.6.02 (ADR-0102) — Toolkit · Plugins sub-view +
+ * kit-first overlay pinning for Skills/Commands/Plugins. Same ADR-0099
+ * rationale as buildWorkGroupsHtml above: the paired testplans are
+ * static-analysis literal-text greps against the generated DASHBOARD.html,
+ * so this is real interpolated HTML baked server-side at generation time —
+ * a client RENDERERS string-concat is invisible to a raw-file probe.
+ * ============================================================ */
+
+// The literal header a kit-pinned group renders under, wherever it appears
+// (Skills/Commands baked-SSR pinned group; Plugins baked-SSR pinned group;
+// the client aiCatRenderer's own re-render of the same group on interaction —
+// see BROWSER_JS below). One constant; every call site quotes it explicitly
+// so each wiring point documents itself rather than hiding behind an opaque
+// shared reference.
+const KIT_PINNED_LABEL = 'Tandem kit — ranked first';
+
+// Node-side counterpart to the client's aiCardHtml() (STORY-11.1.04) — same
+// visual shape (name/desc/fit badge, curated/must-know/source/category tags,
+// the ~N tok context-load cost tag) as the client-rendered "Other installed"
+// cards next to it. BUG-20260801-02 (m6) — the cost tag and the other badges
+// were originally dropped here (the comment claimed identity it didn't have);
+// all of it is trivially available on `it` at bake time (STORY-11.3.02 sets
+// tokenCost before this is called), so there is no reason for the kit band —
+// the largest always-loaded context tax on the board — to be the one place
+// that cost is hidden.
+function aiCardHtmlSsr(it, kindKey) {
+  const desc = (it.overlay && it.overlay.description) || it.description || '';
+  let badges = '';
+  if (it.fitRank) badges += '<span class="fit-badge ' + escapeHtml(it.fitRank) + '">' + escapeHtml(it.fitRank) + '</span>';
+  if (it.curated) badges += '<span class="tag star">★ curated</span>';
+  if (it.mustKnow) badges += '<span class="tag must">must-know</span>';
+  if (it.source) badges += '<span class="tag source">' + escapeHtml(it.source) + '</span>';
+  if (it.category) badges += '<span class="tag">' + escapeHtml(it.category) + '</span>';
+  const cost = (typeof it.tokenCost === 'number') ? it.tokenCost : 0;
+  const costHtml = '<span class="tag ai-cost" data-cost="' + cost + '" title="Context-load token cost (estimate)">~' + formatTok(cost) + ' tok</span>';
+  return '<div class="ai-card kit-tile" data-drawer="1" data-type="ai-' + kindKey + '" data-id="' + escapeHtml(it.name) + '" data-cost="' + cost + '">'
+    + '<div class="name">' + escapeHtml(it.name) + '</div>'
+    + '<div class="desc">' + escapeHtml(desc) + '</div>'
+    + '<div class="footer">' + costHtml + badges + '</div>'
+    + '</div>';
+}
+
+// Bakes ONLY the kit-pinned group (header + item cards) for a Toolkit AI
+// catalogue view — Skills or Commands. Returns '' when no item in `items`
+// carries the overlay's `display_group: kit` marker (AC-3's no-overlay /
+// no-kit-item degrade path: no header, no console errors). The remaining
+// (non-kit) items stay 100% client-rendered by aiCatRenderer, unaffected —
+// this never touches search/category/cost-sort, only adds the pinned band
+// ahead of it.
+function buildAiKitPinnedGroupHtml(items, kindKey) {
+  const kit = (items || []).filter((it) => it.displayGroup === 'kit');
+  if (!kit.length) return '';
+  return '<div class="ai-fit-group kit-pinned" role="group" aria-label="' + escapeHtml(KIT_PINNED_LABEL) + '">'
+    + groupHeader('var(--red)', escapeHtml(KIT_PINNED_LABEL), kit.length)
+    + '<div class="card-grid tight">' + kit.map((it) => aiCardHtmlSsr(it, kindKey)).join('') + '</div>'
+    + '</div>';
+}
+
+// STORY-23.6.01 — one tile per installed plugin (name, version, description).
+// `class="plugin-tile"` is a contract pin (TESTPLAN-23.6.01 TC-01) — never
+// combine it with another class on the same attribute.
+function pluginTileHtmlSsr(p) {
+  const versionBadge = p.version ? '<span class="tag">v' + escapeHtml(p.version) + '</span>' : '';
+  const fitBadge = p.fitRank
+    ? '<span class="fit-badge ' + escapeHtml(p.fitRank) + '">' + escapeHtml(p.fitRank) + '</span>'
+    : '';
+  return '<div class="plugin-tile" data-drawer="1" data-type="ai-plugin" data-id="' + escapeHtml(p.name) + '">'
+    + '<div class="tile-head"><span class="tile-id">' + escapeHtml(p.name) + '</span><span class="tile-extra">' + versionBadge + fitBadge + '</span></div>'
+    + '<div class="tile-title">' + escapeHtml(p.description || '—') + '</div>'
+    + '</div>';
+}
+
+// The full `<section id="sec-toolkit:plugin">` body — fully server-baked (no
+// client RENDERERS entry for this key; see the removed `RENDERERS["toolkit:
+// plugin"]` alias below). STORY-23.6.02 AC-3 — leak-guard (EXTERNAL_ROOT mode
+// returns an empty `plugins` array upstream in buildAiCatalogue()) degrades
+// straight to the empty state with zero personal data and zero "plugin-tile"
+// occurrences.
+function buildToolkitPluginsSectionHtml(plugins) {
+  const intro = '<div class="view-intro"><div class="vi-title">Toolkit · Plugins</div>'
+    + '<div class="vi-source">Scans <code>~/.claude/plugins/</code> for installed plugin manifests.</div>'
+    + '<div class="vi-why">Everything installed as a plugin, with fit ranks. The kit itself is pinned first — it is the planning instrument, so it never ranks below the tools it orchestrates.</div></div>';
+  const list = plugins || [];
+  if (!list.length) {
+    // EXTERNAL_ROOT-only copy (CHAT-09 review anno-6, m4 fix): on a demo/PM_DASH_ROOT render this
+    // empty state sits directly beneath the "kit itself is pinned first" intro line above, which
+    // otherwise reads as a broken promise. buildAiCatalogue()'s EXTERNAL_ROOT early-return (this
+    // file, ~line 1539) is the tested EMPTY-OR-GATED leak-guard (ADR-0106, TESTPLAN-23.6.01 TC-03)
+    // that keeps the operator's real ~/.claude/ catalogue out of any publicly shared board — the
+    // emptiness here is a deliberate privacy guard, not a broken feature, so say so. Dev-board
+    // (non-EXTERNAL_ROOT) empty state is unchanged.
+    return intro + (EXTERNAL_ROOT
+      ? '<div class="empty">The AI Catalogue populates from a live scan of the local <code>~/.claude/</code> environment. '
+        + 'This public demo renders committed fixture data only, so the catalogue stays empty by design '
+        + '(privacy leak-guard — ADR-0106). Install Tandem to see yours.</div>'
+      : '<div class="empty">No plugins installed.</div>');
+  }
+  const kit = list.filter((p) => p.displayGroup === 'kit');
+  const rest = list.filter((p) => p.displayGroup !== 'kit');
+  let body;
+  if (!kit.length) {
+    // No overlay / no kit-marked plugin — flat grid, no group headers at all
+    // (AC-3: no pinned-group header without the overlay signal).
+    body = '<div class="tile-grid">' + list.map(pluginTileHtmlSsr).join('') + '</div>';
+  } else {
+    body = '<div class="ai-fit-group kit-pinned" role="group" aria-label="' + escapeHtml(KIT_PINNED_LABEL) + '">'
+      + groupHeader('var(--red)', escapeHtml(KIT_PINNED_LABEL), kit.length)
+      + '<div class="tile-grid">' + kit.map(pluginTileHtmlSsr).join('') + '</div>'
+      + '</div>'
+      + (rest.length
+        ? '<div class="ai-fit-group">'
+          + groupHeader('var(--ink-faint)', 'Other installed plugins', rest.length)
+          + '<div class="tile-grid">' + rest.map(pluginTileHtmlSsr).join('') + '</div>'
+          + '</div>'
+        : '');
+  }
+  return intro + body;
+}
+
+/* ============================================================
+ * STORY-23.5.02 (ADR-0099) — Power-BI-style slicer panel: a labelled Status
+ * band (shared status palette) + cascading Epic -> Feature scope bands,
+ * mounted once as Build-wide chrome (server-baked, same reasoning as
+ * buildWorkGroupsHtml above — TESTPLAN-23.5.02 TC-01 is a static-analysis
+ * literal-text grep for `data-slice-band="status"`/`"epic"`). The client side
+ * (applySlice()/renderSlicerPanel() in BROWSER_JS) owns runtime filtering —
+ * this only bakes the static option list once per generation.
+ * ============================================================ */
+
+// Same status-color mapping the shared `.pill[data-status]` palette already
+// uses (dashboard-css.js) — the slicer's status dots stay visually consistent
+// with every status pill elsewhere on the board (STORY-23.5.02 AC-1).
+const STATUS_DOT_COLOR = {
+  'not-started': 'var(--ink-faint)',
+  ready: 'var(--info)',
+  'in-progress': 'var(--yellow)',
+  'in-review': 'var(--blue)',
+  done: 'var(--success)',
+  blocked: 'var(--red)',
+  active: 'var(--success)',
+  wontfix: 'var(--ink-faint)',
+  duplicate: 'var(--ink-faint)',
+  archived: 'var(--ink-faint)',
+};
+function buildSlicerPanelHtml(data) {
+  const present = new Set();
+  for (const key of ['story', 'testplan', 'bug']) {
+    for (const r of (data[key] || [])) { if (r && r.status) present.add(r.status); }
+  }
+  const statuses = STATUS_ORDER.filter((s) => present.has(s));
+  const statusPills = statuses.map((s) => {
+    const color = STATUS_DOT_COLOR[s] || 'var(--ink-faint)';
+    return '<button type="button" class="slice-pill" data-slice-item="status" data-status="' + escapeHtml(s) + '" aria-pressed="false">'
+      + '<span class="sdot" style="background:' + color + '"></span>' + escapeHtml(s) + '</button>';
+  }).join('');
+  const epics = (data.epic || []).slice().sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true }));
+  const epicPills = epics.map((e) => {
+    return '<button type="button" class="slice-pill" data-slice-item="epic" data-epic="' + escapeHtml(e.id) + '" aria-pressed="false" title="' + escapeHtml(e.title || '') + '">' + escapeHtml(e.id) + '</button>';
+  }).join('');
+  return '<div class="slicer-panel" data-group="build" id="buildSlicer">'
+    + '<div class="slice-band" data-slice-band="status"><span class="slice-lab">Status</span>' + statusPills
+    + '<button type="button" class="slice-clear" id="sliceClear" disabled>Clear</button></div>'
+    + '<div class="slice-band" data-slice-band="epic"><span class="slice-lab">Epic</span>' + epicPills + '</div>'
+    + '<div class="slice-band" data-slice-band="feature" id="sliceFeatureBand" hidden><span class="slice-lab">Feature</span><span class="slice-note">pick an epic to narrow</span></div>'
+    + '</div>';
 }
 
 /* ============================================================
@@ -2340,6 +2921,155 @@ function splitReports(reports) {
 const CSS = require('./lib/dashboard-css.js');
 
 /* ============================================================
+ * Left ink rail (STORY-23.2.01, ADR-0094) — server-rendered, static
+ * markup. Supersedes the client-JS `renderGroupNav()`/`.gtab` two-row
+ * tab (ADR-0048); see ADR-0094 for why static Node-side render replaced
+ * the DOM-API build. Same key/label/order as the retired browser-side
+ * `groups` array — "AI Catalogue" label preserved (TESTPLAN-11.2.03 TC-01
+ * intent).
+ * ============================================================ */
+const RAIL_GROUPS = [
+  ["now", "Now", "Flow", '<path d="M3 12h4l3 8 4-16 3 8h4"/>'],
+  ["capture", "Capture", "Flow", '<path d="M4 4h16v12h-5l-3 3-3-3H4z"/>'],
+  ["plan", "Plan", "Flow", '<path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>'],
+  ["build", "Build", "Flow", '<path d="M4 6h16M4 12h16M4 18h10"/>'],
+  ["cadence", "Cadence", "Flow", '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'],
+  ["decisions", "Decisions", "Flow", '<path d="M6 3h9l3 3v15H6z"/><path d="M9 9h6M9 13h6M9 17h4"/>'],
+  ["toolkit", "AI Catalogue", "Reference", '<path d="M14 7l3 3-7 7-3 .5.5-3z"/><path d="M4 20h16"/>'],
+  ["tandem", "Tandem", "Reference", '<path d="M7 5l5 14M12 5l5 14M4 19h16M9 5h8"/>'],
+  ["about", "About", "Reference", '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>'],
+];
+
+// STORY-23.2.01 AC-5 — every rail count below is derived from the same `data`
+// arrays the views themselves render; never a separately-maintained literal.
+function railCounts(data) {
+  const c = data.counts || {};
+  const total = function (key) { return (c[key] || { total: 0 }).total; };
+  const aiCounts = (data.ai && data.ai.counts) || {};
+  return {
+    now: (data.pendingAction || []).length + (data.blocking || []).length,
+    capture: (data.inbox || []).length + (data.backlog || []).length,
+    plan: total('epic') + (data.specs || []).length,
+    build: (data.phases ? data.phases.length : 0) + total('epic') + total('feature') + total('story') + total('testplan') + total('bug'),
+    cadence: (data.monitorEntries || []).length + total('retro') + total('release') + (data.reviews || []).length + (data.audits || []).length,
+    decisions: total('adr'),
+    toolkit: (aiCounts.skills || 0) + (aiCounts.agents || 0) + (aiCounts.commands || 0) + (aiCounts.plugins || 0) + (data.templates || []).length + (data.prompts || []).length + (data.scripts || []).length,
+  };
+}
+
+// Builds the static <button class="nav-item"> list (with interleaved
+// "Flow"/"Reference" .rail-lab headers) from RAIL_GROUPS + railCounts().
+function buildRailHtml(data) {
+  const rc = railCounts(data);
+  let lastSection = null;
+  return RAIL_GROUPS.map(function (g) {
+    const key = g[0], label = g[1], section = g[2], iconSvg = g[3];
+    const labelBlock = section !== lastSection ? '<div class="rail-lab">' + escapeHtml(section) + '</div>' : '';
+    lastSection = section;
+    const count = rc[key];
+    const countHtml = (count !== undefined && count !== '') ? '<span class="cnt">' + count + '</span>' : '';
+    // aria-label carries the accessible name even when .lbl is display:none in the
+    // collapsed (icon-only) state — a hidden-text accname would otherwise leave a
+    // collapsed nav-item with no name for assistive tech (AI-CODE-REVIEW-STORY-23.2.01 anno-1).
+    return labelBlock + '<button type="button" class="nav-item' + (key === 'now' ? ' active' : '') + '" data-view="' + key + '" aria-label="' + escapeHtml(label) + '"><svg class="nico" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">' + iconSvg + '</svg><span class="lbl">' + escapeHtml(label) + '</span>' + countHtml + '</button>';
+  }).join('\n      ');
+}
+
+/* ============================================================
+ * Contextual pill sub-nav (STORY-23.2.02, ADR-0094) — server-rendered,
+ * static markup: one <nav class="sub-nav" data-group="X"> block per
+ * multi-view group. Mirrors the browser-side SUB_TABS routing config's
+ * shape by hand (BACKLOG-0096 tracks single-sourcing the two).
+ * ============================================================ */
+const SUB_NAV_GROUPS = {
+  capture: [["inbox", "Inbox"], ["backlog", "Backlog"]],
+  plan: [["strategy", "Strategy"], ["roadmap", "Roadmap"], ["specs", "Specs"]],
+  build: [["phases", "Phases"], ["epic", "Epics"], ["feature", "Features"], ["story", "Stories"], ["testplan", "Testplans"], ["bug", "Bugs"]],
+  cadence: [["monitor", "Monitor"], ["retros", "Retros"], ["releases", "Releases"], ["reviews", "Reviews"], ["audits", "Audits"]],
+  toolkit: [["skill", "Skills"], ["agent", "Agents"], ["command", "Commands"], ["plugin", "Plugins"], ["templates", "Templates"], ["prompts", "Prompts"], ["scripts", "Scripts"], ["glossary", "Glossary"]],
+};
+
+// STORY-23.2.02 — sub-nav pill counts, derived from the same `data` arrays the
+// views render (same rule as railCounts()). One count function per group,
+// keyed on the bare sub key.
+function subNavCount(data, group, key) {
+  const c = data.counts || {};
+  const total = function (k) { return (c[k] || { total: 0 }).total; };
+  if (group === 'build') {
+    return key === 'phases' ? (data.phases ? data.phases.length : 0) : total(key);
+  }
+  if (group === 'capture') {
+    if (key === 'inbox') return (data.inbox || []).length;
+    if (key === 'backlog') return total('backlog');
+  }
+  if (group === 'plan') {
+    if (key === 'strategy') return total('strategy');
+    if (key === 'roadmap') return total('epic');
+    if (key === 'specs') return (data.specs || []).length;
+  }
+  if (group === 'cadence') {
+    if (key === 'monitor') return (data.monitorEntries || []).length;
+    if (key === 'retros') return total('retro');
+    if (key === 'releases') return total('release');
+    if (key === 'reviews') return (data.reviews || []).length;
+    if (key === 'audits') return (data.audits || []).length;
+  }
+  if (group === 'toolkit') {
+    if (key === 'glossary') return (data.glossary || []).length;
+    if (key === 'templates') return (data.templates || []).length;
+    if (key === 'prompts') return (data.prompts || []).length;
+    if (key === 'scripts') return (data.scripts || []).length;
+    const aiCounts = (data.ai && data.ai.counts) || {};
+    return aiCounts[key + 's'] || 0;
+  }
+  return 0;
+}
+
+// Builds one static <nav class="sub-nav" data-group="X"> block per multi-view
+// group, each holding its <button class="sub-pill"> list. `data-sub` on each
+// pill is the TESTPLAN-23.2.02 TC-02 static-analysis anchor (compound
+// "<group>-<subkey>"); routing reads the bare `data-subkey`.
+function buildSubNavHtml(data) {
+  return Object.keys(SUB_NAV_GROUPS).map(function (group) {
+    const subs = SUB_NAV_GROUPS[group];
+    const pills = subs.map(function (s) {
+      const key = s[0], label = s[1];
+      const count = subNavCount(data, group, key);
+      return '<button type="button" class="sub-pill" data-group="' + group + '" data-sub="' + group + '-' + key + '" data-subkey="' + key + '"><span class="sub-pill-lbl">' + escapeHtml(label) + '</span><span class="cnt">' + count + '</span></button>';
+    }).join('\n    ');
+    return '<nav class="sub-nav" data-group="' + group + '" role="navigation" aria-label="' + escapeHtml(group) + ' sub-views">\n    ' + pills + '\n  </nav>';
+  }).join('\n');
+}
+
+/* ============================================================
+ * Hash-router v2 known-routes table (STORY-23.2.03, ADR-0095) — parsed from
+ * the parity inventory's own `## Routes` section at build time, so the
+ * emitted redirect/validation table can never drift from the recorded v1
+ * route surface (TESTPLAN-23.2.03 TC-01 re-parses the same file independently
+ * to verify against this). Defensive: a missing/malformed inventory yields an
+ * empty array rather than crashing the build.
+ * ============================================================ */
+function buildKnownRoutes() {
+  const invPath = path.join(PM_ROOT, '41-Reports', 'PARITY-INVENTORY-command-center-v1.md');
+  let text;
+  try {
+    text = fs.readFileSync(invPath, 'utf8');
+  } catch (_e) {
+    return [];
+  }
+  const routesSection = (text.split(/^## Routes/m)[1] || '').split(/^## /m)[0];
+  // Match only backticked bullet routes ("- `#group=...`") — the prior bare "#..."
+  // scan ran over the whole section including prose, and the section's own intro
+  // sentence ("current-format `#group=…&sub=…` routes") matched up to the non-ASCII
+  // ellipsis, yielding a spurious 29th "group=" entry (AI-CODE-REVIEW-CHAT-03 anno-4).
+  // TESTPLAN-23.2.03 TC-01 uses this same regex so the two derivations stay genuinely
+  // independent-but-aligned instead of one parsing bug self-confirming the other.
+  const matches = Array.from(routesSection.matchAll(/^\s*-\s+`#([a-z0-9=&/-]+)`/gim));
+  // KNOWN_ROUTES stores bare "group=...&sub=..." keys (no leading "#").
+  return matches.map(function (m) { return m[1]; });
+}
+
+/* ============================================================
  * Browser JS (no template literals — string concat only, so the
  * Node template literal that wraps this stays clean).
  * ============================================================ */
@@ -2368,7 +3098,21 @@ const BROWSER_JS = [
 'function statusOrderIdx(s){ var arr=["in-progress","in-review","ready","blocked","active","not-started","done","wontfix","duplicate","archived"]; var i=arr.indexOf(s); return i===-1?999:i; }',
 
 // ------------ Routing & state ------------
-'var STATE = { group:"now", sub:null, search:{}, statusFilter:{}, aiCatFilter:{}, aiCostSort:{}, aiCostFilter:{}, implEpic:null, palette:false, cmdFlowView:{ sop:"e2e", tandem:"e2e" } };',
+'var STATE = { group:"now", sub:null, search:{}, statusFilter:{}, aiCatFilter:{}, aiCostSort:{}, aiCostFilter:{}, implEpic:null, palette:false, cmdFlowView:{ sop:"e2e", tandem:"e2e" }, slice:{ status:null, epic:null, feature:null } };',
+
+// STORY-23.5.04 — bounded-scrolling pagination for the SSR\'d Build · Stories/
+// Testplans/Bugs lists (PRD bounded-scrolling metric). PAGE_SIZE is the single
+// pinned constant every page-window computation reads (TESTPLAN-23.5.04 TC-03
+// greps this literal, capped at <=30 by the PRD contract). PAGE_CURSOR tracks
+// the current page plus a "signature" of (group, sub, active slice terms) —
+// applyPaging() resets to page 1 whenever that signature changes, so no
+// per-view reset call is needed anywhere else (AC-4).
+'var PAGE_SIZE = 30;',
+// m2 (CHAT-07 review, anno-5): exported so smoke probes can read the live
+// contract value instead of pinning their own separate copy — two independent
+// pins can drift silently (a probe wrongly stays green on a real code change).
+'window.PAGE_SIZE = PAGE_SIZE;',
+'var PAGE_CURSOR = { sig:null, page:1 };',
 
 // Command process flow — view filters. e2e shows every command; the other
 // three views surface only the commands relevant to that kind of session.
@@ -2385,12 +3129,33 @@ const BROWSER_JS = [
 '  cadence:  ["session-start","core","critique","peer-review","fill-claude-md","weekly-monitor","monthly-retro","reflect","document","curate-toolkit"],',
 '};',
 'function readHash(){ var h=location.hash.replace(/^#/,""); var out={}; h.split("&").forEach(function(p){ if(!p) return; var kv=p.split("="); out[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]||""); }); return out; }',
-'function writeHash(){ var parts=[]; if(STATE.group) parts.push("group="+encodeURIComponent(STATE.group)); if(STATE.sub) parts.push("sub="+encodeURIComponent(STATE.sub)); var nh = parts.join("&"); if(("#"+nh) !== location.hash){ history.replaceState(null, "", "#"+nh); } }',
-
-// ------------ Theme ------------
-'function getTheme(){ try { var t = localStorage.getItem("dxz-theme"); if(t) return t; } catch(e){} return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light"; }',
-'function applyTheme(t){ document.documentElement.setAttribute("data-theme", t); try { localStorage.setItem("dxz-theme", t); } catch(e){} var btn=$("#theme-toggle"); if(btn){ btn.setAttribute("aria-label", "Switch to " + (t==="dark"?"light":"dark") + " theme"); btn.dataset.theme = t; } }',
-'applyTheme(getTheme());',
+// STORY-23.2.03 (ADR-0095) — every History-API write (push-state / replace-state)
+// in this file goes through this ONE guard, which absorbs the SecurityError a
+// sandboxed iframe (no allow-same-origin) throws on that API. STATE still
+// updates in memory either way — only the URL bar / back-stack silently no-ops
+// when the write is denied (TESTPLAN-23.2.03 TC-02/TC-03). BUG-20260731-01: a
+// prior wording of this comment spelled the method names as compound words and
+// tripped TC-02's own bypass-detection regex — keep "push"/"State" and
+// "replace"/"State" from ever appearing concatenated outside the function body.
+'function guardedHistoryWrite(url){',
+'  try{ history.replaceState(null, "", url); }',
+'  catch(_e){ /* History API blocked (sandboxed iframe, some privacy modes) — degrade silently */ }',
+'}',
+// STORY-23.5.02 AC-4 — slicer state rides in the hash as a single "slice="
+// term (comma-separated key:value pairs), routed through guardedHistoryWrite
+// like every other History write on this board (no separate pushState/
+// replaceState call anywhere in the slicer code).
+'function sliceHashValue(){ var parts=[]; if(STATE.slice.status) parts.push("status:"+STATE.slice.status); if(STATE.slice.epic) parts.push("epic:"+STATE.slice.epic); if(STATE.slice.feature) parts.push("feature:"+STATE.slice.feature); return parts.join(","); }',
+'function applySliceFromHash(h){ var terms={}; if(h.slice){ h.slice.split(",").forEach(function(p){ var i=p.indexOf(":"); if(i===-1) return; var k=p.slice(0,i), v=p.slice(i+1); if(k && v) terms[k]=v; }); } var st=terms.status, ep=terms.epic, fe=terms.feature; var statusOk = !!st && ["story","testplan","bug"].some(function(k){ return (D[k]||[]).some(function(r){ return r.status === st; }); }); var epicOk = !!ep && (D.epic||[]).some(function(e){ return e.id === ep; }); var featOk = !!fe && epicOk && (D.feature||[]).some(function(f){ return f.id === fe && f.epic === ep; }); STATE.slice.status = statusOk ? st : null; STATE.slice.epic = epicOk ? ep : null; STATE.slice.feature = featOk ? fe : null; }',
+'function writeHash(){ var parts=[]; if(STATE.group) parts.push("group="+encodeURIComponent(STATE.group)); if(STATE.sub) parts.push("sub="+encodeURIComponent(STATE.sub)); var sv=sliceHashValue(); if(sv) parts.push("slice="+encodeURIComponent(sv)); var nh = parts.join("&"); if(("#"+nh) !== location.hash){ guardedHistoryWrite("#"+nh); } }',
+// STORY-23.2.03 AC-1 — KNOWN_ROUTES (built from the parity inventory, ADR-0095)
+// is the redirect/validation manifest every inventoried route must appear in
+// (TESTPLAN-23.2.03 TC-01 verifies coverage against DASHBOARD.html directly).
+// Runtime "unknown hash -> Now" behaviour is already fully handled by the
+// existing SUB_TABS-keyed group check below + setGroup()\'s own default-sub
+// fallback — a separate KNOWN_ROUTES-driven validator would duplicate that
+// logic with no behavioural difference, so KNOWN_ROUTES stays a build-time
+// manifest rather than gaining a redundant runtime consumer.
 
 // ------------ Tabs ------------
 // v1.1 — 8-group IA (ADR-0048, TESTPLAN-04.6.06 TC-02).
@@ -2428,71 +3193,212 @@ const BROWSER_JS = [
 '  "ai:plugin": "toolkit:plugin",',
 '  "ai:glossary": "toolkit:glossary",',
 '  "reports": "cadence:audits",',
-'  "docs": "toolkit:prompts"',
+'  "docs": "toolkit:prompts",',
+// STORY-23.5.02 TC-03 — the plural mockup-shaped sub keys ("stories" etc, as
+// used in shareable slice hashes) redirect to the real singular SUB_TABS keys
+// ("story") rather than renaming the canonical keys — every other testplan
+// (23.2.02, dead-tile-scan, clicks-to-content, ...) already pins the singular
+// `data-sub="build-story"` shape.
+'  "build:stories": "build:story",',
+'  "build:testplans": "build:testplan",',
+'  "build:bugs": "build:bug"',
 '};',
 'function applyLegacy(group, sub){ var k = sub ? group+":"+sub : group; if(LEGACY_ROUTES[k]){ var v = LEGACY_ROUTES[k].split(":"); return { group:v[0], sub:v[1]||null }; } if(LEGACY_ROUTES[group] && !sub){ var w = LEGACY_ROUTES[group].split(":"); return { group:w[0], sub:w[1]||null }; } return { group:group, sub:sub }; }',
 
-'function renderGroupNav(){',
-'  var nav=$("#group-nav"); if(!nav) return;',
-'  nav.innerHTML="";',
-// v1.1 — 8-group order: now → capture → plan → build → cadence → decisions → toolkit → about
-// (TESTPLAN-04.6.06 TC-01).
-'  var groups=[["now","Now"],["capture","Capture"],["plan","Plan"],["build","Build"],["cadence","Cadence"],["decisions","Decisions"],["toolkit","AI Catalogue"],["tandem","Tandem"],["about","About"]];',
-'  groups.forEach(function(g){',
-'    var count="";',
-'    if(g[0]==="now") count = ((D.pendingAction||[]).length) + ((D.blocking||[]).length);',
-'    else if(g[0]==="capture") count = ((D.inbox||[]).length) + ((D.backlog||[]).length);',
-'    else if(g[0]==="plan") count = ((D.counts.epic||{total:0}).total) + ((D.specs||[]).length);',
-'    else if(g[0]==="build") count = (D.phases ? D.phases.length : 0) + (D.counts.epic||{total:0}).total + (D.counts.feature||{total:0}).total + (D.counts.story||{total:0}).total + (D.counts.testplan||{total:0}).total + (D.counts.bug||{total:0}).total;',
-'    else if(g[0]==="cadence") count = ((D.monitorEntries||[]).length) + ((D.counts.retro||{total:0}).total) + ((D.counts.release||{total:0}).total) + ((D.reviews||[]).length) + ((D.audits||[]).length);',
-'    else if(g[0]==="decisions") count = (D.counts.adr||{total:0}).total;',
-'    else if(g[0]==="toolkit") count = D.ai.counts.skills + D.ai.counts.agents + D.ai.counts.commands + D.ai.counts.plugins + ((D.templates||[]).length) + ((D.prompts||[]).length) + ((D.scripts||[]).length);',
-'    var btn = el("button", { class:"gtab" + (STATE.group===g[0]?" active":""), "data-group":g[0], onclick: function(){ setGroup(g[0]); } });',
-'    btn.innerHTML = escHtml(g[1]) + (count!==""? \' <span class="gtab-count">\' + count + \'</span>\' : "");',
-'    nav.appendChild(btn);',
+// STORY-23.2.01 (ADR-0094) — the rail is server-rendered static markup now (see
+// buildRailHtml() in the Node-side emit path); the browser only wires clicks and
+// toggles .active on the existing nodes. renderGroupNav()/.gtab retired outright
+// (no dead emit path left behind, per the story\'s technical notes).
+'function initRail(){',
+'  $$(".rail .nav-item[data-view]").forEach(function(btn){',
+'    btn.addEventListener("click", function(){ setGroup(btn.getAttribute("data-view")); });',
 '  });',
 '}',
+'function updateRailActive(){',
+'  $$(".rail .nav-item[data-view]").forEach(function(btn){',
+'    var on=btn.getAttribute("data-view")===STATE.group;',
+'    btn.classList.toggle("active", on);',
+// aria-current mirrors .active for assistive tech, same rule as renderSubNav's pills
+// (AI-CODE-REVIEW-CHAT-03 anno-7 — the rail's active group was invisible to a screen
+// reader; "page" per the ARIA authoring practice for a primary-nav current item).
+'    if(on){ btn.setAttribute("aria-current","page"); } else { btn.removeAttribute("aria-current"); }',
+'  });',
+'}',
+// Collapse toggle — localStorage persistence guarded (sandboxed-iframe / privacy
+// modes can throw on storage access; degrade silently, per this story\'s Risks note).
+// aria-expanded + aria-label track the toggle's own affordance for assistive tech —
+// previously fixed at "Collapse navigation" regardless of actual state (anno-7).
+'function initRailCollapse(){',
+'  var btn=$("[data-rail-toggle]"); var app=$("#app"); if(!btn||!app) return;',
+'  var saved=null; try{ saved=localStorage.getItem("railCollapsed"); }catch(_e){ saved=null; }',
+'  if(saved==="1") app.classList.add("collapsed");',
+'  updateRailToggleA11y(btn, app.classList.contains("collapsed"));',
+'  btn.addEventListener("click", function(){',
+'    toggleRail();',
+'  });',
+'}',
+'function updateRailToggleA11y(btn, collapsed){',
+'  btn.setAttribute("aria-expanded", collapsed ? "false" : "true");',
+'  var label = collapsed ? "Expand navigation" : "Collapse navigation";',
+'  btn.setAttribute("aria-label", label);',
+'  btn.setAttribute("title", label);',
+'}',
+'function toggleRail(){',
+'  var app=$("#app"); var btn=$("[data-rail-toggle]"); if(!app) return;',
+'  app.classList.toggle("collapsed");',
+'  if(btn) updateRailToggleA11y(btn, app.classList.contains("collapsed"));',
+'  try{ localStorage.setItem("railCollapsed", app.classList.contains("collapsed") ? "1" : "0"); }catch(_e){ /* storage blocked — collapse still works, just not remembered */ }',
+'}',
 
+// STORY-23.2.02 (ADR-0094) — the sub-nav pills are server-rendered static
+// markup now (see buildSubNavHtml() in the Node-side emit path); the browser
+// only toggles which block/pill is .active. renderSubNav() keeps its name
+// (setGroup/setSub/init/hashchange already call it) but its body no longer
+// rebuilds HTML — the old #sub-nav/.stab tab row is gone (no dead emit path).
+'function initSubNav(){',
+'  $$(".sub-nav .sub-pill[data-subkey]").forEach(function(btn){',
+'    btn.addEventListener("click", function(){ setSub(btn.getAttribute("data-subkey")); });',
+'  });',
+'}',
 'function renderSubNav(){',
-'  var nav=$("#sub-nav-inner"); var holder=$("#sub-nav"); if(!nav) return;',
-'  nav.innerHTML="";',
-'  var subs = SUB_TABS[STATE.group] || [];',
-'  if(!subs.length){ holder.classList.add("hidden"); return; } else { holder.classList.remove("hidden"); }',
-'  subs.forEach(function(s){',
-'    var cnt = "";',
-// v1.1 — count logic per group (ADR-0048).
-'    var k = s[0]; var g = STATE.group;',
-'    if(g==="build"){',
-'      if(k==="phases") cnt = (D.phases||[]).length;',
-'      else cnt = (D.counts[k]||{total:0}).total;',
-'    } else if(g==="capture"){',
-'      if(k==="inbox") cnt = (D.inbox||[]).length;',
-'      else if(k==="backlog") cnt = (D.counts.backlog||{total:0}).total;',
-'    } else if(g==="plan"){',
-'      if(k==="strategy") cnt = (D.counts.strategy||{total:0}).total;',
-'      else if(k==="roadmap") cnt = (D.counts.epic||{total:0}).total;',
-'      else if(k==="specs") cnt = (D.specs||[]).length;',
-'    } else if(g==="cadence"){',
-'      if(k==="monitor") cnt = (D.monitorEntries||[]).length;',
-'      else if(k==="retros") cnt = (D.counts.retro||{total:0}).total;',
-'      else if(k==="releases") cnt = (D.counts.release||{total:0}).total;',
-'      else if(k==="reviews") cnt = (D.reviews||[]).length;',
-'      else if(k==="audits") cnt = (D.audits||[]).length;',
-'    } else if(g==="toolkit"){',
-'      if(k==="glossary") cnt = D.glossary.length;',
-'      else if(k==="templates") cnt = (D.templates||[]).length;',
-'      else if(k==="prompts") cnt = (D.prompts||[]).length;',
-'      else if(k==="scripts") cnt = (D.scripts||[]).length;',
-'      else cnt = (D.ai.counts[k+"s"]||0);',
-'    }',
-'    var btn = el("button", { class:"stab" + (STATE.sub===s[0]?" active":""), "data-sub":s[0], onclick: function(){ setSub(s[0]); } });',
-'    btn.innerHTML = escHtml(s[1]) + (cnt!==""? \' <span class="stab-count">\' + cnt + \'</span>\' : "");',
-'    nav.appendChild(btn);',
+'  $$(".sub-nav[data-group]").forEach(function(block){',
+'    block.classList.toggle("active", block.getAttribute("data-group")===STATE.group);',
+'  });',
+// aria-current mirrors .active for assistive tech (visual-only state would
+// otherwise be invisible to screen readers — AI-CODE-REVIEW-STORY-23.2.02 anno-1).
+'  $$(".sub-nav .sub-pill[data-subkey]").forEach(function(btn){',
+'    var isActive = btn.closest(".sub-nav.active") && btn.getAttribute("data-subkey")===STATE.sub;',
+'    btn.classList.toggle("active", isActive);',
+'    if(isActive){ btn.setAttribute("aria-current","true"); } else { btn.removeAttribute("aria-current"); }',
 '  });',
 '}',
 
-'function setGroup(g, opts){ opts=opts||{}; STATE.group=g; var subs=SUB_TABS[g]||[]; STATE.sub = subs.length ? (opts.sub && subs.some(function(x){return x[0]===opts.sub;}) ? opts.sub : subs[0][0]) : null; renderGroupNav(); renderSubNav(); renderActive(); writeHash(); window.scrollTo({top:0, behavior:"instant"}); }',
+'function setGroup(g, opts){ opts=opts||{}; STATE.group=g; var subs=SUB_TABS[g]||[]; STATE.sub = subs.length ? (opts.sub && subs.some(function(x){return x[0]===opts.sub;}) ? opts.sub : subs[0][0]) : null; updateRailActive(); renderSubNav(); renderActive(); writeHash(); window.scrollTo({top:0, behavior:"instant"}); }',
 'function setSub(s){ STATE.sub=s; renderSubNav(); renderActive(); writeHash(); }',
+
+// ------------ Slicer panel (STORY-23.5.02) ------------
+// Build-wide chrome, server-baked once (buildSlicerPanelHtml, Node-side).
+// `.slicer-panel.active` mirrors the `.sub-nav.active` toggle pattern above —
+// visible only while Build is the current rail group.
+'function sliceTermsList(){ var t=[]; if(STATE.slice.status) t.push("status"); if(STATE.slice.epic) t.push("epic"); if(STATE.slice.feature) t.push("feature"); return t; }',
+'function bindFeaturePill(p){ p.addEventListener("click", function(){ var f=p.dataset.feature; STATE.slice.feature = STATE.slice.feature===f ? null : f; renderSlicerPanel(); applySlice(); writeHash(); }); }',
+'function renderSlicerPanel(){',
+'  var panel = document.getElementById("buildSlicer");',
+'  if(!panel) return;',
+'  panel.classList.toggle("active", STATE.group === "build");',
+'  $$(\'.slice-pill[data-slice-item="status"]\', panel).forEach(function(p){ var on = STATE.slice.status === p.dataset.status; p.classList.toggle("sel", on); p.setAttribute("aria-pressed", on ? "true" : "false"); });',
+'  $$(\'.slice-pill[data-slice-item="epic"]\', panel).forEach(function(p){ var on = STATE.slice.epic === p.dataset.epic; p.classList.toggle("sel", on); p.setAttribute("aria-pressed", on ? "true" : "false"); });',
+'  var featBand = document.getElementById("sliceFeatureBand");',
+'  if(featBand){',
+'    if(STATE.slice.epic){',
+'      featBand.hidden = false;',
+'      var feats = (D.feature||[]).filter(function(f){ return f.epic === STATE.slice.epic; }).sort(function(a,b){ return String(a.id).localeCompare(String(b.id), "en", {numeric:true}); });',
+'      var html = \'<span class="slice-lab">Feature</span>\';',
+'      html += feats.map(function(f){ var on = STATE.slice.feature === f.id; return \'<button type="button" class="slice-pill\' + (on?" sel":"") + \'" data-slice-item="feature" data-feature="\' + escHtml(f.id) + \'" aria-pressed="\' + (on?"true":"false") + \'" title="\' + escHtml(f.title||"") + \'">\' + escHtml(f.id) + \'</button>\'; }).join("");',
+'      if(!feats.length){ html += \'<span class="slice-note">no features under \' + escHtml(STATE.slice.epic) + \'</span>\'; }',
+'      featBand.innerHTML = html;',
+'      $$(\'.slice-pill[data-slice-item="feature"]\', featBand).forEach(bindFeaturePill);',
+'    } else {',
+'      featBand.hidden = true;',
+'      featBand.innerHTML = \'<span class="slice-lab">Feature</span><span class="slice-note">pick an epic to narrow</span>\';',
+'    }',
+'  }',
+'  var terms = sliceTermsList();',
+'  var clearBtn = document.getElementById("sliceClear");',
+'  if(clearBtn){ clearBtn.disabled = terms.length === 0; clearBtn.textContent = terms.length ? ("Clear · " + terms.length) : "Clear"; }',
+'}',
+// Filters the currently active Build sub-view's tiles/groups by the current
+// slice terms. Epic/feature terms only constrain tiles inside a `.grp[data-
+// epic]` wrapper (Stories/Testplans/Bugs, STORY-23.5.01) — Build sub-views
+// without that wrapper (Epics/Features/Phases) are filtered on status only,
+// since they carry no natural per-tile epic/feature scope of their own.
+// m4 (CHAT-07 review, anno-7): one shared group-visibility guard for both
+// applySlice() and applyPaging() — a `.grp` with zero tiles at all stays
+// visible (its own emptyMsg/degrade case, not a filtered-away group); a `.grp`
+// with tiles but none currently visible hides. Was two near-identical inline
+// loops with subtly different guards (applyPaging's dropped the `!tiles.length`
+// half), a drift risk in a file that already carries duplicated shapes.
+'function syncGroupVisibility(root){ $$(".grp", root).forEach(function(g){ var tiles = $$(".tile", g); var anyVisible = tiles.some(function(t){ return t.style.display !== "none"; }); g.style.display = (!tiles.length || anyVisible) ? "" : "none"; }); }',
+'function applySlice(){',
+'  if(STATE.group !== "build") return;',
+'  var sec = document.querySelector("#main .tab-section.active");',
+'  if(!sec) return;',
+'  $$(".tile[data-type]", sec).forEach(function(t){',
+'    var p = t.querySelector(".pill[data-status]");',
+'    var status = p ? p.getAttribute("data-status") : null;',
+'    var grp = t.closest(".grp[data-epic]");',
+'    var epicOk = !grp || !STATE.slice.epic || grp.getAttribute("data-epic") === STATE.slice.epic;',
+'    var featOk = !grp || !STATE.slice.feature || grp.getAttribute("data-feature") === STATE.slice.feature;',
+'    var ok = (!STATE.slice.status || status === STATE.slice.status) && epicOk && featOk;',
+'    t.style.display = ok ? "" : "none";',
+'  });',
+'  syncGroupVisibility(sec);',
+// A slice that legitimately zeroes-out the intersection (or a dropped-unknown
+// deep-link that lands on no term at all is still fine — SSR already covers
+// that) must not render a blank pane indistinguishable from a broken render.
+// Only shown while a slice is actually active — the unsliced default relies
+// on the SSR "No <type>s yet." empty state instead (CHAT-06 review M4).
+'  var hasSlice = sliceTermsList().length > 0;',
+'  var note = sec.querySelector(".slice-empty");',
+'  if(hasSlice){',
+'    var anyTile = $$(".tile[data-type]", sec).some(function(t){ return t.style.display !== "none"; });',
+'    if(!anyTile){',
+'      if(!note){ note = document.createElement("div"); note.className = "empty slice-empty"; note.textContent = "No items match the current slice — Clear resets."; sec.appendChild(note); }',
+'      note.style.display = "";',
+'    } else if(note){ note.style.display = "none"; }',
+'  } else if(note){ note.style.display = "none"; }',
+'  applyPaging();',
+'}',
+
+// ------------ Pagination (STORY-23.5.04) ------------
+// One helper, consumed identically by every Build list (Stories/Testplans/Bugs —
+// the three buildWorkGroupsHtml wrappers, `id^="build-"`): given the DOM tiles of
+// a list in document order plus the current page number, returns the tiles that
+// should be shown and how many remain. No per-view page logic anywhere else.
+'function pageWindow(items, page){ var end = page * PAGE_SIZE; return { shown: items.slice(0, end), remaining: Math.max(0, items.length - end) }; }',
+'function ensureShowMoreWrap(listWrap){',
+'  var wrap = listWrap.querySelector(".show-more-wrap");',
+'  if(!wrap){',
+'    wrap = document.createElement("div");',
+'    wrap.className = "show-more-wrap";',
+'    wrap.innerHTML = \'<button type="button" class="show-more-btn"></button>\';',
+'    listWrap.appendChild(wrap);',
+'    wrap.querySelector(".show-more-btn").addEventListener("click", function(){ PAGE_CURSOR.page += 1; applyPaging(); });',
+'  }',
+'  return wrap;',
+'}',
+// Suspended entirely while a slice is active (AC-2): the sliced result — already
+// filtered by applySlice() above, which always runs first — renders in full and
+// no "Show more" control exists. Unsliced, hides tiles beyond the current page
+// window and shows/updates the control with the remaining count (AC-1). The
+// (group, sub, slice) signature check resets to page 1 on any of those changing
+// (AC-4) — a fresh signature always means "start from the top of a different list".
+'function applyPaging(){',
+'  var sec = document.querySelector("#main .tab-section.active");',
+'  if(!sec) return;',
+'  var listWrap = sec.querySelector(\'[id^="build-"]\');',
+'  if(!listWrap) return;',
+'  var sig = STATE.group + ":" + STATE.sub + ":" + sliceHashValue();',
+'  if(sig !== PAGE_CURSOR.sig){ PAGE_CURSOR.sig = sig; PAGE_CURSOR.page = 1; }',
+'  var wrap = ensureShowMoreWrap(listWrap);',
+'  if(sliceTermsList().length > 0){ wrap.style.display = "none"; return; }',
+'  var tiles = $$(".tile[data-type]", listWrap);',
+'  var win = pageWindow(tiles, PAGE_CURSOR.page);',
+'  tiles.forEach(function(t, i){ t.style.display = i < win.shown.length ? "" : "none"; });',
+'  syncGroupVisibility(listWrap);',
+'  var btn = wrap.querySelector(".show-more-btn");',
+'  if(win.remaining > 0){ wrap.style.display = ""; btn.textContent = "Show " + win.remaining + " more"; }',
+'  else { wrap.style.display = "none"; }',
+'}',
+
+'function initSlicer(){',
+'  var panel = document.getElementById("buildSlicer");',
+'  if(!panel) return;',
+'  $$(\'.slice-pill[data-slice-item="status"]\', panel).forEach(function(p){ p.addEventListener("click", function(){ var s=p.dataset.status; STATE.slice.status = STATE.slice.status===s ? null : s; renderSlicerPanel(); applySlice(); writeHash(); }); });',
+'  $$(\'.slice-pill[data-slice-item="epic"]\', panel).forEach(function(p){ p.addEventListener("click", function(){ var e=p.dataset.epic; STATE.slice.epic = STATE.slice.epic===e ? null : e; if(!STATE.slice.epic){ STATE.slice.feature=null; } else if(STATE.slice.feature){ var stillValid=(D.feature||[]).some(function(f){ return f.id===STATE.slice.feature && f.epic===STATE.slice.epic; }); if(!stillValid) STATE.slice.feature=null; } renderSlicerPanel(); applySlice(); writeHash(); }); });',
+'  var clearBtn = document.getElementById("sliceClear");',
+'  if(clearBtn){ clearBtn.addEventListener("click", function(){ STATE.slice.status=null; STATE.slice.epic=null; STATE.slice.feature=null; renderSlicerPanel(); applySlice(); writeHash(); }); }',
+'}',
 
 // ------------ Render dispatch ------------
 'function renderActive(){',
@@ -2505,6 +3411,8 @@ const BROWSER_JS = [
 '  var renderer = RENDERERS[key] || RENDERERS[STATE.group];',
 '  if(renderer) renderer(sec);',
 '  reveal(sec);',
+'  renderSlicerPanel();',
+'  applySlice();',
 '}',
 
 'function reveal(root){ if(!root) return; $$(".reveal", root).forEach(function(e){ e.classList.add("visible"); }); }',
@@ -2550,7 +3458,7 @@ const BROWSER_JS = [
 '    + \'<dt>blocked</dt><dd>\' + ((wip["blocked"]||{}).current ?? blockedStories.length) + \' / \' + ((wip["blocked"]||{}).limit ?? 5) + \'</dd>\'',
 '  + \'</dl></div>\';',
 '  // In-progress / blocked lists — shared tile model (STORY-09.4.03: rows→tiles migration; STORY-13.1.01: helper renamed off the legacy `rowsHtml` name; ADR-0032)',
-'  function tileListHtml(list, emptyMsg){ if(!list.length) return \'<div class="empty">\' + emptyMsg + \'</div>\'; return \'<div class="tile-grid">\' + list.map(function(r){ return \'<div class="tile reveal" data-type="\' + r.type + \'" data-id="\' + escHtml(r.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(r.id) + \'</span><span class="tile-extra">\' + pill(r.status) + \'</span></div><div class="tile-title">\' + escHtml(r.title) + \'</div></div>\'; }).join("") + \'</div>\'; }',
+'  function tileListHtml(list, emptyMsg){ if(!list.length) return \'<div class="empty">\' + emptyMsg + \'</div>\'; return \'<div class="tile-grid">\' + list.map(function(r){ return \'<div class="tile reveal" data-drawer="1" data-type="\' + r.type + \'" data-id="\' + escHtml(r.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(r.id) + \'</span><span class="tile-extra">\' + pill(r.status) + \'</span></div><div class="tile-title">\' + escHtml(r.title) + \'</div></div>\'; }).join("") + \'</div>\'; }',
 '  var col1 = \'<div class="panel reveal"><h3>In-progress <span class="count-bubble">\' + (inProgStories.length+inProgFeats.length) + \'</span></h3>\' + tileListHtml(inProgStories.concat(inProgFeats), "No stories are in flight right now. Pull a \\\'ready\\\' story with <code>/tandem:execute-story</code> or open a phase via <code>/start-phase</code> to begin work.") + \'</div>\';',
 '  var col2 = \'<div class="panel reveal"><h3>Blocked <span class="count-bubble">\' + (blockedStories.length+blockedFeats.length) + \'</span></h3>\' + tileListHtml(blockedStories.concat(blockedFeats), "No blocked stories — the team isn\\\'t waiting on any external decisions or dependencies right now. Blockers appear here automatically when a story flips to <code>status: blocked</code>.") + \'</div>\';',
 '  // Latest monitor entry',
@@ -2558,7 +3466,7 @@ const BROWSER_JS = [
 '  var latest = monEntries.length ? \'<div class="panel reveal"><h3>Latest from MONITOR</h3><dl class="kv"><dt>\' + escHtml(monEntries[0].date) + \'</dt><dd>\' + escHtml(monEntries[0].title) + \'</dd></dl><p style="margin-top:0.6rem; color:var(--ink-2); font-size:0.86rem; line-height:1.6;">\' + escHtml(monEntries[0].summary) + \'</p></div>\' : \'\';',
 '  // Latest ADRs',
 '  var adrs = (D.adr||[]).slice().sort(function(a,b){ return String(b.id).localeCompare(String(a.id), "en", { numeric:true }); }).slice(0,3);',
-'  var adrHtml = \'<div class="panel reveal"><h3>Recent decisions</h3>\' + (adrs.length ? \'<div class="tile-grid">\' + adrs.map(function(a){ return \'<div class="tile reveal" data-type="adr" data-id="\' + escHtml(a.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(a.id) + \'</span><span class="tile-extra">\' + pill(a.status) + \'</span></div><div class="tile-title">\' + escHtml(a.title) + \'</div></div>\'; }).join("") + \'</div>\' : \'<div class="empty">No ADRs yet.</div>\') + \'</div>\';',
+'  var adrHtml = \'<div class="panel reveal"><h3>Recent decisions</h3>\' + (adrs.length ? \'<div class="tile-grid">\' + adrs.map(function(a){ return \'<div class="tile reveal" data-drawer="1" data-type="adr" data-id="\' + escHtml(a.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(a.id) + \'</span><span class="tile-extra">\' + pill(a.status) + \'</span></div><div class="tile-title">\' + escHtml(a.title) + \'</div></div>\'; }).join("") + \'</div>\' : \'<div class="empty">No ADRs yet.</div>\') + \'</div>\';',
 '  var intro = \'<div class="view-intro"><div class="vi-title">Overview</div><div class="vi-source">Reads <code>42-Monitor/MONITOR.md</code> and the latest artefacts from every scan folder.</div><div class="vi-why">Helps you see what is open, what is stale, and what shipped this week without opening individual files.</div></div>\';',
 '  root.innerHTML = intro + hero + progress + \'<div class="overview-panels">\' + col1 + col2 + \'</div>\' + (latest ? \'<div style="margin-top:1rem;">\' + latest + \'</div>\' : "") + \'<div style="margin-top:1rem;">\' + adrHtml + \'</div>\';',
 '  bindRows(root);',
@@ -2571,7 +3479,7 @@ const BROWSER_JS = [
 '  var search = (STATE.search.strategy||"").toLowerCase();',
 '  var filtered = list.filter(function(s){ return !search || (s.id+s.title+s.status+(s.bodyHtml||"")).toLowerCase().indexOf(search)!==-1; });',
 '  var controls = \'<div class="controls reveal"><input class="search" type="search" placeholder="Search strategy…" value="\' + escHtml(STATE.search.strategy||"") + \'" data-scope="strategy"></div>\';',
-'  var rows = filtered.length ? \'<div class="tile-grid stagger">\' + filtered.map(function(s){ return \'<div class="tile reveal" data-type="strategy" data-id="\' + escHtml(s.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(s.id) + \'</span><span class="tile-extra">\' + pill(s.status) + \'</span></div><div class="tile-title">\' + escHtml(s.title) + \'</div></div>\'; }).join("") + \'</div>\' : \'<div class="empty">No matches.</div>\';',
+'  var rows = filtered.length ? \'<div class="tile-grid stagger">\' + filtered.map(function(s){ return \'<div class="tile reveal" data-drawer="1" data-type="strategy" data-id="\' + escHtml(s.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(s.id) + \'</span><span class="tile-extra">\' + pill(s.status) + \'</span></div><div class="tile-title">\' + escHtml(s.title) + \'</div></div>\'; }).join("") + \'</div>\' : \'<div class="empty">No matches.</div>\';',
 '  var intro = \'<div class="view-intro"><div class="vi-title">Strategy</div><div class="vi-source">Reads <code>00-Strategy/</code> files and the strategic-linkage fields on epics.</div><div class="vi-why">Lets you trace any tactical item back to the business outcome it serves — OKRs, North Star and customer journey all live here.</div></div>\';',
 '  root.innerHTML = intro + controls + rows;',
 '  bindControls(root); bindRows(root);',
@@ -2643,7 +3551,7 @@ const BROWSER_JS = [
 '      var unlocks = (c.unlocks||[]).join(", ") || "—";',
 '      var badgeText = manualExec ? "✓ AUTO-EXECUTED" : (liveDone ? "✓ STORIES COMPLETE" : "MARK EXECUTED");',
 '      var badgeCls  = manualExec ? "exec" : (liveDone ? "exec exec-derived" : "pend");',
-'      return \'<div class="tile chat-card \' + (exec?"executed":"pending") + \' reveal" data-type="impl" data-id="\' + escHtml(c.id||"") + \'">\'',
+'      return \'<div class="tile chat-card \' + (exec?"executed":"pending") + \' reveal" data-drawer="1" data-type="impl" data-id="\' + escHtml(c.id||"") + \'">\'',
 '        + \'<div class="chat-head"><span class="chat-id">\' + escHtml(c.id||"") + \'</span><span class="chat-est">\' + escHtml(c.estimate||"") + \'</span><span class="chat-badge \' + badgeCls + \'">\' + badgeText + \'</span></div>\'',
 '        + \'<div class="chat-title">\' + escHtml(c.title||"") + \'</div>\'',
 '        + (c.outcome ? \'<div class="chat-outcome"><span class="lab">What you\\\'ll have</span> \' + escHtml(c.outcome) + \'</div>\' : "")',
@@ -2655,7 +3563,11 @@ const BROWSER_JS = [
 '        + \'<div class="chat-edges"><span class="lab">Depends on</span> \' + escHtml(deps) + \' · <span class="lab">Unlocks</span> \' + escHtml(unlocks) + \'</div>\'',
 '        + \'</div>\';',
 '    }).join("");',
-'    return \'<div class="impl-phase reveal"><h3 class="impl-phase-title">Phase \' + (pi+1) + \' · \' + escHtml((p.name||"").replace(/^\\s*Phase\\s*\\d+\\s*·\\s*/i,"")) + \'</h3>\' + (p.outcome ? \'<p class="impl-phase-sub">\' + escHtml(p.outcome) + \'</p>\' : "") + \'<div class="tile-grid impl-tiles">\' + cards + \'</div></div>\';',
+// STORY-23.3.03 — the phase heading itself is now drawer-openable (findArtefact + the
+// renderDrawer "phase" branch shipped in STORY-23.3.02; this is the click hook that
+// story deferred). id is self-contained: "<epicId>:phase<index>".
+'    var phaseId = escHtml(sel.epic) + ":phase" + pi;',
+'    return \'<div class="impl-phase reveal"><h3 class="impl-phase-title" data-drawer="1" data-type="phase" data-id="\' + phaseId + \'" role="button" tabindex="0" title="Open phase details">Phase \' + (pi+1) + \' · \' + escHtml((p.name||"").replace(/^\\s*Phase\\s*\\d+\\s*·\\s*/i,"")) + \'</h3>\' + (p.outcome ? \'<p class="impl-phase-sub">\' + escHtml(p.outcome) + \'</p>\' : "") + \'<div class="tile-grid impl-tiles">\' + cards + \'</div></div>\';',
 '  }).join("");',
 '  var intro = \'<div class="view-intro"><div class="vi-title">Implementation</div><div class="vi-source">Reads <code>41-Reports/EXECUTION-STRATEGY-*.json</code> sidecars generated by the execution-strategist skill.</div><div class="vi-why">Use this to pull the next ready chat into a fresh execute-batch session — it shows which chats are done, which are pending, and what each one depends on.</div></div>\';',
 '  root.innerHTML = intro + selector + head + body;',
@@ -2688,7 +3600,7 @@ const BROWSER_JS = [
 '      var stories = fn.stories || [];',
 '      var storiesHtml = stories.length ? \'<div class="tile-grid plan-stories">\' + stories.map(function(s){',
 '        var tp = (D.plan && D.plan.tpByStory && D.plan.tpByStory[s.id]) || null;',
-'        return \'<div class="tile" data-type="story" data-id="\' + escHtml(s.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(s.id) + \'</span><span class="tile-extra">\' + (tp ? \'<span class="tp-link">\' + escHtml(tp.id) + \'</span>\' : \'\') + pill(s.status) + \'</span></div><div class="tile-title">\' + escHtml(s.title) + \'</div></div>\';',
+'        return \'<div class="tile" data-drawer="1" data-type="story" data-id="\' + escHtml(s.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(s.id) + \'</span><span class="tile-extra">\' + (tp ? \'<span class="tp-link">\' + escHtml(tp.id) + \'</span>\' : \'\') + pill(s.status) + \'</span></div><div class="tile-title">\' + escHtml(s.title) + \'</div></div>\';',
 '      }).join("") + \'</div>\' : \'<div class="empty">No stories yet.</div>\';',
 '      return \'<div class="feat-card" data-feat="\' + escHtml(f.id) + \'"><div class="feat-head"><span class="disclose">▸</span><span class="feat-id">\' + escHtml(f.id) + \'</span><span class="feat-title">\' + escHtml(f.title) + \'</span>\' + pill(featStatus(fn)) + \'</div>\' + (f.deliverableHtml||"") + \'<div class="feat-body">\' + storiesHtml + \'</div></div>\';',
 '    }).join("") || \'<div class="empty">No features yet.</div>\';',
@@ -2720,7 +3632,7 @@ const BROWSER_JS = [
 '    var statusOff = STATE.statusFilter[scope] || {};',
 '    var statuses = Object.keys(((D.counts[typeKey]||{}).byStatus)||{});',
 '    statuses.sort(function(a,b){ return statusOrderIdx(a)-statusOrderIdx(b); });',
-'    var pillsHtml = statuses.map(function(s){ var off = statusOff[s]; return \'<span class="pill filterable\' + (off?\' off\':\'\') + \'" data-status="\' + escHtml(s) + \'" data-filter="status" aria-pressed="\' + (off?"false":"true") + \'">\' + escHtml(s) + \'</span>\'; }).join("");',
+'    var pillsHtml = statuses.map(function(s){ var off = statusOff[s]; return \'<span class="pill filterable\' + (off?\' off\':\'\') + \'" data-scope="\' + scope + \'" data-status="\' + escHtml(s) + \'" data-filter="status" aria-pressed="\' + (off?"false":"true") + \'">\' + escHtml(s) + \'</span>\'; }).join("");',
 '    var filtered = list.filter(function(r){',
 '      if(statusOff[r.status]) return false;',
 '      if(!search) return true;',
@@ -2741,7 +3653,7 @@ const BROWSER_JS = [
 '      if(typeKey==="story" && r.feature) metaBits.push(escHtml(r.feature));',
 '      if(typeKey==="testplan" && r.story) metaBits.push(escHtml(r.story));',
 '      var metaStr = metaBits.length ? \'<span class="meta">\' + metaBits.join(" · ") + \'</span>\' : "";',
-'      return \'<div class="tile reveal" data-type="\' + typeKey + \'" data-id="\' + escHtml(r.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(r.id) + \'</span><span class="tile-extra">\' + extraFor(r) + \'</span></div><div class="tile-title">\' + escHtml(r.title) + metaStr + \'</div></div>\';',
+'      return \'<div class="tile reveal" data-drawer="1" data-type="\' + typeKey + \'" data-id="\' + escHtml(r.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(r.id) + \'</span><span class="tile-extra">\' + extraFor(r) + \'</span></div><div class="tile-title">\' + escHtml(r.title) + metaStr + \'</div></div>\';',
 '    }',
 '    // STORY-04.6.01: group the Work view into its natural hierarchy so each item is reachable by drilling',
 '    // Epic → Feature → Story → (Testplan/Bug) instead of scanning one flat list. Each group keeps the shared',
@@ -2915,7 +3827,7 @@ const BROWSER_JS = [
 '    var statusOff = STATE.statusFilter[scope] || {};',
 '    var statuses = Object.keys(((D.counts[typeKey]||{}).byStatus)||{});',
 '    statuses.sort(function(a,b){ return statusOrderIdx(a)-statusOrderIdx(b); });',
-'    var pillsHtml = statuses.map(function(s){ var off = statusOff[s]; return \'<span class="pill filterable\' + (off?\' off\':\'\') + \'" data-status="\' + escHtml(s) + \'" data-filter="status" aria-pressed="\' + (off?"false":"true") + \'">\' + escHtml(s) + \'</span>\'; }).join("");',
+'    var pillsHtml = statuses.map(function(s){ var off = statusOff[s]; return \'<span class="pill filterable\' + (off?\' off\':\'\') + \'" data-scope="\' + scope + \'" data-status="\' + escHtml(s) + \'" data-filter="status" aria-pressed="\' + (off?"false":"true") + \'">\' + escHtml(s) + \'</span>\'; }).join("");',
 '    var filtered = list.filter(function(r){',
 '      if(statusOff[r.status]) return false;',
 '      if(!search) return true;',
@@ -2932,7 +3844,7 @@ const BROWSER_JS = [
 '      if((typeKey==="release"||typeKey==="retro") && (r.created_at||r.version)) metaBits.push(escHtml((r.created_at||r.version||"").slice(0,10)));',
 '      if(typeKey==="adr" && r.created_at) metaBits.push(escHtml(r.created_at.slice(0,10)));',
 '      var metaStr = metaBits.length ? \'<span class="meta">\' + metaBits.join(" · ") + \'</span>\' : "";',
-'      return \'<div class="tile reveal" data-type="\' + typeKey + \'" data-id="\' + escHtml(r.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(r.id) + \'</span><span class="tile-extra">\' + extra.join("") + \'</span></div><div class="tile-title">\' + escHtml(r.title) + metaStr + \'</div></div>\';',
+'      return \'<div class="tile reveal" data-drawer="1" data-type="\' + typeKey + \'" data-id="\' + escHtml(r.id) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(r.id) + \'</span><span class="tile-extra">\' + extra.join("") + \'</span></div><div class="tile-title">\' + escHtml(r.title) + metaStr + \'</div></div>\';',
 '    }',
 '    var rowsHtml;',
 '    if(!filtered.length){',
@@ -3008,7 +3920,7 @@ const BROWSER_JS = [
 '  // STORY-11.3.03 adds the human "context-load cost / context tax" wording + glossary cross-link.',
 '  var cost = (typeof it.tokenCost === "number") ? it.tokenCost : 0;',
 '  var costHtml = \'<span class="tag ai-cost" data-cost="\' + cost + \'" title="Context-load token cost (estimate)">~\' + formatTok(cost) + \' tok</span>\';',
-'  return \'<div class="ai-card reveal\' + (it.curated?" curated":"") + \'" data-type="ai-\' + kindKey + \'" data-name="\' + escHtml(it.name) + \'" data-cost="\' + cost + \'"><div class="name">\' + escHtml(it.name) + \'</div><div class="desc">\' + escHtml(desc) + \'</div>\' + nextHtml + \'<div class="footer">\' + costHtml + badges + \'</div></div>\';',
+'  return \'<div class="ai-card reveal\' + (it.curated?" curated":"") + \'" data-drawer="1" data-type="ai-\' + kindKey + \'" data-name="\' + escHtml(it.name) + \'" data-cost="\' + cost + \'"><div class="name">\' + escHtml(it.name) + \'</div><div class="desc">\' + escHtml(desc) + \'</div>\' + nextHtml + \'<div class="footer">\' + costHtml + badges + \'</div></div>\';',
 '}',
 // recommendedVsOther partition (ADR-0033): split filtered items into
 // "Recommended for this project" (fitRank HIGH or MED) vs the fit-rank catch-all
@@ -3024,6 +3936,11 @@ const BROWSER_JS = [
 '  return function(root){',
 '    var ai = D.ai || {};',
 '    var list = (D.ai && D.ai[listKey]) || [];',
+// STORY-23.6.02 — Skills/Commands show kit-native items in the server-baked
+// pinned group ahead of this section (see buildAiKitPinnedGroupHtml, ADR-0102);
+// exclude them here so a re-render (search/filter/sort) never duplicates them
+// into the "Recommended"/"Unranked" grid below.
+'    if(kindKey === "skill" || kindKey === "command"){ list = list.filter(function(it){ return it.displayGroup !== "kit"; }); }',
 '    var scope = "ai:" + kindKey;',
 '    var search = (STATE.search[scope]||"").toLowerCase();',
 '    var activeCat = STATE.aiCatFilter[scope] || null;',
@@ -3081,14 +3998,33 @@ const BROWSER_JS = [
 '        \'<div class="card-grid tight stagger">\' + items.map(function(it){ return aiCardHtml(it, kindKey); }).join("") + \'</div>\' +',
 '      \'</div>\';',
 '    }',
+// BUG-20260801-02 (M1) — filter the SSR kit-pinned band client-side too, so free-text
+// search reaches the 30 kit items instead of only the (already kit-excluded) `list`
+// below. Never re-renders the band — only toggles each card's display — so the band
+// still survives every renderActive() by construction (ADR-0102).
+'    var band = root.querySelector(":scope > .kit-pinned");',
+'    var bandMatches = 0;',
+'    if(band){',
+'      $$(".ai-card", band).forEach(function(c){',
+'        var hit = !search || (c.dataset.id||"").toLowerCase().indexOf(search)!==-1',
+'          || (c.textContent||"").toLowerCase().indexOf(search)!==-1;',
+'        c.style.display = hit ? "" : "none";',
+'        if(hit) bandMatches++;',
+'      });',
+'    }',
 '    var grid;',
 // BUG-20260618-03 Case B — the fit-rank catch-all's DISPLAY label comes from the
 // __DATA payload (ai.fitGroupLabel, "Unranked") rather than a hardcoded "Other" so
 // it no longer collides with the unrelated CATEGORY facet's "Other" catch-all
 // (categorise()'s bucket, which intentionally keeps its own "Other" label).
 '    var fitOtherLabel = ai.fitGroupLabel || "Unranked";',
-'    if(!filtered.length){',
+// BUG-20260801-02 (M1) — gate the empty message on BOTH halves being empty: a search
+// that only matches a pinned kit card (now visible above, per the block above) must
+// not also claim nothing matches.
+'    if(!filtered.length && !bandMatches){',
 '      grid = \'<div class="empty">No \' + escHtml(kindKey) + \'s match.</div>\';',
+'    } else if(!filtered.length){',
+'      grid = \'<div class="empty">Only Tandem kit items match — see the pinned band above.</div>\';',
 '    } else if(groups.recommended.length === 0){',
 // No overlays present (the common/demo case) — everything renders in the Unranked group without badges.
 '      grid = groupSection(fitOtherLabel, groups.other);',
@@ -3103,9 +4039,26 @@ const BROWSER_JS = [
 '      cmdFlowHtml = renderCommandFlow({ scope:"sop" });',
 '    }',
 '    var intro = \'<div class="view-intro"><div class="vi-title">AI Catalogue</div><div class="vi-source">Scans <code>~/.claude/</code> and the workspace <code>.claude/</code> folder for skill, sub-agent, slash command and plugin definitions.</div><div class="vi-why">Lets you see what is installed and what each item does without leaving the dashboard.</div></div>\';',
-'    root.innerHTML = intro + cmdFlowHtml + controls + catBar + costBar + grid;',
-'    bindControls(root);',
-'    $$(".tag.cat.exclusive", root).forEach(function(p){',
+// STORY-23.6.02 — Skills/Commands mount into their own `.ai-cat-body` child
+// (server-baked next to the kit-pinned group ahead of it, see the section
+// template) so a re-render never wipes that baked group. Agent/Plugin have no
+// such wrapper and fall back to the whole section, unchanged from before.
+'    var mount = root.querySelector(":scope > .ai-cat-body") || root;',
+// BUG-20260801-02 (m2) — Skills/Commands additionally bake a `.ai-cat-head` anchor
+// ABOVE the kit-pinned band (see the section skeleton). When present, controls mount
+// there so a user reaches search/category/cost controls before scrolling past the
+// whole kit band; the grid still mounts into `.ai-cat-body`, below the band. Agent/
+// Plugin have no such anchor and keep the prior single-mount behaviour.
+'    var head = root.querySelector(":scope > .ai-cat-head");',
+'    var controlsHost = head || mount;',
+'    if(head){',
+'      head.innerHTML = intro + cmdFlowHtml + controls + catBar + costBar;',
+'      mount.innerHTML = grid;',
+'    } else {',
+'      mount.innerHTML = intro + cmdFlowHtml + controls + catBar + costBar + grid;',
+'    }',
+'    bindControls(controlsHost);',
+'    $$(".tag.cat.exclusive", controlsHost).forEach(function(p){',
 '      p.addEventListener("click", function(){',
 '        var c = p.dataset.cat;',
 '        STATE.aiCatFilter[scope] = (STATE.aiCatFilter[scope]===c) ? null : c;',
@@ -3113,20 +4066,20 @@ const BROWSER_JS = [
 '      });',
 '    });',
 '    // STORY-11.3.02 — wire the cost sort pills + the cost filter (compose with category + search).',
-'    // No __bound guard here: root.innerHTML is rewritten on every renderActive(), so these elements',
-'    // are freshly created each render and must be re-bound each time (unlike bindControls targets).',
-'    $$(".cost-sort", root).forEach(function(b){',
+'    // No __bound guard here: controlsHost.innerHTML is rewritten on every renderActive(), so these',
+'    // elements are freshly created each render and must be re-bound each time (unlike bindControls targets).',
+'    $$(".cost-sort", controlsHost).forEach(function(b){',
 '      b.addEventListener("click", function(){',
 '        var v = b.dataset.costSort;',
 '        STATE.aiCostSort[scope] = (STATE.aiCostSort[scope]===v) ? null : v;',
 '        renderActive();',
 '      });',
 '    });',
-'    var cfEl = root.querySelector(".cost-filter");',
+'    var cfEl = controlsHost.querySelector(".cost-filter");',
 '    if(cfEl){ cfEl.addEventListener("change", function(){ STATE.aiCostFilter[scope] = Math.max(0, parseInt(cfEl.value,10)||0); renderActive(); }); }',
-'    $$(".ai-card", root).forEach(function(c){ c.addEventListener("click", function(){ openDrawer("ai-" + kindKey, c.dataset.name); }); });',
-'    $$(".cmd-pill[data-cmd-skill]", root).forEach(function(b){ b.addEventListener("click", function(ev){ ev.stopPropagation(); openDrawer("ai-skill", b.dataset.cmdSkill); }); });',
-'    bindCmdFlowTabs(root);',
+'    $$(".ai-card", mount).forEach(function(c){ c.addEventListener("click", function(){ openDrawer("ai-" + kindKey, c.dataset.name); }); });',
+'    $$(".cmd-pill[data-cmd-skill]", controlsHost).forEach(function(b){ b.addEventListener("click", function(ev){ ev.stopPropagation(); openDrawer("ai-skill", b.dataset.cmdSkill); }); });',
+'    bindCmdFlowTabs(controlsHost);',
 '  };',
 '}',
 'RENDERERS["ai:skill"]   = aiCatRenderer("skill",   "skills");',
@@ -3255,12 +4208,24 @@ const BROWSER_JS = [
 // --- Aliases for renamed groups -----------------------------
 'RENDERERS["plan:strategy"]   = RENDERERS.strategy;',
 'RENDERERS["plan:roadmap"]    = RENDERERS.plan;',
-'RENDERERS["build:phases"]    = RENDERERS.impl;',
+// STORY-23.4.01 — "build:phases" is intentionally NOT aliased to RENDERERS.impl
+// any more: its content is now server-rendered straight into <section id="sec-
+// build:phases"> (buildPhaseGroupsHtml(), same ADR-0094/0095 pattern as the rail
+// and sub-nav) so the phase/chat/story ratios are real baked text, not a runtime
+// string-concat a static-analysis check can never see. renderActive()'s `if
+// (renderer)` guard leaves the baked markup untouched when no key matches — the
+// same no-renderer-needed shape rail/subnav already rely on. RENDERERS.impl
+// itself stays defined above (legacy direct-call convention, per the note above).
 'RENDERERS["build:epic"]      = RENDERERS["work:epic"];',
 'RENDERERS["build:feature"]   = RENDERERS["work:feature"];',
-'RENDERERS["build:story"]     = RENDERERS["work:story"];',
-'RENDERERS["build:testplan"]  = RENDERERS["work:testplan"];',
-'RENDERERS["build:bug"]       = RENDERERS["work:bug"];',
+// STORY-23.5.01 (ADR-0099) — "build:story"/"build:testplan"/"build:bug" are
+// intentionally NOT aliased any more: same ADR-0098 rationale as build:phases
+// above — their grouped markup is now server-rendered straight into each
+// <section id="sec-build:...">  (buildWorkGroupsHtml()) so TESTPLAN-23.5.01
+// TC-01's literal-text grep sees real baked HTML, not client string-concat.
+// RENDERERS["work:story"/"work:testplan"/"work:bug"] (workRenderer()) stay
+// defined above per the legacy-direct-call convention; they are unreachable
+// from the nav now.
 'RENDERERS["capture:backlog"] = RENDERERS["decisions:backlog"];',
 'RENDERERS["cadence:retros"]   = RENDERERS["decisions:retro"];',
 'RENDERERS["cadence:releases"] = RENDERERS["decisions:release"];',
@@ -3268,7 +4233,11 @@ const BROWSER_JS = [
 'RENDERERS["toolkit:skill"]    = RENDERERS["ai:skill"];',
 'RENDERERS["toolkit:agent"]    = RENDERERS["ai:agent"];',
 'RENDERERS["toolkit:command"]  = RENDERERS["ai:command"];',
-'RENDERERS["toolkit:plugin"]   = RENDERERS["ai:plugin"];',
+// STORY-23.6.01 (ADR-0102) — Toolkit · Plugins has no client renderer: the whole
+// section (tiles + kit-pinned/other-installed grouping) is server-baked at
+// generation time (buildToolkitPluginsSectionHtml) so the paired testplan's
+// static-analysis grep sees real markup. `RENDERERS["ai:plugin"]` itself stays
+// defined above (harmless — reachable only via the retired `#group=ai` key).
 'RENDERERS["toolkit:glossary"] = RENDERERS["ai:glossary"];',
 
 // Tandem plugin tab — scans dist/tt/ at generation time and renders the
@@ -3415,13 +4384,13 @@ const BROWSER_JS = [
 '    if(opts.showType && it._type) sub = \'<span class="meta">\' + escHtml(it._type) + \'</span>\';',
 '    var idTxt = it.id || it.name || "";',
 '    var titleTxt = it.title || it.name || idTxt;',
-// v1.1.1 (BUG-20260529-01): for HTML reference artefacts (Specs/Templates with .html), open in new tab
-// instead of drawer (drawer would show empty body since we don\'t inline arbitrary HTML).
+// STORY-23.3.02 (was BUG-20260529-01\'s bypass-to-<a> fix): HTML reference artefacts
+// (Specs/Templates with .html) now open THROUGH the drawer like every other tile —
+// openDrawer detects the .html extension and renders an explanatory note (never an
+// inlined page) while also opening the real file in a new tab. data-drawer-html="1"
+// is a static hint the dead-tile/hooks scans can see without executing renderDrawer.
 '    var isHtmlRef = opts.useHrefAnchor && it.href && /\\.html?$/i.test(it.file || it.name || "");',
-'    if(isHtmlRef){',
-'      return \'<a class="tile reveal" href="\' + escHtml(it.href) + \'" target="_blank" rel="noopener" style="text-decoration:none; color:inherit;"><div class="tile-head"><span class="tile-id">\' + escHtml(idTxt) + \'</span><span class="tile-extra">\' + extra + \'</span></div><div class="tile-title">\' + escHtml(titleTxt) + sub + \'</div></a>\';',
-'    }',
-'    return \'<div class="tile reveal" data-type="\' + escHtml(t) + \'" data-id="\' + escHtml(idTxt) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(idTxt) + \'</span><span class="tile-extra">\' + extra + \'</span></div><div class="tile-title">\' + escHtml(titleTxt) + sub + \'</div></div>\';',
+'    return \'<div class="tile reveal" data-drawer="1" data-type="\' + escHtml(t) + \'" data-id="\' + escHtml(idTxt) + \'"\' + (isHtmlRef ? \' data-drawer-html="1"\' : "") + \'><div class="tile-head"><span class="tile-id">\' + escHtml(idTxt) + \'</span><span class="tile-extra">\' + extra + \'</span></div><div class="tile-title">\' + escHtml(titleTxt) + sub + \'</div></div>\';',
 '  }).join("") + \'</div>\';',
 '}',
 // Founder-action tiles (ADR-0063): the open question is the tile title, the recommendation
@@ -3434,7 +4403,7 @@ const BROWSER_JS = [
 '    var rec = it.recommendationText || it.recommendation || "";',
 '    var recHtml = rec ? \'<div class="meta" style="margin-top:0.4rem; white-space:normal; display:block;"><strong>Recommendation:</strong> \' + escHtml(rec) + \'</div>\' : "";',
 '    var tgt = it.target_artefact ? \'<span class="tile-extra">\' + escHtml(it.target_artefact) + \'</span>\' : "";',
-'    return \'<div class="tile reveal" data-type="inbox" data-id="\' + escHtml(idTxt) + \'"><div class="tile-head"><span class="tile-id">⏳ needs answer</span>\' + tgt + \'</div><div class="tile-title">\' + escHtml(q) + \'</div>\' + recHtml + \'</div>\';',
+'    return \'<div class="tile reveal" data-drawer="1" data-type="inbox" data-id="\' + escHtml(idTxt) + \'"><div class="tile-head"><span class="tile-id">⏳ needs answer</span>\' + tgt + \'</div><div class="tile-title">\' + escHtml(q) + \'</div>\' + recHtml + \'</div>\';',
 '  }).join("") + \'</div>\';',
 '}',
 
@@ -3510,7 +4479,7 @@ const BROWSER_JS = [
 '    return items.slice(0, 12).map(function(it){',
 '      var idTxt = it.id || "";',
 '      var when = (it._when||"").slice(0,10);',
-'      return \'<div class="stream-line" data-type="\' + escHtml(it._type||"story") + \'" data-id="\' + escHtml(idTxt) + \'" style="cursor:pointer;"><span class="stream-when">\' + escHtml(when) + \'</span><span class="stream-why">\' + escHtml(it._why||"") + \'</span><span class="stream-id">\' + escHtml(idTxt) + \'</span><span class="stream-title">\' + escHtml(it.title||"") + \'</span></div>\';',
+'      return \'<div class="stream-line" data-drawer="1" data-type="\' + escHtml(it._type||"story") + \'" data-id="\' + escHtml(idTxt) + \'" style="cursor:pointer;"><span class="stream-when">\' + escHtml(when) + \'</span><span class="stream-why">\' + escHtml(it._why||"") + \'</span><span class="stream-id">\' + escHtml(idTxt) + \'</span><span class="stream-title">\' + escHtml(it.title||"") + \'</span></div>\';',
 '    }).join("");',
 '  }',
 '  function widget(label, count, body, isPending){',
@@ -3532,14 +4501,22 @@ const BROWSER_JS = [
 '  var usageHtml = renderUsagePanel();',
 '  root.innerHTML = hero + flowPanel + progress + nowGrid + (latest ? \'<div style="margin-top:1rem;">\' + latest + \'</div>\' : "") + \'<div style="margin-top:1rem;">\' + usageHtml + \'</div>\' + \'<div style="margin-top:1rem;">\' + adrHtml + \'</div>\';',
 '  bindRows(root);',
+// STORY-23.5.03 AC-2 — a lifecycle stage that carries a status (Ready/In-progress/
+// In-review/Done — Inbox/Backlog target "capture" and carry no status) pre-sets the
+// Build slicer's status term through the SAME STATE.slice + setGroup()/writeHash()
+// path a manual slice pill click uses (no parallel filtering mechanism). The prior
+// write here targeted STATE.statusFilter["work:story"] — a tri-state filter map that
+// only workRenderer()-driven views ever read; ADR-0099 stopped aliasing "build:story"
+// to workRenderer (it is now server-baked via buildWorkGroupsHtml), so that write had
+// been silently inert since STORY-23.5.01 landed.
 '  $$("[data-flow-target]", root).forEach(function(el){ el.addEventListener("click", function(){',
 '    var g = el.dataset.flowGroup, s = el.dataset.flowSub, st = el.dataset.flowStatus;',
-'    if(st){',
-'      var key = "work:story";',
-'      var known = ["not-started","ready","in-progress","in-review","blocked","done","wontfix","duplicate","archived"];',
-'      STATE.statusFilter[key] = {};',
-'      known.forEach(function(x){ if(x !== st) STATE.statusFilter[key][x] = true; });',
-'    }',
+// m1 (CHAT-07 review, anno-4): only status-bearing stages (Ready/In-progress/
+// In-review/Done) preset the slice — capture-target stages (Inbox/Backlog)
+// carry no data-flow-status and must leave STATE.slice untouched, or a click
+// there silently wipes whatever slice the operator had (breaks STORY-23.5.03
+// AC-3's "leaving Build and returning preserves the slice" promise).
+'    if(st){ STATE.slice.status = st; STATE.slice.epic = null; STATE.slice.feature = null; }',
 '    setGroup(g, { sub:s });',
 '  }); });',
 '};',
@@ -3605,7 +4582,9 @@ const BROWSER_JS = [
 '};',
 
 // --- Cadence → Audits ------------------------------------------
-// v1.1.1 (BUG-20260529-01): .html opens in new tab (rendered HTML); .md / .json / others open in drawer.
+// STORY-23.3.02 (was BUG-20260529-01\'s bypass-to-<a> fix): .html audits now open
+// THROUGH the drawer (note + new-tab), like every other tile — see openDrawer\'s
+// html-artefact branch. data-drawer-html="1" flags it for the static hooks scan.
 'RENDERERS["cadence:audits"] = function(root){',
 '  var audits = D.audits || [];',
 '  if(!audits.length){ root.innerHTML = \'<div class="panel"><h3>Audits</h3><div class="empty">No audits in 41-Reports/ yet.</div></div>\'; return; }',
@@ -3613,10 +4592,7 @@ const BROWSER_JS = [
 '  html += audits.map(function(a){',
 '    var extMatch = (a.name.match(/\\.[^.]+$/) || [""])[0].slice(1).toLowerCase();',
 '    var isHtml = /\\.html?$/i.test(a.name);',
-'    if(isHtml){',
-'      return \'<a class="tile reveal" href="\' + escHtml(a.href) + \'" target="_blank" rel="noopener" style="text-decoration:none; color:inherit;"><div class="tile-head"><span class="tile-id">\' + escHtml(a.kind) + \'</span><span class="tile-extra"><span class="ext-badge \' + escHtml(extMatch) + \'">\' + escHtml(extMatch) + \'</span></span></div><div class="tile-title">\' + escHtml(a.name) + \'</div></a>\';',
-'    }',
-'    return \'<div class="tile reveal" data-type="audits" data-id="\' + escHtml(a.name) + \'"><div class="tile-head"><span class="tile-id">\' + escHtml(a.kind) + \'</span><span class="tile-extra"><span class="ext-badge \' + escHtml(extMatch) + \'">\' + escHtml(extMatch) + \'</span></span></div><div class="tile-title">\' + escHtml(a.name) + \'</div></div>\';',
+'    return \'<div class="tile reveal" data-drawer="1" data-type="audits" data-id="\' + escHtml(a.name) + \'"\' + (isHtml ? \' data-drawer-html="1"\' : "") + \'><div class="tile-head"><span class="tile-id">\' + escHtml(a.kind) + \'</span><span class="tile-extra"><span class="ext-badge \' + escHtml(extMatch) + \'">\' + escHtml(extMatch) + \'</span></span></div><div class="tile-title">\' + escHtml(a.name) + \'</div></div>\';',
 '  }).join("");',
 '  html += \'</div>\';',
 '  root.innerHTML = html;',
@@ -3748,17 +4724,19 @@ const BROWSER_JS = [
 
 // ------------ Drawer ------------
 'var DRAWER_STACK = [];',
-'function findArtefact(type, id){',
+'function findArtefact(type, id, epicHint){',
 '  if(type==="ai-skill")   return (D.ai.skills||[]).find(function(x){ return x.name===id; });',
 '  if(type==="ai-agent")   return (D.ai.agents||[]).find(function(x){ return x.name===id; });',
 '  if(type==="ai-command") return (D.ai.commands||[]).find(function(x){ return x.name===id; });',
 '  if(type==="ai-plugin")  return (D.ai.plugins||[]).find(function(x){ return x.name===id; });',
 // Chat IDs (CHAT-01, CHAT-02 …) repeat across epics — they're local to each
-// epic, not globally unique. Scope the lookup to STATE.implEpic so clicking
-// CHAT-01 on EPIC-03 returns EPIC-03's chat, not the last-seen epic's.
+// epic, not globally unique. Scope the lookup to an explicit epicHint (carried
+// on the clicked pill via data-xref-epic — CHAT-04 review, anno-7) when given,
+// else fall back to STATE.implEpic (the Implementation view's own epic filter).
 '  if(type==="impl"){',
 '    var epics = (D.executionStrategy && D.executionStrategy.epics) || [];',
-'    var scoped = STATE.implEpic ? epics.filter(function(e){ return e.epic === STATE.implEpic; }) : epics;',
+'    var scopeEpic = epicHint || STATE.implEpic;',
+'    var scoped = scopeEpic ? epics.filter(function(e){ return e.epic === scopeEpic; }) : epics;',
 '    var pool = scoped.length ? scoped : epics;',
 '    for(var ei=0; ei<pool.length; ei++){',
 '      var ph = pool[ei].phases || [];',
@@ -3769,6 +4747,19 @@ const BROWSER_JS = [
 '    }',
 '    return null;',
 '  }',
+// STORY-23.3.02 — phases had no findArtefact case at all (no drawer, no body) before
+// this story. id is self-contained ("<epicId>:phase<index>"), so unlike "impl" chats
+// it needs no STATE.implEpic scoping to resolve.
+'  if(type==="phase"){',
+'    var m = /^(.+):phase(\\d+)$/.exec(id || "");',
+'    if(!m) return null;',
+'    var epics2 = (D.executionStrategy && D.executionStrategy.epics) || [];',
+'    var ep = epics2.find(function(e){ return e.epic === m[1]; });',
+'    if(!ep) return null;',
+'    var phase = (ep.phases || [])[Number(m[2])];',
+'    if(!phase) return null;',
+'    return Object.assign({ id: id, epic: ep.epic, _index: Number(m[2]) }, phase);',
+'  }',
 // v1.1.1 (BUG-20260529-01): audits/reviews look up by name (no id field on report artefacts).
 '  if(type==="audits") return (D.audits||[]).find(function(x){ return x.name===id; });',
 '  if(type==="reviews") return (D.reviews||[]).find(function(x){ return x.name===id; });',
@@ -3777,11 +4768,19 @@ const BROWSER_JS = [
 '}',
 
 'function showDrawerPanel(){ var d=$("#drawer"), m=$("#mask"); d.classList.add("open"); m.classList.add("open"); document.body.style.overflow="hidden"; $(".drawer-back", d).classList.toggle("show", DRAWER_STACK.length>1); d.scrollTo({top:0, behavior:"instant"}); }',
+// STORY-23.3.02 AC-3 — `.html` artefacts never inline; the drawer shows a note instead.
+// Reuses the same extension test the server-side tile emitters already applied
+// (mockup v2.5\'s html-note pattern is the contract).
+'function isHtmlArtefact(item){ var f = (item && (item.file || item.name || item.href)) || ""; return /\\.html?$/i.test(f); }',
 'function openDrawer(type, id, opts){',
 '  opts = opts || {};',
-'  var item = findArtefact(type, id);',
+'  var item = findArtefact(type, id, opts.epic);',
 '  if(!item){ console.warn("No artefact for", type, id); return; }',
 '  if(opts.replaceTop && DRAWER_STACK.length) DRAWER_STACK.pop();',
+// Open the real file in a new tab exactly once, on the initiating click — not on every
+// re-render (Back navigation calls DRAWER_STACK[...].render() directly, not openDrawer,
+// so returning to a previously-opened html note never re-pops a tab).
+'  if(isHtmlArtefact(item) && item.href){ try{ window.open(item.href, "_blank", "noopener"); }catch(e){} }',
 '  DRAWER_STACK.push({ render: function(){ renderDrawer(item, type); } });',
 '  renderDrawer(item, type);',
 '  showDrawerPanel();',
@@ -3806,6 +4805,15 @@ const BROWSER_JS = [
 '  if(item.mustKnow) meta.innerHTML += \'<span class="tag must">must-know</span>\';',
 '  if(item.version) meta.innerHTML += \'<span class="tag">v\' + escHtml(item.version) + \'</span>\';',
 '  var body = $("#drawer .drawer-body");',
+// STORY-23.3.02 AC-3 — html artefacts short-circuit here: a note, never an inlined page.
+// window.open already fired (once) back in openDrawer; this only renders the note + a
+// manual retry link for when a popup blocker ate the automatic open.
+'  if(isHtmlArtefact(item)){',
+'    var openLabel = (item.name || item.file || idText || "file");',
+'    body.innerHTML = \'<div class="html-note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6H5V6h6M14 3h7v7M10 14L21 3"/></svg><span>This is a rendered HTML artefact. It opens in its own browser tab — the drawer never inlines arbitrary HTML.</span></div>\'',
+'      + (item.href ? (\'<a class="file-link" href="\' + escHtml(item.href) + \'" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M10 14L21 3"/></svg>Open \' + escHtml(openLabel) + \' in a new tab</a>\') : "");',
+'    return;',
+'  }',
 '  var sections = "";',
 '  if(item.outcome && !/^ai-/.test(type)) sections += \'<p class="drawer-outcome"><span class="lab">Outcome</span> \' + escHtml(item.outcome) + \'</p>\';',
 '  // Implementation chat drawer (execution-strategy chats)',
@@ -3823,6 +4831,24 @@ const BROWSER_JS = [
 '    if(item.depends_on && item.depends_on.length) implSecs += \'<h3>Depends on</h3><p>\' + item.depends_on.map(function(s){ return \'<code>\' + escHtml(s) + \'</code>\'; }).join(" ") + \'</p>\';',
 '    if(item.unlocks && item.unlocks.length)   implSecs += \'<h3>Unlocks</h3><p>\' + item.unlocks.map(function(s){ return \'<code>\' + escHtml(s) + \'</code>\'; }).join(" ") + \'</p>\';',
 '    body.innerHTML = implSecs;',
+'    wireDrawerLinks(body);',
+'    return;',
+'  }',
+// STORY-23.3.02 — phase drawer (previously no body at all: phases weren\'t clickable).
+// Lists its chats (each a clickable xref back into the "impl" drawer) plus outcome.
+// CHAT-04 review (anno-7): rendering must not mutate global routing state — the epic
+// travels on each chat pill via data-xref-epic instead of writing STATE.implEpic here
+// (which repeated on every Back into a phase and could desync the Implementation
+// view\'s own epic <select> from STATE). wireDrawerLinks/openDrawer/findArtefact
+// thread the hint through per-click instead.
+'  if(type==="phase"){',
+'    var phaseSecs = "";',
+'    if(item.outcome) phaseSecs += \'<p class="drawer-outcome"><span class="lab">Outcome</span> \' + escHtml(item.outcome) + \'</p>\';',
+'    var phaseChats = item.chats || [];',
+'    if(phaseChats.length){',
+'      phaseSecs += \'<h3>Chats · \' + phaseChats.length + \'</h3><div class="xref">\' + phaseChats.map(function(c){ return \'<button type="button" class="xref-pill" data-xref-type="impl" data-xref-epic="\' + escHtml(item.epic||"") + \'" data-xref-id="\' + escHtml(c.id||"") + \'">\' + escHtml(c.id||"") + (c.executed?" ✓":"") + \'</button>\'; }).join("") + \'</div>\';',
+'    }',
+'    body.innerHTML = phaseSecs || \'<p style="color:var(--ink-faint);">No chats recorded for this phase.</p>\';',
 '    wireDrawerLinks(body);',
 '    return;',
 '  }',
@@ -3917,7 +4943,10 @@ const BROWSER_JS = [
 // Wire every in-drawer drill-down affordance: cross-reference pills,
 // skill sub-commands, and bundled plugin items.
 'function wireDrawerLinks(body){',
-'  $$(".xref-pill", body).forEach(function(b){ b.addEventListener("click", function(){ openDrawer(b.dataset.xrefType, b.dataset.xrefId); }); });',
+// data-xref-epic (set only on phase-drawer chat pills) threads the epic hint through
+// to findArtefact\'s "impl" lookup — CHAT-04 review, anno-7 — instead of the render
+// path writing STATE.implEpic as a side effect.
+'  $$(".xref-pill", body).forEach(function(b){ b.addEventListener("click", function(){ openDrawer(b.dataset.xrefType, b.dataset.xrefId, { epic: b.dataset.xrefEpic }); }); });',
 '  $$("[data-sub-skill]", body).forEach(function(elm){ var go=function(){ openSkillSubItem(elm.dataset.subSkill, elm.dataset.subSlug); }; elm.addEventListener("click", go); elm.addEventListener("keydown", function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } }); });',
 '  $$("[data-bundled-plugin]", body).forEach(function(elm){ var go=function(){ openBundledItem(elm.dataset.bundledPlugin, elm.dataset.bundledKind, elm.dataset.bundledName); }; elm.addEventListener("click", go); elm.addEventListener("keydown", function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } }); });',
 '}',
@@ -4050,13 +5079,44 @@ const BROWSER_JS = [
 '}',
 
 // ------------ Event wiring ------------
-// v1.1.1 (BUG-20260529-01): include .stream-line so Now's "This week" rows open the drawer.
-'function bindRows(root){',
-'  $$(".tile, .stream-line", root).forEach(function(r){ if(r.__bound) return; r.__bound=true; r.addEventListener("click", function(){ openDrawer(r.dataset.type, r.dataset.id); }); });',
+// STORY-23.3.03 (Pattern: "one shared data-drawer attribute contract ... a single
+// delegated click handler — not per-tile listeners"; Gotcha: "drawers inside drawers
+// can double-fire — guard with stopPropagation discipline at one place, the delegate").
+// bindRows is now a no-op kept only so its ~13 existing call sites (one per RENDERERS
+// entry) stay harmless — TILE_CLICK_DELEGATE, registered once in init(), is the single
+// place every .tile/.stream-line/[data-drawer] click is handled, board-wide, regardless
+// of which renderer last painted the section. This also fixes the double-fire risk the
+// old per-node model relied on manual __bound guards to avoid: with one document-level
+// listener there is nothing left to double-bind.
+'function bindRows(root){ /* no-op — see TILE_CLICK_DELEGATE in init() */ }',
+'function tileClickDelegate(e){',
+'  if(e.target.closest("#drawer")) return;', // drawer-internal affordances (xref-pills, sub-items) own their bindings via wireDrawerLinks
+'  var el = e.target.closest(".tile, .stream-line, [data-drawer]");',
+'  if(!el) return;',
+'  var type = el.dataset.type, id = el.dataset.id;',
+'  if(!type || !id) return;',
+// STORY-23.4.02 — chat tiles in the server-rendered Build > Phases view carry an
+// optional data-epic (chat ids like "CHAT-01" repeat across epics, so findArtefact's
+// "impl" lookup needs the same epic hint the in-drawer xref-pills already thread via
+// data-xref-epic). Elements without data-epic pass undefined — unchanged behaviour.
+'  openDrawer(type, id, { epic: el.dataset.epic });',
+'}',
+// CHAT-04 review (anno-6): a keyboard-only counterpart to tileClickDelegate — the
+// impl-phase-title heading (role="button" tabindex="0") and any future non-<button>
+// [data-drawer] control need an Enter/Space activation path, not just click.
+'function tileKeyDelegate(e){',
+'  if(e.key !== "Enter" && e.key !== " ") return;',
+'  if(e.target.closest("#drawer")) return;', // drawer-internal affordances own their own keydown bindings
+'  var el = e.target.closest(".tile, .stream-line, [data-drawer]");',
+'  if(!el) return;',
+'  var type = el.dataset.type, id = el.dataset.id;',
+'  if(!type || !id) return;',
+'  e.preventDefault();',
+'  openDrawer(type, id, { epic: el.dataset.epic });',
 '}',
 'function bindControls(root){',
 '  $$(".search", root).forEach(function(inp){ if(inp.__bound) return; inp.__bound=true; inp.addEventListener("input", function(){ var s = inp.dataset.scope; STATE.search[s] = inp.value; renderActive(); inp.focus(); }); });',
-'  $$(".pill.filterable", root).forEach(function(p){ if(p.__bound) return; p.__bound=true; p.addEventListener("click", function(){ var s = (STATE.group==="work"?"work:":STATE.group==="decisions"?"decisions:":STATE.group+":") + STATE.sub; STATE.statusFilter[s] = STATE.statusFilter[s] || {}; var st = p.dataset.status; STATE.statusFilter[s][st] = !STATE.statusFilter[s][st]; renderActive(); }); });',
+'  $$(".pill.filterable", root).forEach(function(p){ if(p.__bound) return; p.__bound=true; p.addEventListener("click", function(){ var s = p.dataset.scope; if(!s) return; STATE.statusFilter[s] = STATE.statusFilter[s] || {}; var st = p.dataset.status; STATE.statusFilter[s][st] = !STATE.statusFilter[s][st]; renderActive(); }); });',
 '}',
 
 // Command process flow view-tab clicks (Planning / Development / Learning / E2E).
@@ -4084,25 +5144,43 @@ const BROWSER_JS = [
 
 // ------------ Init ------------
 'function init(){',
-'  renderGroupNav();',
+'  initRail();',
+'  initRailCollapse();',
+'  initSubNav();',
+'  initSlicer();',
 '  // Hash routing',
 '  var h = readHash();',
 // v1.1 — apply LEGACY_ROUTES so old hash bookmarks redirect silently.
 '  var r = applyLegacy(h.group, h.sub);',
+// STORY-23.5.02 AC-4 — slice terms are parsed from the SAME initial hash read,
+// BEFORE the first setGroup()/renderActive() call, so a deep-linked slice
+// hash restores filtered on first paint (not one render late).
+'  applySliceFromHash(h);',
 '  if(r.group && SUB_TABS[r.group] != null){ setGroup(r.group, { sub: r.sub }); } else { setGroup("now"); }',
 '  // Mask + close',
 '  $("#mask").addEventListener("click", closeDrawer);',
 '  $(".drawer-close").addEventListener("click", closeDrawer);',
 '  $(".drawer-back").addEventListener("click", popDrawer);',
+// STORY-23.3.03 — the ONE delegated tile-click listener for the whole board (see
+// tileClickDelegate). Registered once, here, board-wide — no renderer needs to call
+// bindRows/bindControls-style per-node binding for drawer-opening ever again.
+'  document.addEventListener("click", tileClickDelegate);',
+// CHAT-04 review (anno-6) — the keyboard counterpart, registered alongside it.
+'  document.addEventListener("keydown", tileKeyDelegate);',
 // v1.1 — Cmd-K / Ctrl-K opens the global search palette; `/` keeps focusing the active tab's search.
 '  document.addEventListener("keydown", function(e){',
 '    if((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")){ e.preventDefault(); openPalette(); return; }',
 '    if(e.key === "Escape"){ if(STATE.palette){ closePalette(); return; } if($("#drawer").classList.contains("open")) closeDrawer(); return; }',
 '    if(e.key === "/" && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)){ e.preventDefault(); openPalette(); }',
 '  });',
-'  $("#theme-toggle").addEventListener("click", function(){ applyTheme(document.documentElement.getAttribute("data-theme")==="dark" ? "light" : "dark"); });',
-// v1.1 — hashchange also honours LEGACY_ROUTES.
-'  window.addEventListener("hashchange", function(){ var h=readHash(); var r=applyLegacy(h.group, h.sub); if(r.group && r.group!==STATE.group){ setGroup(r.group, { sub:r.sub }); } else if(r.sub && r.sub!==STATE.sub){ setSub(r.sub); } });',
+// v1.1 — hashchange also honours LEGACY_ROUTES. v2 (STORY-23.2.03 review fix,
+// BUG-20260731-02): mirrors init()'s SUB_TABS validation. init() (below) validates
+// r.group before routing; this listener did not — an unknown group, or an unknown/
+// blank sub for the CURRENT group, blanked the whole board (0 active rail item, 0
+// active sections, no console error) because setGroup()/setSub() were called with
+// unvalidated input. Both branches now route through setGroup(), which already
+// whitelists opts.sub against SUB_TABS[g] and falls back to the group's first sub.
+'  window.addEventListener("hashchange", function(){ var h=readHash(); var r=applyLegacy(h.group, h.sub); applySliceFromHash(h); if(r.group && SUB_TABS[r.group]==null){ setGroup("now"); return; } if(r.group && r.group!==STATE.group){ setGroup(r.group, { sub:r.sub }); } else if(r.sub && r.sub!==STATE.sub){ setGroup(STATE.group, { sub:r.sub }); } else { renderSlicerPanel(); applySlice(); } });',
 '  setupRevealObserver();',
 '  // Diagnostics link clicks',
 '  $$("#diag a[data-path]").forEach(function(a){ a.addEventListener("click", function(e){ e.preventDefault(); /* read-only — show path */ }); });',
@@ -4129,6 +5207,15 @@ function escScript(s) {
 
 function emitHtml(data) {
   const escapedProjectName = escapeHtml(data.project || resolveProjectName());
+  // STORY-23.1.03 AC-3 — top bar identity line: "{Project Name} Command Center ·
+  // snapshot {generated at}" as ONE contiguous text run (no tag between "Center"
+  // and "· snapshot" — TESTPLAN-23.1.03 TC-02 greps the literal phrase). Date is
+  // the ISO date portion of the build timestamp, already unique per rebuild.
+  const topBarDate = String(data.generatedAt || '').slice(0, 10) || '—';
+  const topBarText = escapedProjectName + ' Command Center · snapshot ' + escapeHtml(topBarDate);
+  // STORY-23.1.03 AC-4 — badge slot: inline the pinned asset when present, else
+  // recreate the circular triangle mark inline. Computed once per render.
+  const badgeMarkup = resolveBadgeMarkup();
   // Diagnostics banner — surfaces files the scan could NOT fold into the corpus so a
   // silently-skipped file never leaves a section mysteriously empty. Two tiers:
   //   • unparseable (red alert): file in a scanned artefact dir but skipped (e.g. no
@@ -4146,6 +5233,41 @@ function emitHtml(data) {
   }
   const diagBlock = diagParts.length ? `<div id="diag" class="diag">${diagParts.join('')}</div>` : '';
 
+  // STORY-23.4.01 — real, generation-time HTML for Build → Phases (see
+  // buildPhaseGroupsHtml() near buildExecutionStrategy). Baked directly into the
+  // section below, not filled by a client RENDERERS entry.
+  const phaseGroupsHtml = buildPhaseGroupsHtml(data.phases || [], data.story || []);
+
+  // STORY-23.5.01 (ADR-0099) — same server-baked pattern for Build · Stories/
+  // Testplans/Bugs: real grouped HTML, not a client RENDERERS string-concat.
+  const storyGroupsHtml = buildWorkGroupsHtml('story', 'build-stories', 'Build · Stories',
+    'Reads every story under <code>32-Stories/</code>, grouped epic → feature.',
+    'The story queue is where planned work becomes tracked work — grouped consistently with Testplans and Bugs so the eye learns one layout once.',
+    data.story || [], data.epic || [], data.feature || []);
+  const testplanGroupsHtml = buildWorkGroupsHtml('testplan', 'build-testplans', 'Build · Testplans',
+    'Reads every test plan under <code>33-Testplans/</code>, grouped epic → feature like Stories.',
+    'Every story carries a paired testplan; grouping the same way makes it easy to find the plan for the story you\'re looking at.',
+    data.testplan || [], data.epic || [], data.feature || []);
+  const bugGroupsHtml = buildWorkGroupsHtml('bug', 'build-bugs', 'Build · Bugs',
+    'Reads every bug under <code>34-Bugs/</code>, grouped epic → feature like Stories.',
+    'Bugs group the same way as Stories and Testplans so a defect\'s place in the plan is always one glance away; unresolved lineage lands under Unassigned.',
+    data.bug || [], data.epic || [], data.feature || []);
+
+  // STORY-23.5.02 — the slicer panel is Build-wide chrome, mounted once (not
+  // per sub-view) directly ahead of the Build tab-sections; `.slicer-panel`
+  // starts `display:none` and only shows `.active` while Build is the current
+  // rail group (renderSlicerPanel(), same toggle pattern as `.sub-nav`).
+  const slicerPanelHtml = buildSlicerPanelHtml(data);
+
+  // STORY-23.6.01 — Toolkit · Plugins is fully server-baked (see the removed
+  // `RENDERERS["toolkit:plugin"]` alias in BROWSER_JS below).
+  const aiData = data.ai || {};
+  const pluginsSectionHtml = buildToolkitPluginsSectionHtml(aiData.plugins || []);
+  // STORY-23.6.02 — kit-pinned group only, baked ahead of the client-rendered
+  // (search/category/cost-sort-preserving) rest of Skills/Commands.
+  const skillKitPinnedHtml = buildAiKitPinnedGroupHtml(aiData.skills || [], 'skill');
+  const commandKitPinnedHtml = buildAiKitPinnedGroupHtml(aiData.commands || [], 'command');
+
   // v1.1 — 8-group section grid (ADR-0048, PRD §5.1, TESTPLAN-04.6.06 TC-02).
   const sections = `
     <section id="sec-now" class="tab-section"></section>
@@ -4154,22 +5276,22 @@ function emitHtml(data) {
     <section id="sec-plan:strategy" class="tab-section"></section>
     <section id="sec-plan:roadmap" class="tab-section"></section>
     <section id="sec-plan:specs" class="tab-section"></section>
-    <section id="sec-build:phases" class="tab-section"></section>
+    <section id="sec-build:phases" class="tab-section">${phaseGroupsHtml}</section>
     <section id="sec-build:epic" class="tab-section"></section>
     <section id="sec-build:feature" class="tab-section"></section>
-    <section id="sec-build:story" class="tab-section"></section>
-    <section id="sec-build:testplan" class="tab-section"></section>
-    <section id="sec-build:bug" class="tab-section"></section>
+    <section id="sec-build:story" class="tab-section">${storyGroupsHtml}</section>
+    <section id="sec-build:testplan" class="tab-section">${testplanGroupsHtml}</section>
+    <section id="sec-build:bug" class="tab-section">${bugGroupsHtml}</section>
     <section id="sec-cadence:monitor" class="tab-section"></section>
     <section id="sec-cadence:retros" class="tab-section"></section>
     <section id="sec-cadence:releases" class="tab-section"></section>
     <section id="sec-cadence:reviews" class="tab-section"></section>
     <section id="sec-cadence:audits" class="tab-section"></section>
     <section id="sec-decisions" class="tab-section"></section>
-    <section id="sec-toolkit:skill" class="tab-section"></section>
+    <section id="sec-toolkit:skill" class="tab-section"><div class="ai-cat-head"></div>${skillKitPinnedHtml}<div class="ai-cat-body"></div></section>
     <section id="sec-toolkit:agent" class="tab-section"></section>
-    <section id="sec-toolkit:command" class="tab-section"></section>
-    <section id="sec-toolkit:plugin" class="tab-section"></section>
+    <section id="sec-toolkit:command" class="tab-section"><div class="ai-cat-head"></div>${commandKitPinnedHtml}<div class="ai-cat-body"></div></section>
+    <section id="sec-toolkit:plugin" class="tab-section">${pluginsSectionHtml}</section>
     <section id="sec-toolkit:templates" class="tab-section"></section>
     <section id="sec-toolkit:prompts" class="tab-section"></section>
     <section id="sec-toolkit:scripts" class="tab-section"></section>
@@ -4178,52 +5300,70 @@ function emitHtml(data) {
     <section id="sec-about" class="tab-section"></section>
   `;
 
-  const dataJson = escScript(JSON.stringify(data));
+  // AI-CODE-REVIEW-CHAT-05 anno-6 — `data.phases` (the flattened per-phase array) has
+  // zero client consumers: the browser script only ever reads D.executionStrategy for
+  // its impl/phase lookups (findArtefact), never D.phases. Keep it server-side only —
+  // buildPhaseGroupsHtml()/railCounts()/subNavCount() above already consumed it to bake
+  // the SSR section and the rail/sub-nav counts — so it doesn't have to ship a second,
+  // ~105 KB-dead copy of the same strategy corpus down the wire on every board.
+  const clientData = Object.assign({}, data);
+  delete clientData.phases;
+  const dataJson = escScript(JSON.stringify(clientData));
+  // STORY-23.2.01 (ADR-0094) — static server-rendered rail markup; see buildRailHtml().
+  const railHtml = buildRailHtml(data);
+  // STORY-23.2.02 (ADR-0094) — static server-rendered pill sub-nav; see buildSubNavHtml().
+  const subNavHtml = buildSubNavHtml(data);
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="generator" content="generate-dashboard.js (PRD-PM-Dashboard.md v1.1, ADR-0048)">
+<meta name="generator" content="generate-dashboard.js (PRD-PM-Dashboard.md v1.1, ADR-0048, ADR-0094)">
 <meta name="robots" content="noindex">
 <title>Tandem Command Center — ${escapedProjectName}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <style>${CSS}</style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to main content</a>
+<div class="app" id="app">
+  <aside class="rail" role="navigation" aria-label="Section groups">
+    <div class="rail-head">
+      <button type="button" id="rail-toggle" class="rail-toggle-btn" data-rail-toggle aria-label="Collapse navigation" title="Collapse navigation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+    <div class="rail-scroll">
+      ${railHtml}
+    </div>
+  </aside>
+  <div class="app-main">
 <header class="app-header" role="banner">
   <div class="app-header-inner">
-    <div class="brand-wrap">
-      <span class="brand-mark" aria-hidden="true">
-        <svg class="brand-logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="100" fill="#1C1713"/><polygon points="50.0,142.0 148.0,142.0 128.0,50.0" fill="none" stroke="#2E6CE7" stroke-width="4.5" stroke-linejoin="round"/><polygon points="71.1,131.0 133.8,131.0 121.0,72.1" fill="none" stroke="#F5B726" stroke-width="4.5" stroke-linejoin="round"/><polygon points="91.1,120.5 120.5,120.5 114.5,92.9" fill="none" stroke="#D72D2D" stroke-width="4.5" stroke-linejoin="round"/></svg>
+    <div class="brand-wrap rail-top">
+      <span class="brand-mark" aria-hidden="true">${badgeMarkup}</span>
+      <span class="logo-lockup">
+        <span class="logo-word">Tandem Command Center.</span>
+        <span class="logo-repo">${escapedProjectName}</span>
       </span>
-      <div>
-        <h1 class="app-title">Tandem Command Center<em>.</em></h1>
-        <small class="app-sub">${escapedProjectName}</small>
-      </div>
     </div>
     <div class="app-tools">
-      <span class="app-meta" title="Generated">${escapeHtml(data.generatedAt)}</span>
-      <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme" title="Toggle theme">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
-      </button>
+      <span class="top-meta" title="Generated">${topBarText}</span>
     </div>
   </div>
 </header>
 ${diagBlock}
-<nav id="group-nav-wrap" class="group-nav" role="navigation" aria-label="Section groups">
-  <div id="group-nav" class="group-inner"></div>
-</nav>
-<nav id="sub-nav" class="sub-nav" role="navigation" aria-label="Sub-tabs">
-  <div id="sub-nav-inner" class="sub-inner"></div>
-</nav>
+${subNavHtml}
 <main id="main" role="main">
+${slicerPanelHtml}
 ${sections}
 </main>
+<footer class="app-footer rail-foot" role="contentinfo">
+  <span class="logo-dot" aria-hidden="true"></span>
+  <span class="rail-foot-t"><b>DATAXYZ</b> · Tandem Command Center</span>
+</footer>
+  </div>
+</div>
 <div id="mask" class="mask" aria-hidden="true"></div>
 <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
   <div class="drawer-head">
@@ -4242,11 +5382,48 @@ ${sections}
   <div class="drawer-body"></div>
 </aside>
 <script>window.__DATA = ${dataJson};</script>
+<script>var KNOWN_ROUTES = ${escScript(JSON.stringify(data.knownRoutes || []))};</script>
 <script>
 ${BROWSER_JS}
 </script>
 </body>
 </html>`;
+}
+
+/* ============================================================
+ * Cross-reference resolution — build-time application (STORY-23.3.02)
+ * ============================================================ */
+
+// Collections whose tiled artefacts get body-embedded cross-ref linking. Kept
+// to the AC's enumerated tiled types (story/bug/testplan/epic/feature/ADR +
+// the AI catalogue) rather than every scanned folder, so the payload-growth
+// guard (TESTPLAN-23.1.02 TC-03, 20 MB envelope) has headroom — resolving
+// against report/backlog/retro prose that rarely carries recognisable
+// cross-refs would grow the file for little drawer value.
+const XREF_TARGET_COLLECTIONS = ['story', 'bug', 'testplan', 'epic', 'feature', 'adr'];
+
+function applyCrossRefResolution(data) {
+  const idIndex = new Map();
+  for (const type of XREF_TARGET_COLLECTIONS) {
+    for (const item of data[type] || []) {
+      if (item && item.id) idIndex.set(String(item.id), type);
+    }
+  }
+  for (const type of XREF_TARGET_COLLECTIONS) {
+    for (const item of data[type] || []) {
+      if (item && item.bodyHtml) item.bodyHtml = resolveCrossRefs(item.bodyHtml, idIndex, item.id);
+    }
+  }
+  // AI catalogue: skills/agents/commands carry bodyHtml; plugins carry readmeHtml.
+  const ai = data.ai || {};
+  for (const kind of ['skills', 'agents', 'commands']) {
+    for (const item of ai[kind] || []) {
+      if (item && item.bodyHtml) item.bodyHtml = resolveCrossRefs(item.bodyHtml, idIndex, item.name);
+    }
+  }
+  for (const item of ai.plugins || []) {
+    if (item && item.readmeHtml) item.readmeHtml = resolveCrossRefs(item.readmeHtml, idIndex, item.name);
+  }
 }
 
 /* ============================================================
@@ -4281,11 +5458,18 @@ function main() {
 
   // v1.1 — split reports into typed homes for Build → Phases / Cadence → Reviews|Audits.
   const splitR = splitReports(reports);
-  // `phases` is the existing executionStrategy reshaped to a flat card list per epic.
-  const phases = (executionStrategy && executionStrategy.epics) || [];
+  // STORY-23.4.01/02 — `phases` is now one entry PER PHASE (flattened across every
+  // epic), not one entry per epic — see flattenPhases(). Both the rail count and the
+  // "Phases" sub-nav pill (railCounts/subNavCount, unchanged) key off this same array,
+  // so AC-4 (sub-nav count === sidecar phase count) falls out of this reshape for free.
+  const phases = flattenPhases(executionStrategy);
 
   // BUG-20260618-01 / STORY-21.5.01 — Tandem tab consumer gate.
   const isKitRepo = detectIsKitRepo();
+
+  // STORY-23.2.03 (ADR-0095) — hash-router v2 known-routes table, generated
+  // from the parity inventory (never hand-duplicated).
+  const knownRoutes = buildKnownRoutes();
 
   const data = Object.assign({}, pm, {
     generatedAt: new Date().toISOString(),
@@ -4318,7 +5502,10 @@ function main() {
     tandemPackage: buildTandemPackage(),
     isKitRepo,
     tandemEmptyStateHtml: buildTandemEmptyStateHtml(isKitRepo),
+    knownRoutes,
   });
+
+  applyCrossRefResolution(data);
 
   const html = emitHtml(data);
   fs.mkdirSync(path.dirname(OUT_FILE), { recursive: true });

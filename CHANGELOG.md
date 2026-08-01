@@ -2,6 +2,21 @@
 
 All notable changes to **Tandem** are tracked here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [2.8.0] — 2026-08-01
+
+**A redesigned Command Center — brand identity end to end, one-click depth on every artefact, and a new plan-integrity check.** Upgrading is safe: the status enum, the frontmatter contract, and every existing command name are unchanged.
+
+### Added
+- **Redesigned Command Center.** A left-rail navigation with pill sub-menus replaces the old stacked tab rows; a universal drawer opens any artefact — story, epic, feature, testplan, bug, ADR — in place, in two clicks or fewer, from anywhere on the board. The execution plan now renders as phase → chat → story instead of a flat list, and the whole board can be sliced by epic, feature, and status, with your slice remembered as you move between tabs. Long lists paginate automatically instead of dumping hundreds of rows at once. The visual identity is now ink-and-cream throughout, with the Tandem mark and brand fonts embedded on every page (no external font requests) — dark mode has been retired in favour of this single, considered palette. Every capability the previous board had still works; nothing was quietly dropped in the rewrite.
+- **Toolkit is now always visible**, with its own Plugins view, and Tandem's own skills, agents, and commands are pinned first wherever installed tools are ranked — so what the kit ships is never buried under everything else you've installed.
+- **`/tandem:plan-drift`** — a new read-only review that checks your plan in both directions: every requirement (from a PRD, epic, or feature) traced to a covering story, and every story checked for fidelity against the requirement it claims to satisfy. Run it before decomposing new work, or before closing out a requirements-backed epic. It writes an advisory report and never edits a story, requirement, or status — a human rules on every finding.
+- Cross-model prompt hardening across the core execution skills, plus a warn-tier lint that flags model-fragile phrasing in Tandem's own instructions before it ships.
+
+### Changed
+- **`write-outcomes`** (the founder-facing outcome-line writer) now runs inline by default instead of always spawning a separate sub-agent — faster and cheaper for the common case, with no change to the outcome lines you see.
+
+---
+
 ## [2.7.3] — 2026-07-30
 
 **Documentation and discovery only — no behaviour changes.** Nothing to do; update whenever it suits you.

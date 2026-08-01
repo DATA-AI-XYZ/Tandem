@@ -98,6 +98,8 @@ For each item, mark PASS / FAIL with evidence.
 
 ## End-of-close-out summary (always emit)
 
+Only report a status you can point to a gate or tool result from this session for; anything unverified is stated as unverified.
+
 - DoD result: PASS / FAIL with gaps
 - Story status now: `done` | still `in-review`
 - MONITOR updated: yes / no

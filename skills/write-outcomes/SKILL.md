@@ -1,11 +1,11 @@
 ---
 name: write-outcomes
-description: Internal dispatch-only support skill — producer skills spawn a sub-agent that applies it to turn an artefact's technical content into one plain-English founder-outcome line for founder-facing surfaces. Never invoked manually and matches no direct user request; it is not a lifecycle command and stays model-invocable only so producer skills can delegate outcome-line writing to it.
+description: Internal support skill — producer skills apply it inline by default to turn an artefact's technical content into one plain-English founder-outcome line for founder-facing surfaces (dispatch to a sub-agent remains an optional fallback under ADR-0105's named conditions). Never invoked manually and matches no direct user request; it is not a lifecycle command and stays model-invocable only so producer skills can apply or delegate outcome-line writing to it.
 ---
 
-# Tandem: write-outcomes (dispatch-only)
+# Tandem: write-outcomes (applied inline by producers; dispatch optional)
 
-This skill is **dispatch-only**. Producer skills (via FEAT-14.3 wirings) spawn a sub-agent, hand it an artefact's technical scope, and this skill transforms it into a single plain-English outcome line for founder-facing communication. A human never invokes this directly; it is not part of the lifecycle command chain.
+This skill is the single rulebook for the founder-outcome voice. Producer skills (via FEAT-14.3 wirings) apply it **inline by default** — reading this file and writing the one-line outcome themselves, in their own context, immediately after drafting the artefact's technical body — rather than spawning a sub-agent for it. Dispatching a sub-agent to apply this skill remains a legitimate, optional fallback under [ADR-0105](../../_00-Project-Management/40-Decisions/ADR-0105-write-outcomes-inline-first.md)'s named conditions (producer context near its limit; isolation-worthy batch runs), reversing ADR-0059's mandatory-dispatch mandate while keeping the mechanism available. A human never invokes this directly; it is not part of the lifecycle command chain.
 
 An "outcome line" is the what-you-can-now-do summary: what a founder will *have* or *be able to do* after this artefact ships. It strips internals and surfaces value.
 
@@ -91,8 +91,10 @@ Each pair is labelled by the artefact type whose technical body the producer han
 
 **Thin / empty input → return an empty line.** When the input describes no user-visible capability yet — a stub, empty or placeholder acceptance criteria, scaffolding-only scope, or a TODO with nothing shipped — return an empty line (no text). The producer then leaves the outcome field blank rather than inventing one. Never fabricate value the artefact does not yet deliver: a blank outcome is correct and honest; a plausible-sounding but unearned promise is not. This keeps the five FEAT-14.3 producers consistent — none should synthesise an outcome from an artefact that has no shipped capability to describe.
 
-## How Producers Dispatch This
+## How Producers Apply This
 
-A producer skill (e.g., the FEAT-14.3 wirings for dashboard-generator or CLAUDE.md automation) spawns a sub-agent, hands it the artefact's technical body + this skill file, and receives the one-line outcome back to store. The sub-agent runs this skill in isolation, not as part of the lifecycle chain. The outcome line is persisted by the caller, not by this skill.
+**Default — inline.** A producer skill (e.g., the FEAT-14.3 wirings for `draft-prd`, `split-into-features`, `split-into-stories`, `execution-strategist`, `refine-backlog`) reads this file itself, in its own context, and writes the one-line outcome following the Voice/Template/Examples/Input-Output-Contract above — no sub-agent spawn. The producer persists the line verbatim into the artefact's `outcome:` field, same as before.
 
-This skill is dispatch-only and does not execute in the main lifecycle.
+**Fallback — dispatch.** Under [ADR-0105](../../_00-Project-Management/40-Decisions/ADR-0105-write-outcomes-inline-first.md)'s named conditions (producer context near its limit; isolation-worthy batch runs), a producer may instead spawn a sub-agent, hand it the artefact's technical body + this skill file, and receive the one-line outcome back to store — the sub-agent runs this skill in isolation, not as part of the lifecycle chain. Either path produces an identical output contract; only the mechanism differs.
+
+This skill is not part of the lifecycle chain and does not execute in the main lifecycle on its own — a producer applies it (inline) or dispatches it (fallback), never a human directly.

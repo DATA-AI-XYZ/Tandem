@@ -62,7 +62,7 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
    - Frontmatter: `id: TESTPLAN-NN.M.PP`, `story: STORY-NN.M.PP`, `feature: FEAT-NN.M`, `epic: EPIC-NN`, `status: not-started`, `created_at: <ISO 8601 now>`.
 5. **Validate before writing**: every AC in the draft Story is covered by ≥1 TC in the draft Testplan; every TC has a real `Command:`. If validation fails, **abort** per the enforcement contract above.
 6. Commit both files to disk in the same response. Number stories sequentially within the Feature (.01, .02, .03 …).
-   - As each Story file is written, dispatch the `write-outcomes` skill via a sub-agent, passing the story's title, acceptance criteria, and technical content. Write the returned single-line outcome (verbatim, no markdown) into that Story's `outcome:` frontmatter field — in the same response.
+   - As each Story file is written, apply the `write-outcomes` rules inline to the story's title, acceptance criteria, and technical content to produce the outcome line; dispatch a sub-agent only under [ADR-0105](../../_00-Project-Management/40-Decisions/ADR-0105-write-outcomes-inline-first.md)'s named conditions (this producer's own context is near its limit, or an isolation-worthy batch run). Write the single-line outcome (verbatim, no markdown) into that Story's `outcome:` frontmatter field — in the same response.
 7. Update the Feature's `## Stories` section with relative links to the new Story files.
 8. **Show the file tree of what you'll create before writing.** Wait for user approval.
 

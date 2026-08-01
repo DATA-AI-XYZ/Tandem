@@ -24,6 +24,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parseFrontmatter, stripQuotes } = require('./lib/frontmatter');
+const promptLint = require('./lib/prompt-lint');
 
 // ---------- Config ----------
 
@@ -82,8 +83,13 @@ const SCAN_DIRS = SCAN_KEYS.map(k => PATHS[k]);
 //                        (lets tests stay self-contained, no real repo files).
 // --manifest-dir <path>  override the base dir for manifest-parity checks (version-parity gate).
 //                        If absent, uses repo root. Allows testing with fixture manifests.
+// --prompt-lint-target <file>  lint a SINGLE file against the prompt-lint phrase list
+//                        (STORY-24.1.02) and exit — bypasses the frontmatter corpus
+//                        scan entirely (the target fixture carries no YAML frontmatter).
+//                        The fixture-driven test seam for TESTPLAN-24.1.02 TC-01.
 let FIXTURES_DIR = null;
 let MANIFEST_DIR = null;
+let PROMPT_LINT_TARGET = null;
 {
   const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
@@ -103,6 +109,13 @@ let MANIFEST_DIR = null;
         process.exit(2);
       }
       MANIFEST_DIR = path.resolve(val);
+    } else if (argv[i] === '--prompt-lint-target') {
+      const val = argv[i + 1];
+      if (!val || val.startsWith('--')) {
+        console.error('✗ --prompt-lint-target requires a file path argument');
+        process.exit(2);
+      }
+      PROMPT_LINT_TARGET = path.resolve(val);
     }
   }
 }
@@ -298,6 +311,16 @@ function checkFile(filepath, allFilesByType, storyIndex) {
   } else if (!isISO8601WithOffset(fm.created_at)) {
     violate(filepath, 'R2',
       `created_at '${fm.created_at}' is not ISO 8601 with offset (e.g. 2026-05-20T14:32:00+01:00)`);
+  }
+
+  // R24 — title required and non-empty. Every artefact template carries `title:` and the
+  // dashboard keys cards, drawers and search on it (the generator falls back to the body H1
+  // only as a render-time courtesy). Before this rule, 44 legacy bugs + 3 reports shipped
+  // without one and the board rendered "(no title)" — BUG-20260731-01.
+  if (fm.title === undefined || fm.title === null || String(fm.title).trim() === '') {
+    violate(filepath, 'R24',
+      'Missing or empty `title` — set it to the artefact H1 text (for BUG files: the symptom). ' +
+      'Without it the board and search render "(no title)".');
   }
 
   // R3 — in-progress implies started_at non-empty
@@ -521,6 +544,26 @@ function checkFile(filepath, allFilesByType, storyIndex) {
             `41-Reports/AI-CODE-REVIEW-<story-id>-<YYYY-MM-DD>.html). ` +
             `Exempt: ai_review=skipped-trivial / n-a, and stories created before ${R15B_PRESENCE_CUTOFF}.`);
         }
+      }
+
+      // W3 (BUG-20260801-02 m5) — cross-story ai_review_artefact reuse on a SKIPPED review,
+      // unguarded seam flagged by the CHAT-08 review (anno-7). R15b's existence arm only
+      // checks the artefact path resolves; nothing checks it actually belongs to THIS
+      // story, so any existing HTML file satisfies it. Scoped to `skipped-trivial` only
+      // (not `completed-*`) — completed reviews legitimately share one batch/wave artefact
+      // across many stories (an established, intentional corpus pattern; see the epic21
+      // "wave" artefacts), which is not the seam this finding is about. Warn (not error,
+      // ADR-0061) when the artefact's basename does not carry this story's id AND the skip
+      // reason does not explicitly justify the reuse (e.g. "same commit", "shared files",
+      // "sibling story") — STORY-23.6.02's own skip reason ("same commit, shared files")
+      // stays silent under this rule; an unexplained mismatch does not.
+      if (fm.ai_review === 'skipped-trivial' && fm.ai_review_artefact && fm.id &&
+          !path.basename(String(fm.ai_review_artefact)).includes(fm.id) &&
+          !/shared|sibling|same commit/i.test(String(fm.ai_review_skip_reason || ''))) {
+        warn(filepath, 'W3',
+          `ai_review_artefact ('${fm.ai_review_artefact}') filename does not carry this ` +
+          `story's id (${fm.id}) — cross-story reuse must be justified in ai_review_skip_reason ` +
+          `(e.g. mention "same commit" / "shared files" / "sibling story").`);
       }
 
       // R17 — every `depends_on:` entry must point at an existing STORY-NN.M.PP under
@@ -902,9 +945,73 @@ function checkVerifyAntiPatterns(reportsDir = path.join(PM_ROOT, '41-Reports')) 
   }
 }
 
+// ---------- W4 — prompt-language lint (STORY-24.1.02 / BACKLOG-0091 / ADR-0104) ----------
+// Advisory (warn-tier, ADR-0061) scan of `skills/**/SKILL.md` and `<prompts>/**/*.md` for
+// model-fragile prompt phrases — patterns that once were standard prompting advice but now
+// cause over-verification, refusal triggers, or tool-overtriggering on newer Claude models
+// (e.g. "double-check your", "ALWAYS use"). The seed phrase list lives in
+// lib/prompt-lint-phrases.json (config/data, not code — AC-2), so extending it never touches
+// this file. Every hit routes through warn(), never violate() — a future edit that
+// reintroduces a banned phrase gets nudged in `pm:lint` output, never blocked (same stance as
+// W1/W2/W3). Corpus scan only (skipped under --fixtures-dir and --prompt-lint-target, which
+// exercise the phrase-matching logic in isolation — see main()'s standalone target-mode
+// handling and test-prompt-lint.js).
+function checkPromptLint(skillsDir = path.join(REPO_ROOT, 'skills'),
+                          promptsDir = path.join(PM_ROOT, PATHS.prompts)) {
+  let phrases;
+  try {
+    phrases = promptLint.loadPhraseConfig();
+  } catch (e) {
+    // A broken phrase config is a script/data problem, not a corpus problem — fail loudly
+    // (fatal) rather than silently linting nothing on every future run.
+    violate(PM_ROOT, 'PROMPT-LINT-CONFIG', `prompt-lint phrase config failed to load: ${e.message}`);
+    return;
+  }
+  const files = promptLint.findCorpusFiles(skillsDir, promptsDir);
+  for (const f of files) {
+    const hits = promptLint.scanFile(f, phrases);
+    for (const hit of hits) {
+      warn(f, 'W4',
+        `Model-fragile prompt phrase '${hit.phrase}' at line ${hit.line} — ${hit.reason}. ` +
+        `Replacement: ${hit.replacement}. See 90-Standards/CLAUDE-CODE-CONFIG.md ` +
+        `§ "Cross-model prompt language".`);
+    }
+  }
+}
+
 // ---------- Main ----------
 
 function main() {
+  // --prompt-lint-target <file> — single-file phrase-lint report, then exit. Runs BEFORE
+  // any frontmatter/corpus logic because the target is typically a frontmatter-free fixture
+  // (it would otherwise trip R0 "missing frontmatter"). Warn-tier: ALWAYS exits 0, regardless
+  // of hit count — this is the fixture-driven test seam for TESTPLAN-24.1.02 TC-01.
+  if (PROMPT_LINT_TARGET) {
+    if (!fs.existsSync(PROMPT_LINT_TARGET)) {
+      console.error(`✗ --prompt-lint-target file not found: ${PROMPT_LINT_TARGET}`);
+      process.exit(2);
+    }
+    let phrases;
+    try {
+      phrases = promptLint.loadPhraseConfig();
+    } catch (e) {
+      console.error(`✗ prompt-lint phrase config failed to load: ${e.message}`);
+      process.exit(2);
+    }
+    const hits = promptLint.scanFile(PROMPT_LINT_TARGET, phrases);
+    const base = path.basename(PROMPT_LINT_TARGET);
+    if (hits.length === 0) {
+      console.log(`✓ prompt-lint — 0 finding(s) for ${base}.`);
+    } else {
+      console.log(`⚠ prompt-lint — ${hits.length} WARN finding(s) for ${base}:`);
+      hits.forEach((hit, i) => {
+        console.log(`  ${i + 1}. WARN [${hit.phrase}] ${base}:${hit.line} — ${hit.reason}. ` +
+          `Replacement: ${hit.replacement}.`);
+      });
+    }
+    process.exit(0);
+  }
+
   // Resolve scan root depending on mode.
   const scanRoot = FIXTURES_DIR || PM_ROOT;
   if (!fs.existsSync(scanRoot)) {
@@ -995,6 +1102,12 @@ function main() {
     checkVerifyAntiPatterns();
   }
 
+  // W4 — prompt-language lint corpus scan (STORY-24.1.02 AC-1/AC-3). Advisory/non-fatal;
+  // normal mode only (the isolated fixtures dir doesn't carry skills/ or a prompts folder).
+  if (!FIXTURES_DIR) {
+    checkPromptLint();
+  }
+
   // Version-parity gate (STORY-09.3.02) — check that all three version manifests align.
   // Runs whenever MANIFEST_DIR is set or in normal (non-fixtures) mode.
   const manifestBaseDir = MANIFEST_DIR || (FIXTURES_DIR ? null : REPO_ROOT);
@@ -1064,6 +1177,10 @@ module.exports.violations = violations;
 // Exported for unit tests (STORY-21.2.02 / ADR-0079): the pure R23 shape checker, no
 // filesystem access — mirrors the R19 suggested_agents export seam.
 module.exports.checkUsageEstimateShape = checkUsageEstimateShape;
+// Exported for test injection (STORY-24.1.02): lets test-prompt-lint.js point the W4
+// corpus scan at fixture skills/prompts dirs without touching the real repo tree.
+module.exports.checkPromptLint = checkPromptLint;
+module.exports.warnings = warnings;
 
 // Run as CLI only. The guard lets a test `require()` this module to reach the export
 // above WITHOUT triggering a full corpus lint + process.exit() (mirrors the

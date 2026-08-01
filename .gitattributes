@@ -2,3 +2,9 @@
 # any non-git-for-Windows `sh`/dash. Pin the shipped pre-commit hooks to LF so a
 # Windows clone with core.autocrlf=true can't rewrite them. (STORY-01.5.03 review.)
 _00-Project-Management/93-Scripts/hooks/pre-commit text eol=lf
+
+# The plugin-metrics time series is appended from a Windows dev machine and from
+# the Linux CI runner. Pin to LF so each daily commit is a one-line diff rather
+# than a whole-file EOL rewrite, which would bury the actual change.
+data/plugin-metrics/*.csv  text eol=lf
+data/plugin-metrics/*.json text eol=lf

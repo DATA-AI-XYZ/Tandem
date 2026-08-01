@@ -1,5 +1,8 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+
 /**
  * dashboard-css.js -- CSS for the enhanced dev dashboard generator.
  *
@@ -15,7 +18,56 @@
  * CSS, so this module has no scaffold mirror (see check-mirror.js ALLOW).
  */
 
-module.exports = `
+/**
+ * STORY-23.1.02 — inline the three brand font families as base64 data-URI
+ * @font-face rules so the single-file board carries no external font request
+ * (renders correctly offline / from file://). ADR-0092 records the measured
+ * subset-vs-full-family trade-off; the six files below ARE that decision:
+ *   - latin + latin-ext unicode ranges only (no cyrillic/greek/vietnamese —
+ *     this is an English-only internal tool; ADR-0092 measured the unused
+ *     scripts at ~58KB raw for zero benefit).
+ *   - weights limited to what the :root token stack below actually uses
+ *     (Manrope 400-800, JetBrains Mono 400-700, Instrument Serif 400 only).
+ *   - normal style only — no italic files fetched or embedded (Brand
+ *     Guidelines v1.0: no italic mixing; see STORY-23.1.03's carried nit).
+ * Source: Google Fonts (SIL OFL 1.1 — licence text for each family ships
+ * alongside its binaries in ../assets/fonts/OFL-*.txt, per the story's
+ * risk note that embedded fonts must carry their licence).
+ */
+const FONT_DIR = path.join(__dirname, '..', 'assets', 'fonts');
+const LATIN_RANGE = 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD';
+const LATIN_EXT_RANGE = 'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF';
+
+const FONT_FACES = [
+  { family: 'Instrument Serif', weight: '400',     file: 'instrument-serif-latin.woff2',     range: LATIN_RANGE },
+  { family: 'Instrument Serif', weight: '400',     file: 'instrument-serif-latin-ext.woff2', range: LATIN_EXT_RANGE },
+  { family: 'Manrope',          weight: '400 800', file: 'manrope-latin.woff2',              range: LATIN_RANGE },
+  { family: 'Manrope',          weight: '400 800', file: 'manrope-latin-ext.woff2',          range: LATIN_EXT_RANGE },
+  { family: 'JetBrains Mono',   weight: '400 700', file: 'jetbrains-mono-latin.woff2',       range: LATIN_RANGE },
+  { family: 'JetBrains Mono',   weight: '400 700', file: 'jetbrains-mono-latin-ext.woff2',   range: LATIN_EXT_RANGE },
+];
+
+// Reads + base64-embeds each vendored .woff2. Defensive: a missing/unreadable
+// file (should never happen -- the six binaries are committed alongside this
+// module) skips just that @font-face rule rather than throwing and blocking
+// the whole dashboard build -- the board still renders, just with a system
+// font fallback for that one face (var(--serif)/--sans/--mono already list
+// fallbacks).
+function buildFontFaceCss() {
+  return FONT_FACES.map(function (f) {
+    var data;
+    try {
+      data = fs.readFileSync(path.join(FONT_DIR, f.file)).toString('base64');
+    } catch (_e) {
+      return '';
+    }
+    return "@font-face{font-family:'" + f.family + "';font-style:normal;font-weight:" + f.weight +
+      ";font-display:swap;src:url(data:font/woff2;base64," + data + ") format('woff2');" +
+      'unicode-range:' + f.range + ';}';
+  }).join('\n');
+}
+
+module.exports = buildFontFaceCss() + `
 :root {
   /* Foundation */
   --cream:#F5F0E8; --cream-2:#EBE5D8;
@@ -63,22 +115,16 @@ module.exports = `
 
   /* Always-light token for dark-surface code blocks */
   --code-fg:#F5F0E8;
-}
 
-html[data-theme="dark"] {
-  --cream:#15120F; --cream-2:#1C1814;
-  --surface:#1A1612; --surface-2:#221D17;
-  --ink:#F1ECE3; --ink-2:#D8CFC0; --ink-3:#9E9589; --ink-faint:#6B6358;
-  --border:#312A22; --line:#312A22;
-  --red:#E25558; --red-soft:rgba(226,85,88,0.16);
-  --yellow:#F2C24A; --yellow-soft:rgba(242,194,74,0.16);
-  --blue:#5B8DE8; --blue-soft:rgba(91,141,232,0.18);
-  --teal:#2BB3A6; --teal-soft:rgba(43,179,166,0.18);
-  --shadow-sm:0 1px 2px rgba(0,0,0,0.35);
-  --shadow:0 6px 18px rgba(0,0,0,0.45);
-  --shadow-lg:0 26px 50px rgba(0,0,0,0.55);
-  --focus-ring:rgba(226,85,88,0.5);
-  --sb-thumb:#2E2820;
+  /* Rail (STORY-23.2.01 — mockup v2.5 .app/.rail contract) */
+  --rail-w:232px; --rail-w-c:64px;
+  --rail-ink:#1A1714; --rail-cream:#F5F0E8;
+
+  /* Text-on-accent tokens (Brand Guidelines v1.0 -- STORY-23.1.01: every colour
+     literal must resolve through a token, including white-on-solid-accent text
+     and the dark ink used on soft-yellow fills). */
+  --on-accent:#FFFFFF;
+  --yellow-ink:#7A5A00;
 }
 
 * { box-sizing:border-box; margin:0; padding:0; }
@@ -101,20 +147,32 @@ body { font-family:var(--sans); color:var(--ink); background:var(--cream); line-
 .skip { position:absolute; left:-9999px; top:0; background:var(--ink); color:var(--cream); padding:0.5rem 0.85rem; border-radius:var(--r-sm); z-index:100; }
 .skip:focus { left:1rem; top:1rem; }
 
-/* Header */
+/* Header — Tandem identity shell (STORY-23.1.03): rail-top-style badge +
+   lockup in the header, mirrored rail-foot mark in the page footer. Class
+   names (.logo-badge / .logo-lockup / .logo-word / .logo-repo / .logo-dot /
+   .rail-foot) follow the mockup v2.5 markup contract even though this board
+   keeps its top-header layout rather than the mockup's left-rail chrome. */
 header.app-header { background:var(--surface); border-bottom:1px solid var(--border); padding:1.5rem 0 1.25rem; position:relative; z-index:50; }
 .app-header-inner { max-width:1500px; margin:0 auto; padding:0 1.75rem; display:flex; align-items:center; justify-content:space-between; gap:1.5rem; flex-wrap:wrap; }
 .brand-wrap { display:flex; align-items:center; gap:0.85rem; }
 .brand-mark { display:flex; align-items:center; }
-.brand-logo { width:38px; height:38px; display:block; }
-.app-title { font-family:var(--serif); font-size:2.05rem; font-weight:400; line-height:1; letter-spacing:-0.01em; color:var(--ink); }
-.app-title em { color:var(--red); font-style:italic; }
-.app-sub { display:block; font-family:var(--sans); font-size:0.72rem; font-weight:600; color:var(--blue); margin-top:0.3rem; letter-spacing:0.14em; }
+.logo-badge { width:38px; height:38px; display:block; flex-shrink:0; border-radius:50%; box-shadow:0 0 0 1px rgba(26,23,20,0.12); }
+.logo-lockup { display:flex; flex-direction:column; gap:0.15rem; min-width:0; }
+/* Brand Guidelines v1.0: no italic mixing. font-style:normal is set explicitly
+   (belt-and-braces alongside the markup carrying no <em>/italic element at
+   all) so no UA-default-italic path can survive here even if a future edit
+   nests one. */
+.logo-word, .logo-word * { font-style:normal; }
+.logo-word { font-family:var(--serif); font-size:2.05rem; font-weight:400; line-height:1; letter-spacing:-0.01em; color:var(--ink); }
+.logo-repo { display:block; font-family:var(--mono); font-size:0.72rem; font-weight:600; color:var(--blue); margin-top:0.3rem; letter-spacing:0.06em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .app-tools { display:flex; align-items:center; gap:0.75rem; }
-.icon-btn { background:transparent; border:1px solid var(--border); color:var(--ink-2); width:38px; height:38px; border-radius:50%; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all var(--dur-fast) var(--ease); }
-.icon-btn:hover { background:var(--surface-2); color:var(--ink); border-color:var(--ink-faint); }
-.icon-btn svg { width:18px; height:18px; }
-.app-meta { font-size:0.7rem; color:var(--ink-3); font-family:var(--mono); }
+.top-meta { font-size:0.7rem; color:var(--ink-3); font-family:var(--mono); }
+.top-meta b { color:var(--ink-2); font-weight:600; }
+
+/* Footer — DATAXYZ three-dot mark (rail-foot in the mockup's markup contract) */
+footer.rail-foot { max-width:1500px; margin:0 auto; padding:1rem 1.75rem 1.5rem; display:flex; align-items:center; gap:0.55rem; color:var(--ink-3); font-size:0.72rem; font-family:var(--sans); }
+.logo-dot { width:10px; height:10px; border-radius:50%; background:var(--red); box-shadow:5px 0 0 var(--yellow), 10px 0 0 var(--blue); margin-right:12px; flex-shrink:0; }
+.rail-foot-t b { color:var(--ink-2); font-weight:700; }
 
 /* Diagnostics banner */
 .diag { max-width:1500px; margin:0 auto; padding:0.65rem 1.75rem; }
@@ -127,23 +185,48 @@ header.app-header { background:var(--surface); border-bottom:1px solid var(--bor
 .diag-inner.warn strong { color:var(--ink); }
 .diag-note { margin-top:0.4rem; font-size:0.78rem; opacity:0.8; }
 
-/* Two-row navigation */
-nav.group-nav { background:var(--cream); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:40; }
-.group-inner { max-width:1500px; margin:0 auto; padding:0 1.75rem; display:flex; gap:0; overflow-x:auto; }
-.gtab { background:transparent; border:none; padding:1.05rem 1.25rem 0.95rem; cursor:pointer; font-family:var(--sans); font-size:0.95rem; color:var(--ink-2); border-bottom:2px solid transparent; white-space:nowrap; font-weight:500; transition:color var(--dur-fast) var(--ease), border-color var(--dur) var(--ease); position:relative; }
-.gtab:hover { color:var(--ink); }
-.gtab.active { color:var(--red); border-bottom-color:var(--red); }
-.gtab-count { display:inline-block; background:var(--surface-2); color:var(--ink-2); font-size:0.66rem; padding:0.08rem 0.45rem; border-radius:var(--r-pill); margin-left:0.4rem; font-family:var(--mono); font-weight:500; vertical-align:1px; }
-.gtab.active .gtab-count { background:var(--red); color:#fff; }
+/* App shell — left ink rail (STORY-23.2.01; mockup v2.5 .app/.rail contract).
+   .app is the 2-col grid: rail | app-main. Collapsing swaps the rail column
+   width token only — app-main reflows via the grid, no JS-computed widths. */
+.app { display:grid; grid-template-columns:var(--rail-w) 1fr; min-height:100vh; transition:grid-template-columns var(--dur) var(--ease); }
+.app.collapsed { grid-template-columns:var(--rail-w-c) 1fr; }
+.app-main { min-width:0; display:flex; flex-direction:column; }
 
-nav.sub-nav { background:var(--surface); border-bottom:1px solid var(--border); }
-.sub-inner { max-width:1500px; margin:0 auto; padding:0 1.75rem; display:flex; gap:0; overflow-x:auto; align-items:center; min-height:42px; }
-.stab { background:transparent; border:none; padding:0.55rem 1rem; cursor:pointer; font-family:var(--sans); font-size:0.82rem; color:var(--ink-3); white-space:nowrap; font-weight:500; transition:color var(--dur-fast) var(--ease); border-bottom:2px solid transparent; }
-.stab:hover { color:var(--ink); }
-.stab.active { color:var(--ink); border-bottom-color:var(--ink); }
-.stab-count { display:inline-block; font-size:0.65rem; padding:0 0.4rem; color:var(--ink-faint); font-family:var(--mono); margin-left:0.25rem; }
-.sub-inner:empty { display:none; }
-nav.sub-nav:has(.sub-inner:empty), nav.sub-nav.hidden { display:none; }
+aside.rail { background:var(--rail-ink); color:var(--rail-cream); display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow:hidden; z-index:60; }
+.rail .rail-head { display:flex; align-items:center; justify-content:flex-end; padding:0.75rem 0.6rem 0.35rem; flex-shrink:0; }
+.rail-toggle-btn { background:transparent; border:1px solid rgba(245,240,232,0.25); color:var(--rail-cream); width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; transition:background var(--dur-fast) var(--ease); }
+.rail-toggle-btn:hover { background:rgba(245,240,232,0.12); }
+.rail-toggle-btn svg { width:14px; height:14px; }
+
+.rail-scroll { flex:1; overflow-y:auto; padding:0.4rem 0.55rem; }
+.rail-lab { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.14em; color:rgba(245,240,232,0.4); font-weight:700; padding:1rem 0.55rem 0.4rem; }
+.rail-lab:first-child { padding-top:0.5rem; }
+.nav-item { width:100%; display:flex; align-items:center; gap:0.65rem; background:transparent; border:none; border-radius:var(--r-sm); padding:0.55rem 0.6rem; margin-bottom:0.15rem; color:rgba(245,240,232,0.72); font-family:var(--sans); font-size:0.86rem; font-weight:500; cursor:pointer; text-align:left; transition:background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+.nav-item:hover { background:rgba(245,240,232,0.08); color:var(--rail-cream); }
+.nav-item.active { background:var(--red); color:var(--on-accent); }
+.nav-item .nico { width:17px; height:17px; flex-shrink:0; stroke-width:1.8; }
+.nav-item .lbl { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nav-item .cnt { font-family:var(--mono); font-size:0.66rem; font-weight:600; background:rgba(245,240,232,0.14); color:var(--rail-cream); padding:0.08rem 0.42rem; border-radius:var(--r-pill); flex-shrink:0; }
+.nav-item.active .cnt { background:rgba(255,255,255,0.28); }
+
+/* Collapsed: icon-only rail — hide labels/counts/section labels, keep icons + active marking */
+.app.collapsed .rail-lab,
+.app.collapsed .nav-item .lbl,
+.app.collapsed .nav-item .cnt { display:none; }
+.app.collapsed .nav-item { justify-content:center; }
+.app.collapsed .rail .rail-head { justify-content:center; }
+
+/* Contextual pill sub-nav (STORY-23.2.02; ADR-0094) — one static <nav class="sub-nav">
+   block per multi-view group; JS toggles which block is .active (visible) to match
+   STATE.group, and which .sub-pill inside it is .active to match STATE.sub. Supersedes
+   the old shared #sub-nav / .stab tab row (deleted outright, no dead emit path). */
+nav.sub-nav { display:none; background:var(--surface); border-bottom:1px solid var(--border); padding:0.65rem 1.75rem; gap:0.4rem; flex-wrap:wrap; align-items:center; }
+nav.sub-nav.active { display:flex; }
+.sub-pill { background:transparent; border:1.5px solid transparent; color:var(--ink-3); padding:0.32rem 0.95rem; border-radius:var(--r-pill); cursor:pointer; font-family:var(--sans); font-size:0.8rem; font-weight:600; white-space:nowrap; transition:all var(--dur-fast) var(--ease); display:inline-flex; align-items:center; gap:0.3rem; }
+.sub-pill:hover { border-color:var(--border); color:var(--ink); }
+.sub-pill.active { background:var(--ink); color:var(--cream); }
+.sub-pill .cnt { font-family:var(--mono); font-size:0.66rem; opacity:0.7; font-weight:500; }
+.sub-pill.active .cnt { opacity:0.85; }
 
 /* Main */
 main { max-width:1500px; margin:0 auto; padding:1.5rem 1.75rem 4rem; }
@@ -183,14 +266,14 @@ section.tab-section.active { display:block; }
 .pill[data-status="archived"]    { background:var(--surface-2);    color:var(--ink-faint); opacity:0.7; }
 
 .sev { display:inline-block; padding:0.1rem 0.55rem; border-radius:var(--r-sm); font-size:0.68rem; font-family:var(--mono); font-weight:600; letter-spacing:0.04em; text-transform:uppercase; }
-.sev.critical { background:var(--red); color:#fff; }
+.sev.critical { background:var(--red); color:var(--on-accent); }
 .sev.high     { background:var(--red-soft); color:var(--red); border:1px solid var(--red); }
 .sev.medium   { background:var(--yellow-soft); color:var(--ink); border:1px solid var(--yellow); }
 .sev.low      { background:var(--surface-2); color:var(--ink-2); }
 
 .tag { display:inline-block; padding:0.1rem 0.55rem; border-radius:var(--r-pill); font-size:0.66rem; font-family:var(--mono); background:var(--surface-2); color:var(--ink-2); white-space:nowrap; }
-.tag.star { background:var(--yellow-soft); color:#7a5a00; border:1px solid var(--yellow); }
-.tag.must { background:var(--red); color:#fff; }
+.tag.star { background:var(--yellow-soft); color:var(--yellow-ink); border:1px solid var(--yellow); }
+.tag.must { background:var(--red); color:var(--on-accent); }
 .tag.source { background:transparent; border:1px solid var(--border); color:var(--ink-3); }
 .tag.cat.exclusive { cursor:pointer; transition:all var(--dur-fast) var(--ease); }
 .tag.cat.exclusive:hover { background:var(--ink); color:var(--cream); }
@@ -228,8 +311,40 @@ section.tab-section.active { display:block; }
 .work-group .group-head { display:flex; align-items:baseline; gap:0.5rem; flex-wrap:wrap; padding:0.35rem 0 0.5rem; border-bottom:1px solid var(--border); margin-bottom:0.65rem; }
 .work-group .group-path { font-family:var(--mono); font-size:0.78rem; color:var(--ink-2); }
 .work-group .group-path .crumb-sep { color:var(--ink-faint); margin:0 0.15rem; }
-.work-group .group-path .crumb-unassigned { color:var(--ink-3); font-style:italic; }
+.work-group .group-path .crumb-unassigned { color:var(--ink-3); }
 .work-group .group-count { font-family:var(--mono); font-size:0.72rem; color:var(--ink-3); }
+/* STORY-23.5.01 — shared epic -> feature group-header shape (mockup v2.5 .grp-h
+   contract: dot + breadcrumb path + count), server-baked for Build · Stories/
+   Testplans/Bugs. Supersedes .work-group above for those three views (left in
+   place, unreferenced, per the codebase's dead-render-path convention). */
+.grp { margin-bottom:1.1rem; }
+.grp-h { display:flex; align-items:center; gap:0.5rem; padding:0.3rem 0 0.5rem; border-bottom:1.5px solid var(--border); margin-bottom:0.65rem; }
+.grp-h .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.grp-h .path { font-family:var(--mono); font-size:0.76rem; color:var(--ink-2); font-weight:500; }
+.grp-h .path .sep { color:var(--ink-faint); margin:0 0.25rem; }
+.grp-h .cnt { font-family:var(--mono); font-size:0.7rem; color:var(--ink-faint); margin-left:auto; }
+/* STORY-23.5.02 — Power-BI-style slicer panel, mounted once as Build-wide
+   chrome (data-group="build"); shown only while Build is the active rail
+   group (.active toggled by renderSlicerPanel(), same pattern as .sub-nav). */
+.slicer-panel { display:none; flex-direction:column; gap:0.55rem; background:var(--surface); border:1.5px solid var(--border); border-radius:var(--r); padding:0.8rem 1.1rem; margin-bottom:1.3rem; }
+.slicer-panel.active { display:flex; }
+.slice-band { display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; }
+.slice-band[hidden] { display:none !important; }
+.slice-lab { font-size:0.62rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint); min-width:104px; flex-shrink:0; }
+.slice-pill { font-family:var(--sans); font-size:0.72rem; font-weight:600; padding:0.28rem 0.85rem; border-radius:var(--r-pill); border:1.5px solid var(--border); background:transparent; color:var(--ink-2); cursor:pointer; display:inline-flex; align-items:center; gap:0.35rem; transition:all var(--dur-fast) var(--ease); }
+.slice-pill:hover { border-color:var(--ink-faint); }
+.slice-pill .sdot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.slice-pill.sel { border-color:var(--red); color:var(--red); background:var(--red-soft); }
+.slice-clear { margin-left:auto; font-family:var(--sans); font-size:0.72rem; font-weight:700; padding:0.28rem 1rem; border-radius:var(--r-pill); border:1.5px solid var(--red); background:transparent; color:var(--red); cursor:pointer; }
+.slice-clear:hover:not([disabled]) { background:var(--red); color:var(--on-accent); }
+.slice-clear[disabled] { border-color:var(--border); color:var(--ink-faint); cursor:default; pointer-events:none; }
+.slice-note { font-size:0.72rem; color:var(--ink-faint); font-style:italic; }
+/* STORY-23.5.04 — "Show N more" pagination control, appended once per Build ·
+   Stories/Testplans/Bugs list by applyPaging() (generate-dashboard.js). Hidden
+   whenever a slice is active (pagination suspended) or no items remain. */
+.show-more-wrap { display:flex; justify-content:center; padding:1rem 0 0.4rem; }
+.show-more-btn { font-family:var(--sans); font-size:0.76rem; font-weight:600; padding:0.48rem 1.3rem; border-radius:var(--r-pill); border:1.5px solid var(--border); background:var(--surface); color:var(--ink-2); cursor:pointer; transition:all var(--dur-fast) var(--ease); }
+.show-more-btn:hover { border-color:var(--red); color:var(--red); }
 .metric { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:1.1rem 1.2rem; box-shadow:var(--shadow-sm); }
 .metric-val { font-family:var(--serif); font-size:2.4rem; font-weight:400; color:var(--ink); line-height:1; letter-spacing:-0.02em; }
 .metric-lab { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--ink-faint); margin-top:0.5rem; font-weight:600; }
@@ -274,13 +389,13 @@ section.tab-section.active { display:block; }
 .feat-body { display:none; padding:0.2rem 0.85rem 0.85rem; }
 .feat-card.open .feat-body { display:block; }
 .feat-card.open .disclose { transform:rotate(90deg); }
-.empty { color:var(--ink-faint); font-size:0.85rem; padding:0.5rem 0; font-style:italic; }
+.empty { color:var(--ink-faint); font-size:0.85rem; padding:0.5rem 0; }
 .view-intro { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:0.9rem 1.1rem; margin-bottom:1.1rem; }
 /* vi-* (not view-intro__*): TESTPLAN-11.2.02 TC-03 splits source on "view-intro" — keep prefix non-overlapping */
 .view-intro .vi-title { font-family:var(--serif); font-size:1.05rem; font-weight:500; color:var(--ink); margin-bottom:0.4rem; letter-spacing:-0.01em; }
 .view-intro .vi-source { font-size:0.82rem; color:var(--ink-2); line-height:1.55; margin-bottom:0.25rem; }
 .view-intro .vi-source code { font-family:var(--mono); font-size:0.78rem; color:var(--ink); background:var(--surface-2); padding:0.05rem 0.3rem; border-radius:var(--r-sm); }
-.view-intro .vi-why { font-size:0.82rem; color:var(--ink-3); line-height:1.55; font-style:italic; }
+.view-intro .vi-why { font-size:0.82rem; color:var(--ink-3); line-height:1.55; }
 
 /* Overview */
 .overview-hero { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; margin-bottom:1.5rem; }
@@ -312,11 +427,30 @@ section.tab-section.active { display:block; }
 .ai-fit-group-label { font-family:var(--mono); font-size:0.78rem; font-weight:600; color:var(--ink-2); text-transform:uppercase; letter-spacing:0.08em; }
 .ai-fit-group-count { font-family:var(--mono); font-size:0.72rem; color:var(--ink-3); }
 
+/* STORY-23.6.02 — kit-first pinned group (server-baked ahead of Skills/Commands/
+   Plugins, ADR-0102). A subtle left accent marks it as "the kit" without a whole
+   second visual language — the .grp-h header inside it already carries the label. */
+.kit-pinned { padding-left:0.75rem; border-left:2px solid var(--red); }
+.ai-card.kit-tile { border-color:var(--red); }
+
+/* STORY-23.6.01 — Toolkit · Plugins tile. The bare .plugin-tile class name is a
+   contract pin (TESTPLAN-23.6.01 TC-01 greps for it verbatim as a solo class
+   attribute) — kept as its own selector, never combined with .tile/.ai-card on
+   the same element (would break the exact-match grep). NOTE: do not spell the
+   attribute form of that literal in this comment (quote-wrapped, prefixed
+   "class=") — TC-01 and the leak-guard TC-03 both regex the WHOLE generated
+   file for it, and this stylesheet ships in every build including fixtures. */
+.plugin-tile { display:flex; flex-direction:column; gap:0.4rem; padding:0.85rem 1rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); cursor:pointer; transition:all var(--dur-fast) var(--ease); }
+.plugin-tile:hover { border-color:var(--ink-faint); box-shadow:var(--shadow); transform:translateY(-2px); }
+.plugin-tile .tile-title { font-size:0.82rem; color:var(--ink-2); line-height:1.5; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+
 /* Drawer */
 .mask { display:none; position:fixed; inset:0; background:rgba(26,23,20,0.5); z-index:80; backdrop-filter:blur(4px); }
 .mask.open { display:block; animation:fade var(--dur) var(--ease); }
-aside.drawer { position:fixed; top:0; right:0; bottom:0; width:clamp(360px, 60vw, 96vw); background:var(--cream); border-left:1px solid var(--border); box-shadow:var(--shadow-lg); z-index:90; transform:translateX(105%); transition:transform var(--dur) var(--ease); overflow-y:auto; display:flex; flex-direction:column; }
-aside.drawer.open { transform:translateX(0); }
+/* STORY-23.3.01 AC-4 / TC-03: no resting box-shadow — the shadow only applies once
+   .open (during/after the slide-in transition), never on the base/at-rest declaration. */
+aside.drawer { position:fixed; top:0; right:0; bottom:0; width:clamp(360px, 60vw, 96vw); background:var(--cream); border-left:1px solid var(--border); z-index:90; transform:translateX(105%); transition:transform var(--dur) var(--ease); overflow-y:auto; display:flex; flex-direction:column; }
+aside.drawer.open { transform:translateX(0); box-shadow:var(--shadow-lg); }
 .drawer-head { padding:1.25rem 1.5rem 0.95rem; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:2; display:flex; gap:1rem; align-items:flex-start; }
 .drawer-head .titles { flex:1; min-width:0; }
 .drawer-back { background:transparent; border:1px solid var(--border); width:34px; height:34px; border-radius:50%; cursor:pointer; color:var(--ink-2); display:none; align-items:center; justify-content:center; }
@@ -334,7 +468,7 @@ aside.drawer.open { transform:translateX(0); }
 .drawer-body p { margin:0.65rem 0; color:var(--ink-2); line-height:1.7; }
 .drawer-body ul, .drawer-body ol { margin:0.55rem 0 0.65rem 1.4rem; color:var(--ink-2); }
 .drawer-body li { margin:0.25rem 0; line-height:1.65; }
-.drawer-body blockquote { border-left:3px solid var(--red); padding:0.5rem 0.9rem; background:var(--surface-2); border-radius:var(--r-sm); margin:0.8rem 0; color:var(--ink-2); font-style:italic; }
+.drawer-body blockquote { border-left:3px solid var(--red); padding:0.5rem 0.9rem; background:var(--surface-2); border-radius:var(--r-sm); margin:0.8rem 0; color:var(--ink-2); }
 .drawer-body code { font-family:var(--mono); font-size:0.85em; background:var(--surface-2); padding:0.1rem 0.35rem; border-radius:4px; }
 .drawer-body pre { background:var(--surface-2); padding:0.85rem 1rem; border-radius:var(--r-sm); overflow-x:auto; white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere; font-family:var(--mono); font-size:0.82rem; margin:0.7rem 0; border:1px solid var(--border); }
 .drawer-body pre code { background:transparent; padding:0; font-size:inherit; }
@@ -348,11 +482,20 @@ aside.drawer.open { transform:translateX(0); }
 
 .drawer-section { padding:1rem 1.5rem; border-top:1px solid var(--border); background:var(--surface); }
 .drawer-section h3 { font-size:0.74rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--ink-faint); margin-bottom:0.55rem; font-weight:600; }
+/* STORY-23.3.02 AC-3 — html-artefact drawer note (mockup v2.5 contract). */
+.html-note { display:flex; align-items:flex-start; gap:0.7rem; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-sm); padding:0.9rem 1rem; color:var(--ink-2); font-size:0.86rem; line-height:1.55; }
+.html-note svg { flex-shrink:0; color:var(--ink-3); margin-top:0.1rem; }
+.file-link { display:inline-flex; align-items:center; gap:0.4rem; margin-top:0.85rem; color:var(--blue); font-size:0.86rem; text-decoration:none; }
+.file-link:hover { text-decoration:underline; }
 .drawer-overlay { background:var(--yellow-soft); border-left:3px solid var(--yellow); padding:0.95rem 1.2rem; border-radius:var(--r-sm); margin-bottom:1rem; }
-.drawer-overlay .label { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.16em; color:#7a5a00; font-weight:700; margin-bottom:0.35rem; }
+.drawer-overlay .label { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.16em; color:var(--yellow-ink); font-weight:700; margin-bottom:0.35rem; }
 .xref { display:flex; gap:0.4rem; flex-wrap:wrap; }
 .xref-pill { background:transparent; border:1px solid var(--border); padding:0.25rem 0.7rem; border-radius:var(--r-pill); font-family:var(--mono); font-size:0.74rem; color:var(--ink-2); cursor:pointer; text-decoration:none; }
 .xref-pill:hover { background:var(--surface-2); border-color:var(--ink-faint); }
+/* STORY-23.3.02 — body-embedded cross-refs (resolveCrossRefs) reuse .xref-pill's
+   click contract but read as an inline text link, not a badge breaking prose flow. */
+.xref-pill.xref-inline { display:inline; border:none; padding:0; border-radius:0; background:transparent; color:var(--blue); font-family:inherit; font-size:inherit; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:2px; }
+.xref-pill.xref-inline:hover { background:transparent; border-color:transparent; color:var(--red); }
 
 /* Drawer AI detail: descriptions, sub-commands, bundles, examples */
 .drawer-ai-desc { color:var(--ink-2); line-height:1.7; margin:0.4rem 0 0.9rem; }
@@ -426,7 +569,7 @@ aside.drawer.open { transform:translateX(0); }
 .impl-meta { font-family:var(--mono); font-size:0.76rem; color:var(--ink-3); margin-top:0.3rem; }
 .impl-note { font-size:0.82rem; color:var(--ink-2); margin-top:0.55rem; background:var(--surface-2); border-radius:var(--r-sm); padding:0.6rem 0.85rem; }
 .impl-phase { margin-bottom:1.75rem; }
-.impl-phase-title { font-family:var(--serif); font-size:1.2rem; font-weight:400; color:var(--ink); margin:0 0 0.85rem; letter-spacing:-0.01em; }
+.impl-phase-title { font-family:var(--serif); font-size:1.2rem; font-weight:400; color:var(--ink); margin:0 0 0.85rem; letter-spacing:-0.01em; cursor:pointer; }
 .impl-phase-sub { font-size:0.9rem; color:var(--ink-2); margin:-0.55rem 0 0.95rem; line-height:1.5; max-width:62ch; }
 .chat-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(440px, 1fr)); gap:1rem; }
 .chat-card { background:var(--surface); border:1px solid var(--ink-faint); border-radius:var(--r); padding:1.1rem 1.2rem; display:flex; flex-direction:column; gap:0.6rem; box-shadow:var(--shadow); }
@@ -436,8 +579,8 @@ aside.drawer.open { transform:translateX(0); }
 .chat-id { font-family:var(--mono); font-size:0.72rem; font-weight:600; background:var(--ink); color:var(--surface); padding:0.12rem 0.5rem; border-radius:var(--r-pill); letter-spacing:0.04em; white-space:nowrap; flex-shrink:0; }
 .chat-est { font-family:var(--mono); font-size:0.72rem; color:var(--ink-3); margin-left:auto; }
 .chat-badge { font-family:var(--mono); font-size:0.64rem; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:0.18rem 0.6rem; border-radius:var(--r-pill); white-space:nowrap; flex-shrink:0; }
-.chat-badge.exec { background:var(--blue); color:#fff; }
-.chat-badge.exec.exec-derived { background:var(--teal); color:#fff; }
+.chat-badge.exec { background:var(--blue); color:var(--on-accent); }
+.chat-badge.exec.exec-derived { background:var(--teal); color:var(--on-accent); }
 .chat-badge.pend { background:transparent; color:var(--ink-3); border:1px solid var(--border); }
 .chat-title { font-family:var(--serif); font-size:1.15rem; font-weight:400; color:var(--ink); letter-spacing:-0.01em; line-height:1.25; }
 .chat-stories { display:flex; flex-wrap:wrap; gap:0.3rem; }
@@ -455,16 +598,47 @@ aside.drawer.open { transform:translateX(0); }
 .drawer-outcome { font-size:0.92rem; color:var(--ink-2); margin:0 0 0.6rem; line-height:1.5; }
 .drawer-outcome .lab { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-faint); font-weight:700; margin-right:0.4rem; }
 .chat-block pre { background:var(--ink); color:var(--code-fg); padding:0.7rem 0.85rem; border-radius:var(--r-sm); overflow-x:auto; font-family:var(--mono); font-size:0.74rem; line-height:1.6; white-space:pre-wrap; word-break:normal; overflow-wrap:break-word; }
-html[data-theme="dark"] .chat-block pre { background:#0d0b09; }
 .chat-edges { font-family:var(--mono); font-size:0.72rem; color:var(--ink-3); border-top:1px solid var(--border); padding-top:0.5rem; }
+
+/* Build - Phases (STORY-23.4.01/02) -- server-rendered phase -> chat -> story list.
+   .phase-h / .chat-tile / .story-chip are testplan-pinned class names
+   (TESTPLAN-23.4.01 TC-01); the first two stay bare (no modifier classes) --
+   state rides on data-status instead, same convention as .pill[data-status]. */
+.phase-group { margin-bottom:1.6rem; }
+.phase-h { display:flex; align-items:center; flex-wrap:wrap; gap:0.55rem; padding:0.7rem 0.9rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--r); margin-bottom:0.6rem; }
+.phase-h[data-status="done"] { border-left:3px solid var(--success); }
+.phase-h[data-status="in-progress"] { border-left:3px solid var(--yellow); }
+.phase-h[data-status="blocked"] { border-left:3px solid var(--red); }
+.phase-title { font-family:var(--serif); font-size:1.05rem; font-weight:500; color:var(--ink); letter-spacing:-0.01em; margin-right:0.2rem; }
+.phase-epic-chip { font-family:var(--mono); font-size:0.7rem; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-pill); padding:0.12rem 0.55rem; cursor:pointer; }
+.phase-epic-chip:hover { border-color:var(--ink-faint); }
+.phase-h .cnt { font-family:var(--mono); font-size:0.74rem; color:var(--ink-3); }
+.phase-open-btn { margin-left:auto; font-family:var(--mono); font-size:0.7rem; font-weight:600; letter-spacing:0.03em; color:var(--blue); background:var(--blue-soft); border:none; border-radius:var(--r-pill); padding:0.22rem 0.7rem; cursor:pointer; }
+.phase-open-btn:hover { filter:brightness(0.97); }
+.phase-outcome { font-size:0.86rem; color:var(--ink-2); margin:-0.15rem 0 0.7rem; line-height:1.5; max-width:68ch; }
+.phase-chats { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:0.6rem; }
+.chat-tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); padding:0.75rem 0.9rem; display:flex; flex-direction:column; gap:0.4rem; cursor:pointer; transition:all var(--dur-fast) var(--ease); }
+.chat-tile:hover { border-color:var(--ink-faint); background:var(--surface-2); }
+.chat-tile[data-status="done"] { border-color:var(--teal); }
+.chat-tile[data-status="blocked"] { border-color:var(--red); }
+.chat-tile-head { display:flex; align-items:center; justify-content:space-between; gap:0.5rem; }
+.chat-tile-title { font-size:0.88rem; color:var(--ink); font-weight:500; line-height:1.3; }
+.chat-tile-meta { font-size:0.74rem; color:var(--ink-3); }
+.story-chips { display:flex; flex-wrap:wrap; gap:0.3rem; margin-top:0.1rem; }
+.story-chip { font-family:var(--mono); font-size:0.68rem; background:var(--surface-2); color:var(--ink-2); border:1px solid var(--border); border-radius:var(--r-sm); padding:0.08rem 0.4rem; cursor:pointer; }
+.story-chip:hover { border-color:var(--ink-faint); }
+.story-chip.done { background:var(--success-soft); color:var(--success); border-color:var(--teal); }
+.story-chip.blocked { background:var(--danger-soft); color:var(--red); border-color:var(--red); font-weight:600; }
+.story-chip.in-progress { background:var(--warn-soft); color:var(--ink); border-color:var(--yellow); }
+.story-chip.ready, .story-chip.not-started { background:var(--surface-2); color:var(--ink-2); }
 
 /* v1.1 — ADR-0048 additions: Now-page widgets, age ribbons, Cmd-K palette */
 .now-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); gap:1rem; margin-bottom:1.25rem; }
 .now-widget { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:1.1rem 1.25rem; box-shadow:var(--shadow-sm); }
 .now-widget h3 { font-family:var(--sans); font-size:0.74rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-faint); margin-bottom:0.7rem; font-weight:600; display:flex; align-items:baseline; gap:0.5rem; }
 .now-widget h3 .count-bubble { background:var(--surface-2); color:var(--ink-2); font-family:var(--mono); font-size:0.66rem; font-weight:700; padding:0.08rem 0.45rem; border-radius:var(--r-pill); }
-.now-widget.has-pending h3 .count-bubble { background:var(--red); color:#fff; }
-.now-widget .empty { font-size:0.82rem; color:var(--ink-3); font-style:italic; padding:0.3rem 0; }
+.now-widget.has-pending h3 .count-bubble { background:var(--red); color:var(--on-accent); }
+.now-widget .empty { font-size:0.82rem; color:var(--ink-3); padding:0.3rem 0; }
 
 /* Story lifecycle flow (Now hero — live counts + clickable stages) */
 .flow-panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:1.1rem 1.25rem; box-shadow:var(--shadow-sm); margin-bottom:1.5rem; }
@@ -507,9 +681,9 @@ html[data-theme="dark"] .chat-block pre { background:#0d0b09; }
 .cmd-pill { display:flex; flex-direction:column; align-items:flex-start; gap:0.2rem; padding:0.5rem 0.7rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); cursor:pointer; transition:all var(--dur-fast) var(--ease); text-align:left; min-width:0; font-family:inherit; }
 .cmd-pill:hover { background:var(--surface-2); border-color:var(--ink-faint); transform:translateY(-1px); box-shadow:var(--shadow-sm); }
 .cmd-pill-name { font-family:var(--mono); font-size:0.76rem; color:var(--ink); font-weight:500; word-break:break-word; line-height:1.35; max-width:100%; }
-.cmd-pill-note { font-family:var(--sans); font-size:0.68rem; color:var(--ink-3); font-style:italic; line-height:1.4; }
+.cmd-pill-note { font-family:var(--sans); font-size:0.68rem; color:var(--ink-3); line-height:1.4; }
 .cmd-pill[data-advisory="1"] { border-style:dashed; }
-.cmd-pill[data-advisory="1"] .cmd-pill-name::after { content:" · advisory"; color:var(--ink-faint); font-family:var(--sans); font-size:0.66rem; font-weight:400; font-style:italic; }
+.cmd-pill[data-advisory="1"] .cmd-pill-name::after { content:" · advisory"; color:var(--ink-faint); font-family:var(--sans); font-size:0.66rem; font-weight:400; }
 .cmd-pill[data-ambient="1"] { background:var(--surface-2); }
 .cmd-pill[data-ambient="1"] .cmd-pill-name { color:var(--ink-2); }
 .cmd-phase-pills .cmd-pill { align-self:stretch; }
@@ -520,7 +694,7 @@ html[data-theme="dark"] .chat-block pre { background:#0d0b09; }
 .cmd-rail-desc { font-family:var(--sans); font-size:0.7rem; color:var(--ink-3); line-height:1.45; }
 .cmd-rail-pills { display:flex; gap:0.4rem; flex-wrap:wrap; flex:1; }
 .cmd-rail .cmd-pill { background:var(--surface); }
-.cmd-pill-when { font-family:var(--sans); font-size:0.66rem; color:var(--ink-faint); font-style:italic; }
+.cmd-pill-when { font-family:var(--sans); font-size:0.66rem; color:var(--ink-faint); }
 
 /* View selector (segmented control above the process flow) */
 .cmd-view-tabs { display:flex; gap:0; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-pill); padding:0.2rem; margin-bottom:1rem; flex-wrap:wrap; }
@@ -578,7 +752,7 @@ html[data-theme="dark"] .chat-block pre { background:#0d0b09; }
 }
 
 .age-ribbon { display:inline-block; padding:0.08rem 0.45rem; border-radius:var(--r-pill); font-family:var(--mono); font-size:0.66rem; font-weight:600; letter-spacing:0.02em; margin-left:0.35rem; }
-.age-ribbon.warn { background:var(--yellow-soft); color:#7a5a00; }
+.age-ribbon.warn { background:var(--yellow-soft); color:var(--yellow-ink); }
 .age-ribbon.danger { background:var(--red-soft); color:var(--red); }
 .stream-line { display:flex; align-items:center; gap:0.45rem; padding:0.35rem 0; border-bottom:1px dashed var(--border); font-size:0.82rem; }
 .stream-line:last-child { border-bottom:none; }
@@ -609,7 +783,7 @@ html[data-theme="dark"] .chat-block pre { background:#0d0b09; }
 .ext-badge { font-family:var(--mono); font-size:0.62rem; padding:0.06rem 0.4rem; border-radius:var(--r-sm); background:var(--surface-2); color:var(--ink-3); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; }
 .ext-badge.html { background:var(--blue-soft); color:var(--blue); }
 .ext-badge.md { background:var(--surface-2); color:var(--ink-3); }
-.ext-badge.json { background:var(--yellow-soft); color:#7a5a00; }
+.ext-badge.json { background:var(--yellow-soft); color:var(--yellow-ink); }
 .ext-badge.js, .ext-badge.cjs, .ext-badge.mjs { background:var(--teal-soft); color:var(--teal); }
 .ext-badge.ps1, .ext-badge.sh { background:var(--red-soft); color:var(--red); }
 

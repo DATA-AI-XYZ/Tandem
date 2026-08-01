@@ -188,6 +188,29 @@ The kit now ships one genuinely path-scoped skill, **`skills/path-scope-example/
 
 **Anti-pattern guard:** don't path-scope a skill carrying always-relevant rules (like `core`) — `paths` delays its load. Don't treat `paths` as a security boundary — it narrows auto-load, not explicit `/plugin:skill` invocation or `permissions` blocking.
 
+#### 2.3.2 Cross-model prompt language
+
+Skills and prompts are read by whichever Claude model is running the session — this kit does not branch instructions per model. Anthropic's prompting guidance shifts as new model generations ship (2026-07 review: Opus 5, Fable 5, Sonnet 5, Opus 4.8+), and a phrase that was once standard advice can become model-fragile — it degrades output, over-triggers a tool, or trips a refusal category on a newer model even though it read fine on an older one. Two rules keep skill/prompt authoring durable across that drift:
+
+1. **Write to the intersection, never model-conditionally.** An instruction must work well across the whole family of models this kit is likely to run under (Opus 5, Fable 5, Sonnet 5, Opus 4.8+ and beyond) — not "if the model is X, do Y; if Z, do W". A single instruction set has to be safe on whichever model actually picks up the session; per-model branches are a maintenance trap that silently rots the moment a new model ships.
+2. **Gates stay prescriptive; judgment stays goal-state.** DoR/DoD-style process gates (`MANDATORY`, `MUST`, closed-set enums, checklist steps) are deliberately literal and enumerated — their determinism *is* the point, and literal instruction-following makes these gates stronger, not weaker. They are process rules, never lint targets (see the guard below). Judgment-heavy sections — analysis, design exploration, "how should I approach this" — should state the **goal + constraints** and let the model choose its approach, rather than prescribing enumerated steps. Per Claude Fable 5's guidance, over-prescriptive step-by-step instructions on a non-deterministic task degrade its output; state the destination, not every turn of the path.
+
+**The banned-phrase table.** `pm:lint`'s **W4** rule (`93-Scripts/validate-frontmatter.js`, phrase list in `93-Scripts/lib/prompt-lint-phrases.json`) scans `skills/**/SKILL.md` and `92-Prompts/**/*.md` for these phrases and warns — **never fails** (warn-tier, [ADR-0061](../40-Decisions/ADR-0061-non-fatal-lint-warning-tier.md)) — so a future edit can't silently reintroduce one. Extend the list by editing the JSON config; no validator code change is required. A *malformed* phrase config (invalid JSON, a missing `reason`, an entry carrying neither/both of `phrase`/`pattern`, or an unparseable regex `pattern`/`flags`) is a different failure mode: it is a **fatal `PROMPT-LINT-CONFIG` violation** that fails `pm:lint` (exit 1), by design — a broken data file is a script/data problem, not a corpus problem, and must not silently lint nothing on every future run. This is deliberate and distinct from W4 phrase *findings*, which never fail the run.
+
+| Phrase | Why it's model-fragile | Replacement |
+|---|---|---|
+| `double-check your` | Triggers over-verification loops on Claude Opus 5. | State the acceptance criterion and let the model verify against it once. |
+| `re-verify before responding` | Redundant scaffolding on newer models, which already verify by default. | Drop the instruction — verification is a model default now. |
+| `show your reasoning` | Can trip Claude Fable 5's `reasoning_extraction` refusal category. | Ask for the answer plus a one-line justification, not a full reasoning trace. |
+| `explain your thinking` | Can trip Claude Fable 5's `reasoning_extraction` refusal category. | Ask for the answer plus a one-line justification, not a full reasoning trace. |
+| `after every N tool calls` (regex) | Redundant scaffolding on Opus 4.8+, which self-tracks tool-call cadence natively. | Drop the fixed cadence — summarise at natural checkpoints instead. |
+| `If in doubt, use` | Overtriggers tool use on Claude 4.6+ models. | Name the specific condition that should trigger the tool. |
+| `ALWAYS use` (shouty-caps imperative) | Overtriggers tool use on Claude 4.6+ models. | Name the specific condition that should trigger the tool, stated once, not shouted. |
+
+**Guard against false positives on gate language:** `MANDATORY` / `MUST` in DoR/DoD/pairing gates (e.g. "the paired TESTPLAN is MANDATORY", "you MUST create it in the same response") are process rules, not lint targets — the 2026-07 audit's finding was that literal instruction-following makes these gates *stronger*. None of the banned phrases above substring-match ordinary gate language, and `ALWAYS use` is deliberately matched **case-sensitively** so it catches only the shouty-caps imperative anti-pattern, never legitimate lowercase prose (e.g. "...review always uses the strongest model" stays silent).
+
+**Anti-pattern guard:** don't add a new banned phrase without a replacement and a one-clause reason — the lint's whole value is telling a future author *what to write instead*, not just what to avoid. Don't add gate vocabulary (`MANDATORY`, `MUST`, `NEVER`, status-enum literals) to this list — see the guard above.
+
 ### 2.4 Plugins (layer 4)
 
 **Blog says:** distribute working setups via plugins so they don't remain tribal.

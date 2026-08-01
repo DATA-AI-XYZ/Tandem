@@ -1,0 +1,40 @@
+{
+  "$comment": "Model-fragile prompt-phrase list (BACKLOG-0091 / STORY-24.1.02 / ADR-0104). Consumed by lib/prompt-lint.js and wired into validate-frontmatter.js as warn-tier rule W4 (non-fatal, ADR-0061 — never fails pm:lint). Data-driven by design: extend this list to track future Anthropic model-guide updates WITHOUT touching validator code (STORY-24.1.02 AC-2). Each entry carries exactly one of `phrase` (literal substring match) or `pattern` (JS RegExp source string, optionally paired with a `flags` string, e.g. \"i\" for case-insensitive — omit for no flags). `reason` is the one-clause explanation cited in every warning. `replacement` is the migration-safe alternative documented in the 'Cross-model prompt language' section of 90-Standards/CLAUDE-CODE-CONFIG.md — keep the two lists in sync when either changes. Matching stance: literal phrases are CASE-SENSITIVE by design — 'ALWAYS use' must stay scoped to the shouty-caps imperative anti-pattern and must NOT flag ordinary lowercase prose like '...always use the strongest model' (STORY-24.1.02 gotcha, proven by TC-01's gate-language fixture and the corpus-clean requirement).",
+  "phrases": [
+    {
+      "phrase": "double-check your",
+      "reason": "triggers over-verification loops on Claude Opus 5",
+      "replacement": "state the acceptance criterion and let the model verify against it once"
+    },
+    {
+      "phrase": "re-verify before responding",
+      "reason": "redundant scaffolding on newer models that already verify by default",
+      "replacement": "drop the instruction — verification is a model default now"
+    },
+    {
+      "phrase": "show your reasoning",
+      "reason": "can trip Claude Fable 5's reasoning_extraction refusal category",
+      "replacement": "ask for the answer plus a one-line justification, not a full reasoning trace"
+    },
+    {
+      "phrase": "explain your thinking",
+      "reason": "can trip Claude Fable 5's reasoning_extraction refusal category",
+      "replacement": "ask for the answer plus a one-line justification, not a full reasoning trace"
+    },
+    {
+      "pattern": "after every \\d+ tool calls",
+      "reason": "redundant scaffolding on Opus 4.8+, which self-tracks tool-call cadence natively",
+      "replacement": "drop the fixed cadence — summarise at natural checkpoints instead"
+    },
+    {
+      "phrase": "If in doubt, use",
+      "reason": "overtriggers tool use on Claude 4.6+ models",
+      "replacement": "name the specific condition that should trigger the tool"
+    },
+    {
+      "phrase": "ALWAYS use",
+      "reason": "the shouty-caps imperative overtriggers tool use on Claude 4.6+ models",
+      "replacement": "name the specific condition that should trigger the tool, stated once, not shouted"
+    }
+  ]
+}

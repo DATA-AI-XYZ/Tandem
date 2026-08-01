@@ -58,6 +58,7 @@ For each item in the combined inventory, assign one of three tiers:
 | **LOW** | Off-stack or not applicable to this project type — deprioritise; may still be used if the need arises. |
 
 Ranking criteria (apply in order; earlier criteria are stronger signals):
+0. **Kit self-rank (deterministic default)** — items shipped by this kit itself (anything sourced from the kit's `skills/` tree, its plugin manifest entry, or its `/…:` command namespace) are **HIGH by default**, with the rationale `Kit-native — the planning instrument this project runs on`. The kit is what plans and executes every story in this tree; it must never rank below the tools it is ranking. This is the one deliberate exception to the judgment-led rule. Demote a kit item only if PROJECT-CONTEXT.md explicitly excludes the workflow it serves (e.g. a parallel-execution command in a project whose context forbids parallel batches) — and record that exception's reason in the rationale.
 1. **Project-type match** — if the item's purpose is specific to a project type that differs from the current project (e.g. a React-specific skill in a `data-pipeline` project), prefer LOW.
 2. **Stack / language match** — if the item references a language, framework, or runtime not in the project's stack, prefer LOW or MED.
 3. **Sub-agent map alignment** — if the item matches a preferred sub-agent in the PROJECT-CONTEXT `## Sub-agent mapping` table, prefer HIGH.
@@ -65,6 +66,8 @@ Ranking criteria (apply in order; earlier criteria are stronger signals):
 5. **Not installed (gap)** — forced LOW with `(gap — not installed)` note regardless of other signals.
 
 Provide a **one-line rationale** for each ranking, keyed to the project type and stack (e.g. "HIGH — Next.js project; this React skill maps directly to the primary framework").
+
+**Item ordering (within every category, in the overlay and in the chat report):** kit-native items first, then remaining items HIGH → MED → LOW, alphabetical within a tier. Consumers that render the overlay (e.g. the dashboard's Toolkit views) preserve this order, so the kit's own skills, commands, and plugin entry always surface at the top. Mark each kit-native record with the optional field `display_group: kit` (permitted by the schema's open-world rule) so renderers can group them without re-deriving provenance.
 
 ### 4 · Write relevance overlays under `_00-Project-Management/97-AI-Reference/`
 
@@ -127,7 +130,7 @@ After writing the overlay, report:
 
 ## Non-negotiable rules
 
-- **Judgment-led, non-deterministic** — do not hard-code a fixed ranking. Always re-derive from the current project context.
+- **Judgment-led, non-deterministic** — do not hard-code a fixed ranking. Always re-derive from the current project context. **Single exception:** the kit self-rank default (criterion 0) — kit-native items are HIGH and listed first unless PROJECT-CONTEXT.md explicitly excludes the workflow they serve.
 - **Never hard-fail on a missing item** — gaps are informational; they never abort the ranking pass. Degrade gracefully: flag the gap, continue.
 - **No consumer project references** — this skill is self-contained. Do not reference specific client names, internal company names, or project-specific paths beyond the kit's standard layout.
 - **Overlay schema deferred to STORY-04.3.03** — do not define or extend the overlay schema fields here. Reference ADR-0029 / STORY-04.3.03 for the canonical definition; use the interim format above until it lands.

@@ -125,16 +125,18 @@ script no longer exists in `package.json`), so a verify line that calls it would
 missing script. Do not append `&& npm run pm:mirror` (or `npm run pm:mirror &&`) to any emitted
 `verify` block. Historical sidecars that still carry it are a one-time cleanup, not a live gate.
 
-## Step 6b — Generate chat and phase outcomes (via `write-outcomes` skill)
+## Step 6b — Generate chat and phase outcomes (`write-outcomes` rules, inline-first)
 
-For each **chat** and for each **phase**, dispatch a sub-agent with the `write-outcomes` skill to
+For each **chat** and for each **phase**, apply the `write-outcomes` rules inline to
 synthesize a **fresh, founder-facing outcome line** — a single plain-text sentence describing *what
 the founder will have* once that chat/phase lands (the new capability, not the implementation).
+Dispatch a sub-agent only under [ADR-0105](../../_00-Project-Management/40-Decisions/ADR-0105-write-outcomes-inline-first.md)'s
+named conditions (this producer's own context is near its limit, or an isolation-worthy batch run).
 **Critical nuance:** The outcome is a **fresh synthesis** of the grouped stories' collective value,
-**NOT** a concatenation or list of individual story outcomes. The sub-agent is handed the grouped
-stories' technical scope and writes one clean line. Capture the returned line verbatim (no
-markdown, no "Outcome:" label, no quotes) and write it into the JSON sidecar's `chats[].outcome`
-and `phases[].outcome` fields, and render it in the markdown report.
+**NOT** a concatenation or list of individual story outcomes. Read the grouped stories' technical
+scope and write one clean line. The line is verbatim (no
+markdown, no "Outcome:" label, no quotes) written into the JSON sidecar's `chats[].outcome`
+and `phases[].outcome` fields, and rendered in the markdown report.
 
 **Ordering note (chats vs phases):** chats already exist by Step 2, so chat outcomes can be
 synthesized here. **Phase outcomes are synthesized once Step 7 has grouped chats into phases** — the
