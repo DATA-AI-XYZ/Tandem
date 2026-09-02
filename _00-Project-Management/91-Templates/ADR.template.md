@@ -4,7 +4,7 @@ id: ADR-NNNN
 title: <decision in a short noun phrase>
 adr_status: proposed | accepted | superseded
 supersedes:                    # ADR-NNNN if this replaces an earlier decision
-exploration_html:              # optional: repo-relative path to a sibling EXPLORATION HTML artefact (41-Reports/EXPLORATION-*.html) that compared the alternatives below
+exploration_html:              # optional: repo-relative path to a sibling EXPLORATION HTML artefact (41-Reports/explorations/EXPLORATION-*.html) that compared the alternatives below
 status: not-started            # lifecycle status: not-started → in-progress → done
 created_at: ''
 started_at: ''
@@ -35,11 +35,11 @@ flowchart LR
 ## Alternatives considered
 
 <!-- If ≥3 viable approaches were compared, prefer building the sibling HTML first
-     (91-Templates/EXPLORATION.template.html → 41-Reports/EXPLORATION-YYYY-MM-DD-<slug>.html),
+     (91-Templates/EXPLORATION.template.html → 41-Reports/explorations/EXPLORATION-YYYY-MM-DD-<slug>.html),
      radio-select the winner, and paste its "Export → ADR options block" output below.
      Reference the artefact via the `exploration_html:` frontmatter field above, or with a
      markdown link in this section body — e.g.
-     [side-by-side exploration](../41-Reports/EXPLORATION-YYYY-MM-DD-<slug>.html). -->
+     [side-by-side exploration](../41-Reports/explorations/EXPLORATION-YYYY-MM-DD-<slug>.html). -->
 
 1. **<option>** — <why not chosen>
 2. **<option>** — <why not chosen>

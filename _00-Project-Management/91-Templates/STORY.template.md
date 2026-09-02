@@ -24,12 +24,21 @@ outcome: ''                      # optional: founder-facing "what you'll have" o
                                  # story is done — one plain sentence about the capability,
                                  # not the implementation. Never required; a missing outcome
                                  # is nudged by a non-fatal pm:lint warning (W1), see ADR-0061.
-ai_review: pending               # pending | completed-YYYY-MM-DD | skipped-trivial | n-a
+ai_review: pending               # pending | completed-YYYY-MM-DD | skipped-trivial
+                                 #         | deferred-chat-review | n-a
 ai_review_skip_reason: ''        # required only when ai_review = skipped-trivial
+ai_review_deferred_to: ''        # required only when ai_review = deferred-chat-review (ADR-0121).
+                                 # Names the chat or phase whose INDEPENDENT reviewer owns this
+                                 # story's review — e.g. 'CHAT-05'. Use this, never skipped-trivial,
+                                 # when a story closes inside a SOP §18 subagent batch whose review
+                                 # is dispatched over the whole chat afterwards: skipped-trivial is
+                                 # exempt from R15b, so the story would end up permanently unlinked
+                                 # to the review that actually happened.
 ai_review_artefact: ''           # repo-relative path to the AI-CODE-REVIEW HTML artefact;
-                                 # typically 41-Reports/AI-CODE-REVIEW-<story-id>-<YYYY-MM-DD>.html.
+                                 # typically 41-Reports/reviews/AI-CODE-REVIEW-<story-id>-<YYYY-MM-DD>.html.
                                  # Required when ai_review=completed-* (validator R15b); exempt for
-                                 # skipped-trivial / n-a. Must point at an existing file if set.
+                                 # skipped-trivial / deferred-chat-review / n-a. Must point at an
+                                 # existing file if set.
 decisions: []
 depends_on: []                   # optional: STORY ids this story depends on (e.g.
                                  # [STORY-02.1.01]). Validator R17 enforces each entry is a
@@ -107,7 +116,7 @@ html_context: []                 # optional: repo-relative paths to PRIOR siblin
 - [ ] Project quality gates pass (lint / typecheck / tests / build — see `PROJECT-CONTEXT.md`)
 - [ ] No new runtime errors on smoke
 - [ ] If UI: visual contract tests green
-- [ ] **AI-code review** complete: `ai_review` frontmatter flipped to `completed-YYYY-MM-DD`, `skipped-trivial` (with `ai_review_skip_reason`), or `n-a` (no AI authorship). See SOP §7 for the >50-lines / >2-files trigger.
+- [ ] **AI-code review** complete: `ai_review` frontmatter flipped to `completed-YYYY-MM-DD`, `skipped-trivial` (with `ai_review_skip_reason`), `deferred-chat-review` (with `ai_review_deferred_to`, when an independent reviewer is dispatched over the whole chat afterwards — ADR-0121), or `n-a` (no AI authorship). See SOP §7 for the >50-lines / >2-files trigger.
 - [ ] Frontmatter updated: `status: done`, `completed_at: <ISO 8601 now>`
 - [ ] `42-Monitor/MONITOR.md` updated (bar + count + revision history line)
 - [ ] ADRs created for any non-obvious decisions

@@ -23,7 +23,7 @@ The canonical layout is the scaffold under `_00-Project-Management/` (12-Active,
 - **Monitor** — try in order:
   - `_00-Project-Management/42-Monitor/MONITOR.md` (canonical)
   - `_00-Project-Management/00-Monitor/MONITOR.md`
-  - `_00-Project-Management/00-Monitor/STORY-MONITOR.md` (older naming, e.g. Curated Lagos)
+  - `_00-Project-Management/00-Monitor/STORY-MONITOR.md` (older flattened-variant naming)
 - **Active WIP index** — `_00-Project-Management/12-Active/ACTIVE.md` (canonical) OR `_00-Project-Management/00-Active/ACTIVE.md`. If neither exists, skip the WIP-removal step.
 - **ADR folder** — `_00-Project-Management/40-Decisions/` (canonical) OR `_00-Project-Management/06-ADR/` (flattened). Required for DoD item 7's "ADRs present + linked" check.
 - **Project root `CLAUDE.md`** — always loaded for project-specific overrides.
@@ -54,7 +54,7 @@ For each item, mark PASS / FAIL with evidence.
    - **Skip** only for typo fixes, copy edits, one-line config tweaks, or pure frontmatter / status edits where no executable code or schema changed.
 
    **AI-code-review artefact (when the review runs — SOP §7.1):**
-   1. Copy `_00-Project-Management/91-Templates/AI-CODE-REVIEW.template.html` to `_00-Project-Management/41-Reports/AI-CODE-REVIEW-<story-id>-<YYYY-MM-DD>.html` (today's date).
+   1. Copy `_00-Project-Management/91-Templates/AI-CODE-REVIEW.template.html` to `_00-Project-Management/41-Reports/reviews/AI-CODE-REVIEW-<story-id>-<YYYY-MM-DD>.html` (today's date).
    2. Interpolate the real unified diff into the diff slot (`data-slot="diff"`) and one `<article class="anno-card severity-<level>">` per finding into the annotation slot (`data-slot="annotations"`). Each annotation carries `data-severity` (`blocker` / `critical` / `warning` / `nit`), `data-file`, `data-line`, `data-category` (security / correctness / perf / style / dead-code), plus reasoning and a suggested fix. Render reasoning/fix as text only — never `innerHTML` (XSS-safe).
    3. Write the artefact's repo-relative path into the story's `ai_review_artefact:` frontmatter, and set `ai_review: completed-YYYY-MM-DD` (today's date). **Set this token MECHANICALLY — never copy the review's verdict word.** The `ai_review:` field is a lifecycle marker, not a verdict: it is ALWAYS one of `completed-<today>` / `skipped-trivial` / `n-a`, regardless of whether the review's outcome was "APPROVE", "LGTM", "REJECT", or anything else. Copying a verdict word (e.g. `ai_review: approve`) is the exact defect BUG-20260608-01 recorded; validator **R14** now rejects any non-terminal `ai_review` on a `done` story, so a verdict word there will fail `pm:lint`.
    4. **Blocker gate (hard rule, SOP §7.1):** count the `data-severity="blocker"` annotations. **If blocker count > 0, this DoD item FAILs** — do NOT flip `status: done`. Report the blockers, fix them, re-review, and regenerate the artefact until the blocker count is zero. critical / warning / nit findings do not block the flip but must be triaged.
@@ -81,6 +81,42 @@ For each item, mark PASS / FAIL with evidence.
    - Prepend a one-line entry to the revision history with today's ISO date and the story ID + short outcome.
 
 4. **Dashboard regeneration is project-specific.** Probe `package.json` for a `pm:dash` script (or equivalent — `dash`, `dashboard`, `monitor`). If it exists AND no Stop hook is configured for the project, run it. If neither the script nor a Stop hook exists, skip silently — not every project has a generated dashboard. Don't fabricate the command name.
+
+5. **Append the retro ledger line** — in the SAME response as the flip and the MONITOR update, per SOP §14.1. **This is a side-effect, not a gate.** It never prompts, never blocks, and a failure here must never hold the close-out: the writer always exits 0 and warns on stderr (ADR-0110). Skip the whole step silently if `_00-Project-Management/93-Scripts/retro-capture.js` is absent — older installs won't have it.
+
+   ```bash
+   node _00-Project-Management/93-Scripts/retro-capture.js --level story --id <STORY-ID> --phase <EPIC-NN> [--chat <CHAT-NN>] [--tier <low|high>] [--estimate-vs-actual <under|on|over>] [--bugs <n>] [--adrs <n>] [--wall-clock-s <n>] [--rework|--no-rework] [--friction "…"] [--artefact-gap <ID>] [--kit-signal "…"]
+   ```
+
+   **This is the only story-level capture site in the kit** — defined here once, and referenced (never
+   restated) by anything that needs it, including `execute-batch-parallel`'s reconciliation stage 3.
+   That is why this command and not `execute-story` owns the level: a second copy could only
+   double-write and drift.
+
+   **Everything after `--id` is optional, and omitting beats guessing.** An absent field is recorded
+   as an explicit `null` meaning "not recorded"; a *wrong* value is indistinguishable from a
+   measurement and quietly corrupts the calibration data. Worse, a value the schema rejects
+   (`unknown`, `n/a`, `~120`, `2m`) refuses the **entire record**, not just that field — and because
+   this step never blocks, the warning goes unread and the story's whole retro is lost. When in
+   doubt, leave the flag off.
+
+   Field rules — count them the same way every time (PRD §A.2):
+   - `--chat` — omit entirely when `execute-story` drove the work; it is not part of a batch.
+   - `--tier` — omit when unknown or human-driven. Never guess it.
+   - `--estimate-vs-actual` — omit when the story carries no estimate. An absent estimate is
+     recorded as absent, never inferred.
+   - `--rework` when the work needed a second implementation pass after a failed TC or a
+     blocker-severity review finding; `--no-rework` for a first-pass close. Omit **both** only if
+     you genuinely cannot tell — absent means "not recorded", and is not the same as `--no-rework`.
+   - `--bugs` — BUG files raised *during this execution*, from its `34-Bugs/` writes. Not bugs
+     merely referenced.
+   - `--adrs` — ADRs *created* during the work, i.e. the length of the `decisions:` array here.
+   - `--wall-clock-s` — execution-window seconds, and **only** from a real elapsed measurement you
+     actually have. It is **not** a lead-time or cycle-time figure and must never be derived from
+     frontmatter timestamps (ADR-0107, which retired exactly that derivation). No measurement means
+     omit the flag — see ADR-0109 for why the field exists at story level at all.
+   - The three judgement flags are for when something genuine happened. Omit them otherwise; they
+     are written as explicit `null` and the rollups skip nulls.
 
 ## Output rules
 

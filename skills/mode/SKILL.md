@@ -1,6 +1,6 @@
 ---
 name: mode
-description: Set and enforce the project's global conversation Mode (Plan · Dev · Dual · Neutral) — the persistent "moat" that frames every joined chat. Use when the user says "go to plan/dev/dual mode", "set the mode", "isolate this chat", "rejoin global mode", when a request is out-of-mode, or when uncertain which phase the project is in.
+description: Set and enforce the project's global conversation Mode (Plan · Dev · Dual · Neutral) — the persistent "moat" that frames every joined chat. Use when the user says "go to plan/dev/dual mode", "set the mode", "isolate this chat", "rejoin global mode", when a request is out-of-mode, or when uncertain which conversation Mode is active.
 ---
 
 # Tandem conversation Mode — "the moat"

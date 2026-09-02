@@ -77,7 +77,20 @@ const LOGICAL_KEYS = [
 ];
 
 // Artefact-bearing folders that linters / rollup generators scan (have frontmatter).
-const SCAN_KEYS = ['backlog', 'epics', 'features', 'stories', 'testplans', 'bugs', 'decisions'];
+//
+// `releases` added by STORY-25.6.02 / ADR-0132. It was the one folder with a template,
+// a manifest entry, a path mapping and a dashboard renderer but no place in this list,
+// so `pm:lint` never walked 13-Releases/ — "lint passes over the release artefacts" was
+// unfalsifiable: it exited 0 with well-formed records, malformed ones, or none at all.
+// Widening the set is what makes that claim reachable. Order stays report-stable.
+//
+// `retros` added by STORY-28.2.01 / BACKLOG-0133, for the identical reason one release
+// cycle later: `14-Retros/` has a template, a path mapping, a dashboard renderer and a
+// generator (`monthly-retro`), and the linter had never walked it. A retro carries the
+// same `type/status/created_at/title` contract every other artefact carries, and until now
+// nothing checked it — a retro with a bogus `status:` or a missing `title:` shipped clean.
+// Placed after `releases` so the order still follows the folder numbering (13- then 14-).
+const SCAN_KEYS = ['backlog', 'releases', 'retros', 'epics', 'features', 'stories', 'testplans', 'bugs', 'decisions'];
 
 const PRESETS = {
   // Canonical PM-kit numbering (what `pm:claude-scaffold` creates by default).
@@ -207,7 +220,42 @@ function scanDirs(pmRoot, keys = SCAN_KEYS) {
   return out;
 }
 
-module.exports = { LOGICAL_KEYS, SCAN_KEYS, PRESETS, CONFIG_NAME, readPmConfig, detectLayout, loadPaths, scanDirs };
+// ---------------------------------------------------------------------------
+// WHERE THE GENERATED BOARD LANDS — ONE ANSWER, FOUR CONSUMERS (STORY-33.10.01 / CF-45).
+//
+// `generate-dashboard.js` (which WRITES the board), `install.js` (which reports it twice and
+// gitignores it once) and `update.js` (which reports it) must all name the same file. They used to
+// compute it independently, and they disagreed: two hardcoded the default folder while the
+// gitignore resolved the role, which is BUG-20260819-01 — a consumer's board ignored at one path
+// and written to another.
+//
+// Re-typing the rule is what let them drift, so it lives here and is consumed. The DoD review of
+// this very story caught the second instance of exactly that drift, after one call site had already
+// been fixed: `update.js` resolved the role from a DIFFERENT map and reported a path nothing was
+// written to. A shared expression is not enough — it has to be a shared FUNCTION.
+//
+// `monitorDir()` is deliberately total. A config override that is absent, empty, or not a string
+// falls back to the preset rather than reaching `path.join(pmRoot, undefined)` or
+// `path.join(pmRoot, 42)`; the latter threw an uncaught TypeError out of `pm:update` before this
+// guard existed, while `pm:install` degraded cleanly — the same input, two behaviours.
+function monitorDir(map) {
+  const v = map && map.monitor;
+  return (typeof v === 'string' && v) ? v : PRESETS.full.monitor;
+}
+
+/**
+ * Absolute path of the generated board for a project.
+ * @param {string} pmRoot absolute path to the project's _00-Project-Management folder
+ * @param {Object} map    a resolved layout map (from `loadPaths(pmRoot).map`)
+ */
+function dashboardOutPath(pmRoot, map) {
+  return path.join(pmRoot, monitorDir(map), 'DASHBOARD.html');
+}
+
+module.exports = {
+  LOGICAL_KEYS, SCAN_KEYS, PRESETS, CONFIG_NAME, readPmConfig, detectLayout, loadPaths, scanDirs,
+  monitorDir, dashboardOutPath,
+};
 
 // ---------------------------------------------------------------------------
 // CLI — lets skills / bootstrap resolve folders without importing the module.

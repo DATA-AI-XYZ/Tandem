@@ -1,6 +1,6 @@
 ---
 name: refine-backlog
-description: Refine a BACKLOG item or not-started STORY by running the SOP §6 Definition of Ready checklist. Use when the user asks to refine the backlog, refine an item, promote to ready, run DoR, gate a story, do a Friday review, or invokes /tandem:refine-backlog. Operates as PM hat. Either flips status to ready (if all DoR items pass) OR stops, lists gaps, and asks — never silently promotes.
+description: Refine a BACKLOG item or not-started STORY by running the SOP §6 Definition of Ready checklist. Use when the user asks to refine the backlog, refine an item, promote to ready, run DoR, gate a story, or invokes /tandem:refine-backlog. Operates as PM hat. Either flips status to ready (if all DoR items pass) OR stops, lists gaps, and asks — never silently promotes.
 ---
 
 # Tandem: refine-backlog (PM hat)
@@ -35,9 +35,32 @@ Per SOP §6, a story is `ready` only when **all** of the following are true. The
 This skill **never silently promotes**. The contract:
 
 1. Walk the DoR checklist verbatim — every item gets PASS / FAIL with a one-line reason.
-2. If **all** items pass → before flipping `status: not-started` → `ready`, perform a fill-if-missing check: if the story's `outcome:` frontmatter is empty or absent, apply the `write-outcomes` rules inline — using the story's **title + acceptance criteria + technical notes** (the same input the other four FEAT-14.3 producers use, per ADR-0059's contract) — to generate exactly one plain-text line, then write that line into `outcome:` (fill-if-missing only — never overwrite an existing outcome). Dispatch a sub-agent only under [ADR-0105](../../_00-Project-Management/40-Decisions/ADR-0105-write-outcomes-inline-first.md)'s named conditions (this producer's own context is near its limit, or an isolation-worthy batch run). Then flip the story (or BACKLOG entry, after conversion) `status: not-started` → `ready`. Atomic edit. Do **not** set `started_at` (that happens at `in-progress`, not `ready`). Show the user the result table.
+2. If **all** items pass → before flipping `status: not-started` → `ready`, run the **usage-estimate producer step** below, then perform a fill-if-missing check: if the story's `outcome:` frontmatter is empty or absent, apply the `write-outcomes` rules inline — using the story's **title + acceptance criteria + technical notes** (the same input the other four FEAT-14.3 producers use, per ADR-0059's contract) — to generate exactly one plain-text line, then write that line into `outcome:` (fill-if-missing only — never overwrite an existing outcome). Dispatch a sub-agent only under ADR-0105 — write-outcomes runs inline first, rather than dispatching a sub-agent per artefact's named conditions (this producer's own context is near its limit, or an isolation-worthy batch run). Then flip the story (or BACKLOG entry, after conversion) `status: not-started` → `ready`. Atomic edit. Do **not** set `started_at` (that happens at `in-progress`, not `ready`). Show the user the result table.
 3. If **any** item fails → **stop**. Do **not** flip status. Show the gap list and the smallest fix for each. Ask the user before patching — the skill never auto-completes the missing pieces (e.g. don't invent ACs, don't fabricate TCs, don't guess at risks).
 4. **Sunset check** — per SOP §15, if a story has been `not-started` > 90 days, propose `wontfix` or `archived` instead of refinement. Stale items rot; the kit prefers honest sunsetting over false hope.
+
+### Usage-estimate producer step (MANDATORY at the DoR pass)
+
+Every story this skill promotes to `ready` leaves carrying a `usage_estimate:` — the field has
+existed since STORY-21.2.02 and **nothing ever wrote one**, so every estimate-vs-actual surface
+in the kit prints an honest null (BACKLOG-0157). Run, per story, before the flip:
+
+```bash
+node _00-Project-Management/93-Scripts/usage-estimate.js --story <story-path>
+```
+
+- **Fill-if-missing, never overwrite.** A populated estimate is preserved verbatim and the file
+  is left byte-identical, so the step is safe to re-run and safe over a hand-estimated story.
+- It writes the number **and** a one-line basis into the story's `## Technical notes`. Do not
+  hand-write either — the basis is what makes a variance interpretable later.
+- If it reports no number because `estimate:` is missing or `XL`, that is a **DoR gap**: report it
+  in the gap list and do not promote. An XL story is split first (SOP §6).
+- Report the figure in the summary table's Notes column.
+
+**The derivation itself is written in exactly one place — do not restate it here or in any
+skill:** [`_00-Project-Management/90-Standards/USAGE-ESTIMATE-HEURISTIC.md`](../../_00-Project-Management/90-Standards/USAGE-ESTIMATE-HEURISTIC.md).
+Read it before overriding a produced number by hand; in particular it records why a ledger row is
+**not** what a chat cost, and why every `type_of_work` multiplier is 1.00 today.
 
 ### Premise resolution (the "Premise verified" DoR item)
 

@@ -8,3 +8,27 @@ _00-Project-Management/93-Scripts/hooks/pre-commit text eol=lf
 # than a whole-file EOL rewrite, which would bury the actual change.
 data/plugin-metrics/*.csv  text eol=lf
 data/plugin-metrics/*.json text eol=lf
+
+# The retro-ledger test fixtures encode their LINE ENDINGS as part of the fixture.
+# The live ledger is CRLF in a working tree and LF in git; an LF-only fixture never
+# exercises the CRLF arm of the reader, and last phase exactly that let a mutant pass
+# 44 green checks while the live derivation returned 1 story for a month that had 39
+# (BUG-20260804-17). `-text` disables ALL eol conversion so the committed bytes — a
+# deliberate CRLF/LF mix — survive a fresh clone unchanged. Do not "tidy" this to
+# `text eol=lf`; `tests/retro-report.test.js :: all-levels` asserts the mix is still
+# there and will fail loudly if it is normalised away.
+_00-Project-Management/93-Scripts/tests/fixtures/retro/*.jsonl -text
+
+# Same reasoning as the retro fixtures above, for the FEAT-26.4 autopilot fixtures: the
+# run/pause ledger fixture is a deliberate CRLF/LF MIX so the reader's CRLF arm is actually
+# exercised. `-text` disables all eol conversion so the committed bytes survive a fresh
+# clone. `tests/autopilot-run-plan.test.js` and `tests/plan-vs-actual.test.js` assert the
+# mix is still there.
+_00-Project-Management/93-Scripts/tests/fixtures/autopilot/*.jsonl -text
+
+# The thin-corpus fixture (STORY-28.1.04) is LF in this working tree with no attribute, so on
+# a fresh clone with core.autocrlf=true it would arrive CRLF and the bytes under test would
+# differ between machines — a fixture whose content is a claim about MEASUREMENT must not vary
+# by checkout (review MINOR-7). `-text` disables all eol conversion, same reasoning as the two
+# fixture sets above.
+_00-Project-Management/93-Scripts/tests/fixtures/thin-corpus/** -text

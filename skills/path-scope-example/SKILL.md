@@ -1,6 +1,6 @@
 ---
 name: path-scope-example
-description: Reference example of a PATH-SCOPED skill (ADR-0010). A light ADR-authoring reminder that auto-loads only when working inside the decisions folder — next free ADR-NNNN, the template to start from, and the same-response linking rule. Use when creating or editing an ADR under the decisions folder. Copy this skill's `paths:` frontmatter as the template for your own directory-scoped skills.
+description: The kit's reference example of a PATH-SCOPED skill (ADR-0010) — copy its `paths:` frontmatter as the template for your own directory-scoped skills. Its `paths:` block, not this description, is what loads it: inside the decisions folder it auto-loads as a light ADR-authoring reminder (next free ADR-NNNN, the template to start from, the same-response linking rule) and everywhere else it stays silent.
 paths:
   - "_00-Project-Management/40-Decisions/**/*"
 ---

@@ -170,7 +170,7 @@ Claude reads your existing Epics, OKRs, and relevant code, then proposes the rig
 
 ### Rhythm note — explore before you narrow
 
-**Before drafting an Epic with ≥3 candidate approaches, generate the exploration HTML first.** Copy `91-Templates/EXPLORATION.template.html` to `41-Reports/EXPLORATION-YYYY-MM-DD-<slug>.html`, fill the option slots, compare them side by side, then radio-select the winner and use its "Export → ADR" button to seed the ADR's "Alternatives considered" block. This stops you from committing to one approach in the same pass that you draft the Epic. See prompt 02 step 5.
+**Before drafting an Epic with ≥3 candidate approaches, generate the exploration HTML first.** Copy `91-Templates/EXPLORATION.template.html` to `41-Reports/explorations/EXPLORATION-YYYY-MM-DD-<slug>.html`, fill the option slots, compare them side by side, then radio-select the winner and use its "Export → ADR" button to seed the ADR's "Alternatives considered" block. This stops you from committing to one approach in the same pass that you draft the Epic. See prompt 02 step 5.
 
 ---
 

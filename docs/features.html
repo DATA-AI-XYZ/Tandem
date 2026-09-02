@@ -317,138 +317,147 @@ body {
     </header>
     <main class="doc-body">
 <h1 id="features">Features</h1>
-<p>This page describes what Tandem can do, grouped by capability. Each capability is delivered by one or more <strong>skills</strong> (slash commands Claude loads on demand) and/or <strong>scripts</strong> (<code>npm run pm:*</code>). Everything below is <strong>shipped</strong> — the kit is at v2.7.3 with all planned epics complete (30 skills). For the exact order you run the lifecycle skills in, see the <a href="#">Command lifecycle</a>; for the underlying model, see <a href="#">Architecture</a>.</p>
-<p>The full feature tree lives under <code>_00-Project-Management/31-Features/</code> (71 feature files across 21 epics). The sections here summarise the major groups rather than listing every file.</p>
+<p>This page describes what Tandem can do, grouped by capability. Each capability is delivered by one or more <strong>skills</strong> (slash commands Claude loads on demand) and/or <strong>scripts</strong> (<code>npm run pm:*</code>). Everything below is <strong>shipped on <code>main</code></strong> across 32 skills; the published marketplace build is v2.7.3, with v2.8.0 staged behind a deliberately deferred release gate. For the exact order you run the lifecycle skills in, see the <a href="#">Command lifecycle</a>; for the underlying model, see <a href="#">Architecture</a>.</p>
+<p>The full feature tree lives under <code>_00-Project-Management/31-Features/</code> (136 feature files across 35 epics). The sections here summarise the major groups rather than listing every file.</p>
 <h2 id="strategy-planning">Strategy &amp; planning</h2>
 <p>Anchor work to a business outcome before any code is written.</p>
 <ul>
 <li><strong><code>draft-okrs</code></strong> (Founder hat) — draft quarterly OKRs from a North Star.</li>
-<li><strong><code>draft-prd</code></strong> (Founder → PM hat) — draft a PRD from an OKR or rough notes; ships its own</li>
-<p>  PRD template.</p>
-<li><strong><code>draft-epic</code></strong> (PM hat) — draft an Epic from an OKR key result or a PRD section. Every</li>
-<p>  epic must link back to strategy or it is rejected.</p>
+<li><strong><code>draft-prd</code></strong> (Founder → PM hat) — draft a PRD from an OKR or rough notes; ships its own<p>  PRD template.</p>
+</li>
+<li><strong><code>draft-epic</code></strong> (PM hat) — draft an Epic from an OKR key result or a PRD section. Every<p>  epic must link back to strategy or it is rejected.</p>
+</li>
 </ul>
 <h2 id="decomposition">Decomposition</h2>
 <p>Break strategy down into executable, testable units.</p>
 <ul>
 <li><strong><code>split-into-features</code></strong> (PM hat) — decompose an Epic into <code>FEAT-NN.M</code> files.</li>
-<li><strong><code>split-into-stories</code></strong> (PM hat) — decompose a Feature into <code>STORY-NN.M.PP</code> files <strong>and</strong></li>
-<p>  their paired <code>TESTPLAN-NN.M.PP</code> in the same step. Story-to-testplan pairing is mandatory:   one test case per acceptance criterion.</p>
+<li><strong><code>split-into-stories</code></strong> (PM hat) — decompose a Feature into <code>STORY-NN.M.PP</code> files <strong>and</strong><p>  their paired <code>TESTPLAN-NN.M.PP</code> in the same step. Story-to-testplan pairing is mandatory:   one test case per acceptance criterion.</p>
+</li>
 </ul>
 <h2 id="refinement-gates">Refinement &amp; gates</h2>
 <p>Two checklists bracket execution so only ready work starts and only finished work closes.</p>
 <ul>
-<li><strong><code>refine-backlog</code></strong> (PM hat) — run the Definition-of-Ready checklist and either promote a</li>
-<p>  story to <code>ready</code> or stop and list the gaps. It never silently promotes.</p>
-<li><strong><code>close-out-story</code></strong> (QA → PM hat) — run the Definition-of-Done gate (which includes an</li>
-<p>  AI-code review), flip the story to <code>done</code>, update the board, and regenerate the dashboard.</p>
+<li><strong><code>triage-backlog</code></strong> (PM hat) — upstream of refinement: verify each backlog item&#39;s claim<p>  against the current tree — did a later epic already deliver it, does another item say the   same thing, has the premise evaporated? — and rule it via a closed verdict set with evidence   per verdict. Terminal flips need operator confirmation; it never runs DoR and never   promotes. A triage that kills items is worth more than one that promotes them.</p>
+</li>
+<li><strong><code>refine-backlog</code></strong> (PM hat) — run the Definition-of-Ready checklist and either promote a<p>  story to <code>ready</code> or stop and list the gaps. It never silently promotes.</p>
+</li>
+<li><strong><code>close-out-story</code></strong> (QA → PM hat) — run the Definition-of-Done gate (which includes an<p>  AI-code review), flip the story to <code>done</code>, update the board, and regenerate the dashboard.</p>
+</li>
 </ul>
 <h2 id="execution">Execution</h2>
 <p>Pull ready work into progress — one story or a planned batch.</p>
 <ul>
-<li><strong><code>execute-story</code></strong> (Dev hat) — start a single ready story: verify Definition of Ready, flip</li>
-<p>  to <code>in-progress</code>, work the acceptance criteria one at a time, filing ADRs and BUGs as they   arise.</p>
-<li><strong><code>run-testplan</code></strong> (QA hat) — run every test case&#39;s command verbatim, mark PASS/FAIL, and</li>
-<p>  auto-file a BUG for any failure before reporting.</p>
-<li><strong><code>execute-batch</code></strong> (Dev/QA hat) — execute one &quot;chat&quot; from an Implementation Strategy: run</li>
-<p>  its stories sequentially (execute → test → close) with atomic per-story finalisation and a   context-budget guard.</p>
-<li><strong><code>execute-batch-parallel</code></strong> (Dev/QA hat) — run a batch of <strong>file-disjoint</strong> stories</li>
-<p>  concurrently: fan out one tightly-scoped sub-agent per story, then fold the results back   through a single-writer, serialised reconciliation that flips status, assigns ADR/BUG IDs, and   writes the board once for the whole batch. A static <code>pm:batch-check</code> proves the stories&#39;   <code>files_touched</code> are disjoint before any dispatch; a <code>CONFLICT</code>/<code>UNKNOWN</code> result falls back to   serial. The §5 WIP cap is preserved, not raised (ADR-0075 / ADR-0077).</p>
+<li><strong><code>execute-story</code></strong> (Dev hat) — start a single ready story: verify Definition of Ready, flip<p>  to <code>in-progress</code>, work the acceptance criteria one at a time, filing ADRs and BUGs as they   arise.</p>
+</li>
+<li><strong><code>run-testplan</code></strong> (QA hat) — run every test case&#39;s command verbatim, mark PASS/FAIL, and<p>  auto-file a BUG for any failure before reporting.</p>
+</li>
+<li><strong><code>execute-batch</code></strong> (Dev/QA hat) — execute one &quot;chat&quot; from an Implementation Strategy: run<p>  its stories sequentially (execute → test → close) with atomic per-story finalisation and a   context-budget guard.</p>
+</li>
+<li><strong><code>execute-batch-parallel</code></strong> (Dev/QA hat) — run a batch of <strong>file-disjoint</strong> stories<p>  concurrently: fan out one tightly-scoped sub-agent per story, then fold the results back   through a single-writer, serialised reconciliation that flips status, assigns ADR/BUG IDs, and   writes the board once for the whole batch. A static <code>pm:batch-check</code> proves the stories&#39;   <code>files_touched</code> are disjoint before any dispatch; a <code>CONFLICT</code>/<code>UNKNOWN</code> result falls back to   serial. The §5 WIP cap is preserved, not raised (ADR-0075 / ADR-0077).</p>
+</li>
 </ul>
 <h2 id="intelligent-execution-strategy">Intelligent execution strategy</h2>
-<p>Plan *how* to execute a backlog, not just what.</p>
+<p>Plan <em>how</em> to execute a backlog, not just what.</p>
 <ul>
-<li><strong><code>execution-strategist</code></strong> (PM hat) — group ready stories into right-sized &quot;chats&quot; by</li>
-<p>  dependency and coherence (judgment-led grouping, soft size bounds; ADR-0025/0026). It is a   dry-run planner — it does not change story status.</p>
-<li><strong>Story sub-agent metadata</strong> — each story carries a <code>type_of_work</code> (and optional</li>
-<p>  <code>suggested_agents</code>) used to pick a specialist executor, with a documented fallback so a   missing agent never hard-fails (ADR-0023).</p>
+<li><strong><code>execution-strategist</code></strong> (PM hat) — group ready stories into right-sized &quot;chats&quot; by<p>  dependency and coherence (judgment-led grouping, soft size bounds; ADR-0025/0026). It is a   dry-run planner — it does not change story status.</p>
+</li>
+<li><strong>Story sub-agent metadata</strong> — each story carries a <code>type_of_work</code> (and optional<p>  <code>suggested_agents</code>) used to pick a specialist executor, with a documented fallback so a   missing agent never hard-fails (ADR-0023).</p>
+</li>
 </ul>
 <h2 id="autonomous-execution-usage-budgeting">Autonomous execution &amp; usage budgeting</h2>
 <p>Hand the whole plan to the machine — safely, and with cost visibility.</p>
 <ul>
-<li><strong><code>autopilot</code></strong> — one command runs the existing plan end-to-end unattended: it opens each</li>
-<p>  phase, dispatches every batch in its own fresh-context sub-agent (the SOP §18   subagent-per-batch contract), and closes the phase. A durable checkpoint survives pauses   and crashes — re-running never redoes finished work, and the board is always the ground   truth. Any failed test or raised bug halts the chain and reports. Entry requires explicit   operator authorisation, a stop condition bounds every run, and a full run log lands in   the reports folder.</p>
-<li><strong>Usage governor</strong> — autopilot watches your Claude usage window and, at a configurable</li>
-<p>  threshold (default 92%), finishes the current unit, checkpoints, and pauses; it schedules   its own resume for the window reset. No signal available? It pauses and asks — it never   guesses. Manual pause/resume is always available.</p>
-<li><strong>Model tiering, quality first</strong> — orchestration and every review pass run on the</li>
-<p>  highest-capability model; implementation may be assigned to cheaper models per story by   complexity and risk, and anything ambiguous escalates up. Review is never skipped.</p>
-<li><strong>Usage tracking &amp; plan-by-usage budgeting</strong> — executions record the actual tokens they</li>
-<p>  burned, attributed to the story or batch that caused them; stories can carry a usage   estimate that reconciles against actuals so predictions sharpen; the board and dashboard   roll usage up by feature/epic, and a pre-batch projection answers &quot;can I afford to run   this now?&quot; before you start. Where there is no data yet, surfaces say so honestly —   never zeros pretending to be measurements.</p>
+<li><strong><code>autopilot</code></strong> — one command runs the existing plan end-to-end unattended: it opens each<p>  phase, dispatches every batch in its own fresh-context sub-agent (the SOP §18   subagent-per-batch contract), and closes the phase. A durable checkpoint survives pauses   and crashes — re-running never redoes finished work, and the board is always the ground   truth. Any failed test or raised bug halts the chain and reports. Entry requires explicit   operator authorisation, a stop condition bounds every run, and a full run log lands in   the reports folder.</p>
+</li>
+<li><strong>Usage governor</strong> — autopilot watches your Claude usage window and, at a configurable<p>  threshold (default 92%), finishes the current unit, checkpoints, and pauses; it schedules   its own resume for the window reset. No signal available? It pauses and asks — it never   guesses. Manual pause/resume is always available.</p>
+</li>
+<li><strong>Model tiering, quality first</strong> — orchestration and every review pass run on the<p>  highest-capability model; implementation may be assigned to cheaper models per story by   complexity and risk, and anything ambiguous escalates up. Review is never skipped.</p>
+</li>
+<li><strong>Usage tracking &amp; plan-by-usage budgeting</strong> — executions record the actual tokens they<p>  burned, attributed to the story or batch that caused them; stories can carry a usage   estimate that reconciles against actuals so predictions sharpen; the board and dashboard   roll usage up by feature/epic, and a pre-batch projection answers &quot;can I afford to run   this now?&quot; before you start. Where there is no data yet, surfaces say so honestly —   never zeros pretending to be measurements. Where a story boundary is not observable, work   is recorded as explicitly unattributable rather than prorated into a guess.</p>
+</li>
+<li><strong>Run observability</strong> — an unattended run leaves the records a human would have kept. It<p>  writes a reviewable run plan <em>before</em> dispatching anything, appends story/chat/phase/run   events to an append-only retro ledger that can never block a close-out, captures its own   judgement calls (model tier, estimates, governor decisions), and compares plan against   actuals afterwards. Guard tools cover the failure modes found in real runs: an entry   probe that refuses a run with no usage signal, a branch assertion before every dispatch,   explicit halt acknowledgement so a failed run cannot restart as though nothing happened,   stale-paused-run surfacing, and detection of code that landed without its status flip.</p>
+</li>
+<li><strong>The strategist plans autopilot&#39;s runs</strong> — <code>execution-strategist</code> emits an autopilot<p>  track alongside the human chat track from the same story corpus: paste-ready per-run   prompts, risk-first ordering, model tiers, projected usage, a stop condition, and a   ten-chat cap per run. <code>autopilot</code> authorises a run by naming one of those planned runs,   and plan-vs-actual reads the track&#39;s own projections rather than a figure typed twice.</p>
+</li>
 </ul>
 <h2 id="review-critique">Review &amp; critique</h2>
 <p>Two complementary review surfaces.</p>
 <ul>
-<li><strong><code>critique</code></strong> (PM hat) — advisory quality review of a planning artefact (Epic, Feature,</li>
-<p>  Story, Testplan). Read-only; it never rewrites the file.</p>
-<li><strong><code>peer-review</code></strong> (reviewer / QA hat) — on-demand code review of an explicit target</li>
-<p>  (diff, branch, PR, or file) across correctness, security, performance, maintainability,   tests, and error paths, returning blocker/major/minor findings each with a suggested fix.</p>
+<li><strong><code>critique</code></strong> (PM hat) — advisory quality review of a planning artefact (Epic, Feature,<p>  Story, Testplan). Read-only; it never rewrites the file.</p>
+</li>
+<li><strong><code>peer-review</code></strong> (reviewer / QA hat) — on-demand code review of an explicit target<p>  (diff, branch, PR, or file) across correctness, security, performance, maintainability,   tests, and error paths, returning blocker/major/minor findings each with a suggested fix.</p>
+</li>
+<li><strong><code>plan-drift</code></strong> (PM hat) — read-only bidirectional review of stories against their source<p>  requirements: every requirement item traced to a covering story, and every story&#39;s   acceptance criteria checked against the requirement it links to. Writes a dated advisory   report; a human rules on every finding.</p>
+</li>
 </ul>
 <h2 id="phase-lifecycle">Phase lifecycle</h2>
 <p>Group a set of stories into a phase, run it on its own branch, and integrate cleanly.</p>
 <ul>
-<li><strong><code>start-phase</code></strong> (PM hat) — gate the entry state, cut a <code>phase/&lt;phase-id&gt;</code> branch off</li>
-<p>  <code>main</code> (ADR-0045), and record the open on the board.</p>
-<li><strong><code>close-phase</code></strong> (PM hat) — gate on every phase story being <code>done</code>, compile a phase</li>
-<p>  retrospective, capture follow-ups, update the board, and run a gated merge to <code>main</code>.</p>
+<li><strong><code>start-phase</code></strong> (PM hat) — gate the entry state, cut a <code>phase/&lt;phase-id&gt;</code> branch off<p>  <code>main</code> (ADR-0045), and record the open on the board.</p>
+</li>
+<li><strong><code>close-phase</code></strong> (PM hat) — gate on every phase story being <code>done</code>, compile a phase<p>  retrospective, capture follow-ups, update the board, and run a gated merge to <code>main</code>.</p>
+</li>
 </ul>
 <h2 id="conversation-mode">Conversation Mode</h2>
 <p>Tandem runs as a normal Claude Code session by default, but a <strong>Mode</strong> can be switched on to change how Claude converses through the lifecycle.</p>
 <ul>
-<li><strong><code>mode</code></strong> — set or clear a conversation Mode held in a small global state file and applied</li>
-<p>  through a prompt-level hook, so the chosen interaction style persists across turns without   re-stating it each message (ADR-0066).</p>
+<li><strong><code>mode</code></strong> — set or clear a conversation Mode held in a small global state file and applied<p>  through a prompt-level hook, so the chosen interaction style persists across turns without   re-stating it each message (ADR-0066).</p>
+</li>
 </ul>
 <h2 id="path-scoped-skills">Path-scoped skills</h2>
 <p>Skills normally activate by description match anywhere in a project. A skill can instead be <strong>scoped to a path</strong> so it only activates when work touches matching files.</p>
 <ul>
-<li><strong><code>path-scope-example</code></strong> — a minimal reference-candidate skill scoped to</li>
-<p>  <code>40-Decisions/**</code> (an ADR-authoring reminder) that demonstrates the <code>paths:</code> activation rule.   It ships as a copy-me template; no existing lifecycle skill genuinely needed scoping, so the   kit proves the mechanism with this candidate rather than retrofitting one (ADR-0076).</p>
+<li><strong><code>path-scope-example</code></strong> — a minimal reference-candidate skill scoped to<p>  <code>40-Decisions/**</code> (an ADR-authoring reminder) that demonstrates the <code>paths:</code> activation rule.   It ships as a copy-me template; no existing lifecycle skill genuinely needed scoping, so the   kit proves the mechanism with this candidate rather than retrofitting one (ADR-0076).</p>
+</li>
 </ul>
 <h2 id="the-command-center">The Command Center</h2>
-<p><code>npm run pm:dash</code> renders the whole board to an interactive <code>42-Monitor/DASHBOARD.html</code>: status pills, progress bars, and a workflow-aligned, grouped information architecture built on a shared tile-grid + drawer component model (ADR-0032/0033/0048). It includes an <strong>Implementation Strategy</strong> view (each epic&#39;s strategy selected by story coverage, ADR-0049), an <strong>AI catalogue</strong> that describes the installed skills/agents for humans, a <strong>Docs view</strong> that serves these pages, and a <strong>context-cost</strong> view that surfaces the token &quot;tax&quot; of what each session loads. A zero-dependency headless smoke (<code>pm:smoke</code>, ADR-0038) drives system Chrome over the DevTools Protocol to verify the render with no Puppeteer/Playwright.</p>
+<p><code>npm run pm:dash</code> assembles the whole board into an interactive <code>42-Monitor/DASHBOARD.html</code> — one self-contained file that opens by double-click, no server. Since August 2026 the board is a Preact application (EPIC-33, ADR-0191) built in the kit repo only and shipped as a prebuilt runtime bundle; a consumer&#39;s <code>pm:dash</code> just inlines their local data payload into it, so no consumer ever runs a build step (ADR-0226). The surface keeps the workflow-aligned, grouped information architecture on a shared tile-grid + drawer component model (ADR-0032/0033/0048): an <strong>Implementation Strategy</strong> view (each epic&#39;s strategy selected by story coverage, ADR-0049), an <strong>AI catalogue</strong> that describes the installed skills/agents for humans, a <strong>Project Wiki</strong> view that renders these very pages from their markdown sources — with per-document source anchors and two drift checks over them (ADR-0218 / ADR-0219) — and a <strong>context-cost</strong> view that surfaces the token &quot;tax&quot; of what each session loads.</p>
+<p>EPIC-34 then bounded the UX so the board stays usable at any corpus size: every list-shaped view pages through one shared primitive within a measured per-route scroll budget (ADR-0281/0282), the default sort is attention-ordered so page one answers &quot;what is the state?&quot;, one colour means one thing (a single status→token map, ADR-0292), and the board works where it is shown — a Cmd-K command palette, a single narrow-screen mode, and honest empty/filtered states. A zero-dependency headless smoke (<code>pm:smoke</code>, ADR-0038) drives system Chrome over the DevTools Protocol to verify the render with no Puppeteer/Playwright; it was the port&#39;s acceptance harness and survives it unchanged in role (ADR-0227).</p>
 <h2 id="founder-facing-outcomes">Founder-facing outcomes</h2>
 <p>Every planning artefact carries a plain-English &quot;what you&#39;ll be able to do&quot; line so the plan reads in business terms.</p>
 <ul>
-<li><strong><code>write-outcomes</code></strong> (inline-first, ADR-0105) — the shared rulebook producer skills apply</li>
-<p>  inline by default to turn an artefact&#39;s technical scope into one founder-outcome line;   sub-agent dispatch remains a named-conditions fallback (voice + output contract from ADR-0059,   unchanged).</p>
-<li>Outcomes are authored automatically across the planning tree (PRD → feature → story →</li>
-<p>  chat/phase strategy), with a <code>refine-backlog</code> fill-if-missing safety net, and rendered on the   board as the chat-card lead, the phase subtitle, and in the artefact drawer.</p>
+<li><strong><code>write-outcomes</code></strong> (inline-first, ADR-0105) — the shared rulebook producer skills apply<p>  inline by default to turn an artefact&#39;s technical scope into one founder-outcome line;   sub-agent dispatch remains a named-conditions fallback (voice + output contract from ADR-0059,   unchanged).</p>
+</li>
+<li>Outcomes are authored automatically across the planning tree (PRD → feature → story →<p>  chat/phase strategy), with a <code>refine-backlog</code> fill-if-missing safety net, and rendered on the   board as the chat-card lead, the phase subtitle, and in the artefact drawer.</p>
+</li>
 </ul>
 <h2 id="cross-project-portability">Cross-project portability</h2>
 <p>The kit adapts to a host project rather than assuming one layout.</p>
 <ul>
-<li><strong>Configurable folder layout</strong> — PM sub-folders resolve through a logical→physical path map</li>
-<p>  (<code>90-Standards/pm-paths.json</code>, ADR-0052) with <code>full</code> and <code>flattened</code> presets plus per-key   overrides, so the generators and validator work even when a project does not use the   canonical numbering.</p>
-<li><strong><code>pm:install</code> / <code>pm:doctor</code></strong> — one idempotent command to materialize the PM tree, wire</li>
-<p>  every <code>pm:*</code> script, and pin the layout; a health check to verify it (ADR-0054). Install is   <strong>manifest-driven</strong>: <code>93-Scripts/lib/pm-manifest.json</code> lists the work-folders and seed files   with a per-file kit/user <strong>ownership</strong> rule (kit-owned files are overwritten, user files are   written only when absent) (ADR-0072). The installer registers the hooks into the target only   when none exist (a guarded write, ADR-0055), then generates the dashboard so a fresh install   opens a working Command Center. The <code>/tandem:install</code> skill is the conversational wrapper.</p>
-<li><strong><code>pm:update</code></strong> — a non-destructive kit refresh that rewrites <strong>only</strong> kit-owned content</li>
-<p>  (manifest seeds + the <code>93-Scripts/</code> tooling) into existing folders, never touching your files   or the folder set, and records the installed <code>kitVersion</code>. It is manually triggered;   <code>pm:doctor</code> only *reports* that an update is available (ADR-0073). The <code>/tandem:update</code> skill   wraps it with a dry-run diff and confirmation.</p>
-<li><strong>Cross-platform hooks</strong> — a single canonical Node entrypoint runs the hooks identically on</li>
-<p>  Windows, macOS, and Linux (ADR-0053), with no <code>bash</code>/<code>jq</code> dependency, and a short-lived TTL   sentinel guards against a double-firing Stop hook (ADR-0069).</p>
-<li><strong>Tiered CLAUDE.md model</strong> — <code>fill-claude-md</code> and <code>claude-audit</code> enforce a lean,</li>
-<p>  reference-don&#39;t-duplicate CLAUDE.md layout with advisory line budgets.</p>
+<li><strong>Configurable folder layout</strong> — PM sub-folders resolve through a logical→physical path map<p>  (<code>90-Standards/pm-paths.json</code>, ADR-0052) with <code>full</code> and <code>flattened</code> presets plus per-key   overrides, so the generators and validator work even when a project does not use the   canonical numbering.</p>
+</li>
+<li><strong><code>pm:install</code> / <code>pm:doctor</code></strong> — one idempotent command to materialize the PM tree, wire<p>  every <code>pm:*</code> script, and pin the layout; a health check to verify it (ADR-0054). Install is   <strong>manifest-driven</strong>: <code>93-Scripts/lib/pm-manifest.json</code> lists the work-folders and seed files   with a per-file kit/user <strong>ownership</strong> rule (kit-owned files are overwritten, user files are   written only when absent) (ADR-0072). The installer registers the hooks into the target only   when none exist (a guarded write, ADR-0055), then generates the dashboard so a fresh install   opens a working Command Center. The <code>/tandem:install</code> skill is the conversational wrapper.</p>
+</li>
+<li><strong><code>pm:update</code></strong> — a non-destructive kit refresh that rewrites <strong>only</strong> kit-owned content<p>  (manifest seeds + the <code>93-Scripts/</code> tooling) into existing folders, never touching your files   or the folder set, and records the installed <code>kitVersion</code>. It is manually triggered;   <code>pm:doctor</code> only <em>reports</em> that an update is available (ADR-0073). The <code>/tandem:update</code> skill   wraps it with a dry-run diff and confirmation.</p>
+</li>
+<li><strong>Cross-platform hooks</strong> — a single canonical Node entrypoint runs the hooks identically on<p>  Windows, macOS, and Linux (ADR-0053), with no <code>bash</code>/<code>jq</code> dependency, and a short-lived TTL   sentinel guards against a double-firing Stop hook (ADR-0069).</p>
+</li>
+<li><strong>Tiered CLAUDE.md model</strong> — <code>fill-claude-md</code> and <code>claude-audit</code> enforce a lean,<p>  reference-don&#39;t-duplicate CLAUDE.md layout with advisory line budgets.</p>
+</li>
 </ul>
 <p>The kit no longer carries a separate <code>scaffold/</code> template: the release build ships the <strong>canonical</strong> PM assets directly and <code>install.js</code> materializes the tree in the target, so there is one source of truth instead of a live-vs-template pair to keep in sync (ADR-0074).</p>
 <h2 id="stack-aware-tooling">Stack-aware tooling</h2>
-<p>The kit is stack-agnostic — it ships per-type guidance for web-app, mobile, CLI, library, backend-service, data-pipeline, Power Platform, and automation projects. <strong><code>curate-toolkit</code></strong> (PM hat) ranks the installed AI tools (skills, agents, commands, plugins) HIGH / MED / LOW by fit for the project type and writes relevance overlays, so the AI catalogue reflects what is actually useful for *this* project.</p>
+<p>The kit is stack-agnostic — it ships per-type guidance for web-app, mobile, CLI, library, backend-service, data-pipeline, Power Platform, and automation projects. <strong><code>curate-toolkit</code></strong> (PM hat) ranks the installed AI tools (skills, agents, commands, plugins) HIGH / MED / LOW by fit for the project type and writes relevance overlays, so the AI catalogue reflects what is actually useful for <em>this</em> project.</p>
 <h2 id="documentation-generation">Documentation generation</h2>
 <p><strong><code>document</code></strong> (Technical Writer hat) authors this default documentation set — <code>overview</code>, <code>getting-started</code>, <code>architecture</code>, <code>decisions</code>, and <code>features</code> — synthesised from the project&#39;s own PM knowledge (PROJECT-CONTEXT, epics/features/stories, ADRs, and the codebase). It authors Markdown only; <code>npm run pm:docs</code> renders the folder to HTML, which the release pipeline ships into the public <code>docs/</code> site (ADR-0030/0034).</p>
 <h2 id="quality-tooling-the-release-pipeline">Quality tooling &amp; the release pipeline</h2>
 <ul>
-<li><strong><code>pm:lint</code></strong> — validate the frontmatter contract across every artefact, with a non-fatal</li>
-<p>  warning tier separate from hard violations (ADR-0061).</p>
-<li><strong><code>pm:monitor</code></strong> — recompute the board counts and rollups from real story statuses</li>
-<p>  (ADR-0024). A shared frontmatter-parser module backs the validator and the generators so they   read the contract identically (ADR-0067).</p>
-<li><strong><code>build:tandem</code></strong> — produce the sanitized public release behind a scrub gate that fails on</li>
-<p>  any internal-provenance token (ADR-0028/0040). The build patches the shipped manifests to   the kebab-case public identity (<code>tandem</code> / <code>data-ai-xyz</code>) the claude.ai / Cowork marketplace   sync requires (ADR-0086), then finishes with a fail-loud run of the official   <code>claude plugin validate</code> — the same check the marketplace review pipeline runs (ADR-0087).</p>
+<li><strong><code>pm:lint</code></strong> — validate the frontmatter contract across every artefact, with a non-fatal<p>  warning tier separate from hard violations (ADR-0061).</p>
+</li>
+<li><strong><code>pm:monitor</code></strong> — recompute the board counts and rollups from real story statuses<p>  (ADR-0024). A shared frontmatter-parser module backs the validator and the generators so they   read the contract identically (ADR-0067).</p>
+</li>
+<li><strong><code>build:tandem</code></strong> — produce the sanitized public release behind a scrub gate that fails on<p>  any internal-provenance token (ADR-0028/0040). The build patches the shipped manifests to   the kebab-case public identity (<code>tandem</code> / <code>data-ai-xyz</code>) the claude.ai / Cowork marketplace   sync requires (ADR-0086), then finishes with a fail-loud run of the official   <code>claude plugin validate</code> — the same check the marketplace review pipeline runs (ADR-0087).</p>
+</li>
 </ul>
 <h2 id="session-helpers">Session helpers</h2>
 <ul>
-<li><strong><code>session-start</code></strong> — orient at the start of a session: read the active WIP, recent ADRs, and</li>
-<p>  the board, then announce the suggested next step.</p>
-<li><strong><code>weekly-monitor</code></strong> / <strong><code>monthly-retro</code></strong> — cadence reviews that update the board and</li>
-<p>  capture retrospectives.</p>
-<li><strong><code>reflect</code></strong> — end-of-session reflection that proposes CLAUDE.md / SOP / skill updates for</li>
-<p>  you to approve.</p>
+<li><strong><code>session-start</code></strong> — orient at the start of a session: read the active WIP, recent ADRs, and<p>  the board, then announce the suggested next step.</p>
+</li>
+<li><strong><code>weekly-monitor</code></strong> / <strong><code>monthly-retro</code></strong> — cadence reviews that update the board and<p>  capture retrospectives.</p>
+</li>
+<li><strong><code>reflect</code></strong> — end-of-session reflection that proposes CLAUDE.md / SOP / skill updates for<p>  you to approve.</p>
+</li>
 </ul>
     </main>
     <footer class="doc-footer">

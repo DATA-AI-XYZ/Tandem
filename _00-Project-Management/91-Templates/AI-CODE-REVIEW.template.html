@@ -12,7 +12,7 @@
    - Two-pane layout: diff viewer (left) + annotation panel (right). Mirrors EXPLORATION's export pattern.
    - 4-level severity rubric (SOP §7): blocker (red) / critical (orange) / warning (yellow) / nit (green).
    - Drop-in: the close-out-story skill copies this to
-       41-Reports/AI-CODE-REVIEW-<story-id>-<YYYY-MM-DD>.html
+       41-Reports/reviews/AI-CODE-REVIEW-<story-id>-<YYYY-MM-DD>.html
      and interpolates the real diff + annotations at close-out time (Claude is the runtime — ADR-0013).
    - Each annotation row carries data-* attributes (severity / file / line / category); the exporter
      reads the attributes, so keep them in sync with the visible text.

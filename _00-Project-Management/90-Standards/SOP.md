@@ -165,7 +165,7 @@ A story is Done when ALL of:
 
 ### 7.1 AI-code-review severity rubric
 
-The AI-code-review pass (DoD item above) records each finding in an **AI-CODE-REVIEW HTML artefact** — copy `91-Templates/AI-CODE-REVIEW.template.html` to `41-Reports/AI-CODE-REVIEW-<story-id>-<YYYY-MM-DD>.html`, interpolate the diff + annotations, and link it from the story's `ai_review_artefact:` field. Each annotation carries `file:line`, a `category` (security / correctness / perf / style / dead-code), a `severity`, the `reasoning`, and a `suggested fix`. Severity is one of **four levels**:
+The AI-code-review pass (DoD item above) records each finding in an **AI-CODE-REVIEW HTML artefact** — copy `91-Templates/AI-CODE-REVIEW.template.html` to `41-Reports/reviews/AI-CODE-REVIEW-<story-id>-<YYYY-MM-DD>.html`, interpolate the diff + annotations, and link it from the story's `ai_review_artefact:` field. Each annotation carries `file:line`, a `category` (security / correctness / perf / style / dead-code), a `severity`, the `reasoning`, and a `suggested fix`. Severity is one of **four levels**:
 
 | Severity | Colour | Meaning | Gate |
 |---|---|---|---|
@@ -238,7 +238,7 @@ Plus relationship and type-specific fields per the templates in `91-Templates/`.
 
 Timestamp format: `YYYY-MM-DDTHH:MM:SS±HH:MM` (e.g. `2026-05-20T14:32:00+01:00`). Always quoted as a string. Source of "now": system clock, not chat-stated date.
 
-**Optional founder-facing `outcome:`** — Story and Feature frontmatter may carry an optional `outcome:` field: one founder-facing sentence describing *what you'll have* once the unit is done — the tangible capability, not the implementation. It is **optional and never required**, but a missing `outcome` on a Story or Feature is nudged by a **non-fatal `pm:lint` warning** (rule **W1** — a warning that is reported but never fails the build; only fatal violations exit 1, see [ADR-0061](../40-Decisions/ADR-0061-non-fatal-lint-warning-tier.md)). The dashboard's Implementation Strategy view surfaces the outcome on chat cards and phase headers (FEAT-14.2), and `execution-strategist` carries it on each `chat`/`phase` in its JSON sidecar.
+**Optional founder-facing `outcome:`** — Story and Feature frontmatter may carry an optional `outcome:` field: one founder-facing sentence describing *what you'll have* once the unit is done — the tangible capability, not the implementation. It is **optional and never required**, but a missing `outcome` on a Story or Feature is nudged by a **non-fatal `pm:lint` warning** (rule **W1** — a warning that is reported but never fails the build; only fatal violations exit 1, see ADR-0061 — the validator carries a non-fatal warning tier (W-tier), kept separate from fatal violations). The dashboard's Implementation Strategy view surfaces the outcome on chat cards and phase headers (FEAT-14.2), and `execution-strategist` carries it on each `chat`/`phase` in its JSON sidecar.
 
 ### 11.1 Output format selection — Markdown vs HTML
 
@@ -363,6 +363,65 @@ suggested_agents:
 4. What one change for next month? (a single concrete action, not a list)
 
 Include metrics: stories shipped, bugs filed, retro action from last month — did it happen?
+
+### 14.1 Development retro ledger — `41-Reports/retro/retro-log.jsonl`
+
+The monthly retro above is written by a human recalling a month. The **retro ledger** is the
+machine-first record it recalls *from*: an append-only JSONL file that accrues one line per
+development boundary as ordinary work finishes, so a retrospective recalls rather than
+reconstructs.
+
+**The schema is code, not prose.** Five levels — `story`, `chat`, `phase`, `run`, `pause` —
+defined once in [`93-Scripts/lib/retro-schema.js`](../93-Scripts/lib/retro-schema.js) and
+`require()`d by the writer, the aggregator and validator rule R27. Do not restate the field
+lists here or in a skill body; import the module. The decisions behind it — the `ts` timestamp
+(not the PRD's `at`), the `id` join to `41-Reports/usage/usage-log.jsonl` and its three join
+cases, why `pause` is its own level, and the story-level `wall_clock_s` amendment — are
+recorded in ADR-0109 — the retro ledger is a five-level schema with a `ts` timestamp and `id` as the join key.
+
+**Capture never gates work.** Writing a retro line is a side-effect governed by the same "when
+you change a status" rule as the MONITOR update — it never prompts, never blocks, and never
+stops a close-out. The writer always exits 0 and warns on stderr; see
+ADR-0110 — retro capture never blocks — an exit-0 contract with O_APPEND single-write atomicity.
+Completeness is enforced at the phase merge by **R27**, never per story.
+
+**Validator R27 — ledger completeness.** A story that is `done` with `completed_at` on or after
+**2026-08-02** must have a `story`-level line in the ledger carrying the same `id`. FATAL, and it
+rides the existing `pm:lint` exit-code gate that `close-phase` already checks — no second check
+was added. The activation date is the day the capture wiring landed (STORY-26.1.03), so the 241
+stories that closed before the ledger existed are never flagged; a *missing* ledger file disables
+the rule with a W9 warning naming the count of unchecked stories, while an *empty but present* one
+does not. The rule number is R27 and its test file is `tests/validator-r25.test.js` — a deliberate
+mismatch recorded in
+ADR-0148 — ledger completeness ships as R27, behind a filename that still says R25.
+
+**Capture points — one per level, and exactly one.** A second site for a level could only
+double-write and drift, so the count is a rule, not a convention:
+
+| Command | Level | When |
+|---|---|---|
+| `close-out-story` | `story` | Same response as the `status: done` flip and the MONITOR update |
+| `execute-batch` | `chat` | At chat end, alongside the existing `usage-capture.js` call (`--lanes serial`) |
+| `execute-batch-parallel` | `chat` | After reconciliation, from the main thread (`--lanes parallel`) |
+| `close-phase` | `phase` | After the Step 6/7 integration decision — `--merge` is not knowable at Step 5 |
+| `autopilot` | `run`, `pause` | `run` at terminal state; `pause` at each governor pause and again on resume (FEAT-26.4) |
+
+**One site per level means one *definition* per level.** The story-level command is written out
+in `close-out-story` step 5 and nowhere else. `execute-batch` reaches it by calling
+`close-out-story` in its loop; `execute-batch-parallel` re-implements the close-out gate inside
+reconciliation (so that its board write can be batched), and therefore runs that same step
+per item explicitly — by reference, never by restating the command. Anything that needs
+story-level capture points at that one definition.
+
+**`execute-story` writes nothing.** It carries a pointer only: it hands every story to
+`close-out-story`, which is why the chokepoint and not the entry point owns the level. Note this
+is the one place the retro ledger differs from usage capture, which *does* attribute per story at
+`execute-story` (ADR-0079) — different granularity, deliberately not unified.
+
+**Omitting beats guessing.** Every field past the level and id is optional. An absent field is
+recorded as an explicit `null` meaning "not recorded"; a guessed one is indistinguishable from a
+measurement and corrupts the calibration data the ledger exists to produce. A value the schema
+rejects refuses the *whole* record — and since capture never blocks, that warning goes unread.
 
 ---
 

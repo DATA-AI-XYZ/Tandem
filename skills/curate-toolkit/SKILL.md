@@ -17,11 +17,8 @@ Use `Read` / `Glob` to detect file existence. Treat any missing file as "not pre
 
 - **Project context** — `_00-Project-Management/90-Standards/PROJECT-CONTEXT.md`. Read the `## Project type` selector (which checkbox is ticked), `## Tech stack`, and `## Sub-agent mapping` table. This is the primary ranking signal: tools that match the project type / stack rank higher; off-stack tools rank lower.
 - **Sub-agent map** (if present) — the `## Sub-agent mapping` table in PROJECT-CONTEXT.md names the preferred sub-agents by `type_of_work`. Cross-reference with the inventory below.
-- **Installed inventory** — enumerate all four categories:
-  1. **Skills** — glob `skills/*/SKILL.md`; read each `name:` and `description:` from frontmatter.
-  2. **Agents** — glob `.claude/agents/*.md` (or the repo's configured agent path); read each agent's name and stated purpose.
-  3. **Commands** — glob `.claude/commands/*.md`; read each command's name and stated purpose.
-  4. **Plugins** — read `plugin.json` at the repo root (if present); list each plugin entry's `name` and `description`.
+- **Installed inventory** — enumerate consumer-first. The full ordered procedure is in
+  **Task step 2** below; do not shortcut it by globbing the repo alone.
 - **Existing overlays** — glob `_00-Project-Management/97-AI-Reference/curate-toolkit-*.md` to check whether a prior ranking already exists. If found, note the prior run date and whether a re-rank was requested.
 - **Project root `CLAUDE.md`** — for project-specific overrides or exclusions.
 
@@ -38,10 +35,50 @@ From PROJECT-CONTEXT.md, identify:
 
 If PROJECT-CONTEXT.md has not been filled in (all fields are still template placeholders), note this as a gap in the output and proceed with a best-effort ranking based on whatever stack signals are present in the repo.
 
-### 2 · Enumerate the installed inventory
+### 2 · Enumerate the installed inventory — consumer-first, in this order
 
-For each of the four inventory categories — **Skills / Agents / Commands / Plugins** — produce a flat list of every item found, noting:
-- Its name / identifier.
+This skill exists to answer "which of **my installed tools** matter for **this** project". The tools
+live where Claude Code installs them — under the **user's** home directory — not in the project being
+ranked. An earlier version of this procedure globbed only the project's own directories, so in a
+consumer project (one that installs the kit as a plugin and ships no `skills/` tree of its own) it
+returned an **empty inventory** — in precisely the situation the command exists for. `BUG-20260721-02`.
+
+Walk these four steps **in order**. Later steps add to the inventory; they never replace what an
+earlier step found, except at step 4, which overrides by name.
+
+**Step 1 — user-level installs.** Read `~/.claude/{skills,agents,commands}`:
+- **Skills** — `~/.claude/skills/*/SKILL.md`; read `name:` and `description:` from frontmatter.
+- **Agents** — `~/.claude/agents/*.md`; read each agent's name and stated purpose.
+- **Commands** — `~/.claude/commands/*.md`; read each command's name and stated purpose.
+
+**Step 2 — the installed-plugins registry.** Read the registry that records which plugins are
+installed — currently `~/.claude/plugins/installed_plugins.json`. Treat the path as an
+implementation detail of Claude Code: if it is not there, look for the equivalent registry rather
+than concluding no plugins are installed. Each entry gives a plugin name and the location of its
+installed copy.
+
+**Step 3 — each installed plugin's bundled skills and commands.** For every plugin the registry
+lists, enumerate the items it *ships* — typically `<plugin>/skills/*/SKILL.md` and
+`<plugin>/commands/*.md`. **This step is what puts the kit's own `tandem:*` lifecycle skills into
+the inventory of a kit-managed project.** They are installed as plugin-bundled items, so a
+procedure that stops at step 1 will never see them, and a project run entirely on `tandem:*` will
+report an inventory that does not contain the tools it is actually being run with.
+
+**Step 4 — repo-local paths, LAST, as overrides.** Only now read the project's own
+`skills/*/SKILL.md`, `.claude/agents/*.md`, `.claude/commands/*.md` and root `plugin.json`. A
+repo-local item with the same name as one found above **replaces** it — that is what "local
+override" means. In a consumer project these globs usually match nothing, and that is normal, not
+an error. In this kit's own repo they match everything, which is exactly why the defect above
+survived: the dev repo only ever exercised the path consumers never hit.
+
+**Self-test — run this before writing anything.** If the Skills inventory does not include any
+`tandem:*` entry in a project managed by this kit, **the enumeration is wrong — stop and
+re-enumerate** from step 1. Do not proceed to ranking, and do not write an overlay: an overlay
+missing the kit's own lifecycle skills is worse than no overlay, because it looks complete. The
+usual cause is having run step 4 alone.
+
+For each item found, in any of the four categories — **Skills / Agents / Commands / Plugins** — note:
+- Its name / identifier, and which step found it.
 - Its stated purpose (from frontmatter `description:` or equivalent).
 - Whether it was actually found on disk (present) or only referenced elsewhere (e.g. in `suggested_agents:` frontmatter, the sub-agent map, or a story file) but not installed.
 
@@ -58,7 +95,13 @@ For each item in the combined inventory, assign one of three tiers:
 | **LOW** | Off-stack or not applicable to this project type — deprioritise; may still be used if the need arises. |
 
 Ranking criteria (apply in order; earlier criteria are stronger signals):
-0. **Kit self-rank (deterministic default)** — items shipped by this kit itself (anything sourced from the kit's `skills/` tree, its plugin manifest entry, or its `/…:` command namespace) are **HIGH by default**, with the rationale `Kit-native — the planning instrument this project runs on`. The kit is what plans and executes every story in this tree; it must never rank below the tools it is ranking. This is the one deliberate exception to the judgment-led rule. Demote a kit item only if PROJECT-CONTEXT.md explicitly excludes the workflow it serves (e.g. a parallel-execution command in a project whose context forbids parallel batches) — and record that exception's reason in the rationale.
+0. **Kit self-rank (expectation, with justified exceptions)** — items shipped by this kit itself — the `tandem:*` lifecycle skills, the kit's plugin manifest entry, and its `/…:` command namespace, however they were found (plugin-bundled at step 3, or repo-local at step 4) — **default HIGH**, with the rationale `Kit-native — the planning instrument this project runs on`. The kit is what plans and executes every story in this tree; it must never rank below the tools it is ranking.
+
+   This is an **expectation, not a hard-coded rank**: the judgment-led rule still applies, and a
+   `tandem:*` item may be demoted **unless** you can state why. Demote one only if
+   PROJECT-CONTEXT.md explicitly excludes the workflow it serves (e.g. `tandem:execute-batch-parallel`
+   in a project whose context forbids parallel batches), and record that justified exception in the
+   item's rationale so the next run can see the reasoning rather than re-deriving it.
 1. **Project-type match** — if the item's purpose is specific to a project type that differs from the current project (e.g. a React-specific skill in a `data-pipeline` project), prefer LOW.
 2. **Stack / language match** — if the item references a language, framework, or runtime not in the project's stack, prefer LOW or MED.
 3. **Sub-agent map alignment** — if the item matches a preferred sub-agent in the PROJECT-CONTEXT `## Sub-agent mapping` table, prefer HIGH.
@@ -66,6 +109,17 @@ Ranking criteria (apply in order; earlier criteria are stronger signals):
 5. **Not installed (gap)** — forced LOW with `(gap — not installed)` note regardless of other signals.
 
 Provide a **one-line rationale** for each ranking, keyed to the project type and stack (e.g. "HIGH — Next.js project; this React skill maps directly to the primary framework").
+
+**Keeping the overlay from ballooning.** Consumer-first enumeration reaches every installed plugin,
+and a machine with thirty plugins installed would otherwise produce an overlay nobody reads. The
+control is inheritance: **plugin-bundled items inherit the plugin's tier** and are ranked as one
+line for the plugin, **unless** an individual item is deliberately **broken out** because its
+relevance differs from its plugin's. Break an item out when it earns its own line, not by default.
+
+**`tandem:*` items are always broken out**, one line each, never folded into an inherited plugin
+tier. They are the tools the project is actually run with; collapsing them into a single "the kit"
+row is how the inventory stops naming what it is made of. If a plugin is ranked LOW but one of its
+items is genuinely HIGH here, break that item out too and say why.
 
 **Item ordering (within every category, in the overlay and in the chat report):** kit-native items first, then remaining items HIGH → MED → LOW, alphabetical within a tier. Consumers that render the overlay (e.g. the dashboard's Toolkit views) preserve this order, so the kit's own skills, commands, and plugin entry always surface at the top. Mark each kit-native record with the optional field `display_group: kit` (permitted by the schema's open-world rule) so renderers can group them without re-deriving provenance.
 
@@ -258,5 +312,6 @@ and never aborts the overlay-generation pass.
 This skill is registered via the kit's auto-discovery model (ADR-0003): placing
 `skills/curate-toolkit/SKILL.md` in the `skills/` directory is sufficient — no `plugin.json`
 skills array entry is needed or added. The public Tandem build (`npm run build:tandem`, ADR-0028)
-copies the `skills/` tree and rewrites the name token to `/tandem:curate-toolkit`; the scrub
+copies the `skills/` tree and rewrites the name token to the public plugin identity (kebab-case,
+ADR-0086) — this source file never spells that identity itself; the scrub
 gate confirms no internal token survives. Do not add this skill to `plugin.json`.

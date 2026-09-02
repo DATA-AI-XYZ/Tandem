@@ -48,6 +48,7 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
 ## Task
 
 1. Read the source Feature's `## Acceptance criteria`. Each criterion is typically one Story. If a criterion implies > L work, split into multiple Stories.
+   - **Split gate (artefact economy — `90-Standards/ARTEFACT-ECONOMY.md`):** produce the *fewest* Stories that carry the Feature's testable claims. An AC without a falsifiable claim of its own folds into a sibling Story — it never becomes a thin Story. When unsure whether to split, don't.
 2. For each derived story, **draft both files in memory first** (Story + Testplan). Do not write to disk until both drafts are complete and consistent.
 3. Story file content:
    - Use `STORY.template.md` verbatim.
@@ -62,9 +63,30 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
    - Frontmatter: `id: TESTPLAN-NN.M.PP`, `story: STORY-NN.M.PP`, `feature: FEAT-NN.M`, `epic: EPIC-NN`, `status: not-started`, `created_at: <ISO 8601 now>`.
 5. **Validate before writing**: every AC in the draft Story is covered by ≥1 TC in the draft Testplan; every TC has a real `Command:`. If validation fails, **abort** per the enforcement contract above.
 6. Commit both files to disk in the same response. Number stories sequentially within the Feature (.01, .02, .03 …).
-   - As each Story file is written, apply the `write-outcomes` rules inline to the story's title, acceptance criteria, and technical content to produce the outcome line; dispatch a sub-agent only under [ADR-0105](../../_00-Project-Management/40-Decisions/ADR-0105-write-outcomes-inline-first.md)'s named conditions (this producer's own context is near its limit, or an isolation-worthy batch run). Write the single-line outcome (verbatim, no markdown) into that Story's `outcome:` frontmatter field — in the same response.
+   - As each Story file is written, run the **usage-estimate producer step** (below) so the story leaves this skill carrying a `usage_estimate:` and its basis line.
+   - As each Story file is written, apply the `write-outcomes` rules inline to the story's title, acceptance criteria, and technical content to produce the outcome line; dispatch a sub-agent only under ADR-0105 — write-outcomes runs inline first, rather than dispatching a sub-agent per artefact's named conditions (this producer's own context is near its limit, or an isolation-worthy batch run). Write the single-line outcome (verbatim, no markdown) into that Story's `outcome:` frontmatter field — in the same response.
 7. Update the Feature's `## Stories` section with relative links to the new Story files.
 8. **Show the file tree of what you'll create before writing.** Wait for user approval.
+
+## Usage-estimate producer step (MANDATORY at authoring)
+
+Every story this skill writes leaves carrying a `usage_estimate:`. Run it once per story file,
+immediately after the file is written:
+
+```bash
+node _00-Project-Management/93-Scripts/usage-estimate.js --story <story-path>
+```
+
+- **Fill-if-missing, never overwrite** — a populated estimate is preserved verbatim and the file
+  is left byte-identical.
+- It writes the number **and** a one-line basis into `## Technical notes`. Do not hand-write
+  either.
+- No number comes back when `estimate:` is missing or `XL`. Both are already blockers here (this
+  skill proposes splitting an XL before writing it), so fix the band rather than the estimate.
+- List the produced figures in the end-of-session summary.
+
+**The derivation itself is written in exactly one place — do not restate it here or in any
+skill:** [`_00-Project-Management/90-Standards/USAGE-ESTIMATE-HEURISTIC.md`](../../_00-Project-Management/90-Standards/USAGE-ESTIMATE-HEURISTIC.md).
 
 ## Output rules
 
@@ -85,6 +107,7 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
 
 - Stories created: N (list paths)
 - Testplans created: N (list paths)
+- `usage_estimate` produced per story: list of `STORY-NN.M.PP = <tokens>` (or the stated reason none was produced)
 - Pairing verified: yes / no (must be yes — otherwise the writes shouldn't have happened)
 - ACs flagged as not machine-testable: list, or "none"
 - Estimated total: <days/weeks>

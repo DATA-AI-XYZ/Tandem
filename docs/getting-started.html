@@ -320,20 +320,20 @@ body {
 <p>Tandem is a Claude Code plugin that materializes a <code>_00-Project-Management/</code> tree into your project. Getting started means installing the plugin, running the manifest-driven installer to create the PM folders and wire the <code>pm:*</code> scripts, and confirming the layout — after which the lifecycle skills are available as slash commands and the board renders to HTML.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
-<li><strong>Node.js ≥ 18</strong> — the <code>pm:*</code> scripts are dependency-free Node stdlib (no <code>npm install</code></li>
-<p>  step for the tooling itself).</p>
-<li><strong>Claude Code</strong> with plugin support — the skills are model-invoked and also work as explicit</li>
-<p>  slash commands.</p>
-<li><strong>A Chrome / Chromium / Edge binary and Node ≥ 22</strong> — *only* for the optional headless</li>
-<p>  dashboard smoke (<code>pm:smoke</code>). Everything else runs without a browser.</p>
+<li><strong>Node.js ≥ 18</strong> — the <code>pm:*</code> scripts are dependency-free Node stdlib (no <code>npm install</code><p>  step for the tooling itself).</p>
+</li>
+<li><strong>Claude Code</strong> with plugin support — the skills are model-invoked and also work as explicit<p>  slash commands.</p>
+</li>
+<li><strong>A Chrome / Chromium / Edge binary and Node ≥ 22</strong> — <em>only</em> for the optional headless<p>  dashboard smoke (<code>pm:smoke</code>). Everything else runs without a browser.</p>
+</li>
 </ul>
 <p>There is no database, server, framework, or build toolchain to install. The &quot;application&quot; is the Markdown folder and the scripts that lint and render it.</p>
 <h2 id="install">Install</h2>
 <ol>
-<li><strong>Install the plugin</strong> from your Claude Code marketplace — the public build installs as</li>
-<p>   <code>/plugin install tandem@data-ai-xyz</code> — or point Claude Code at a local checkout for    development (<code>claude --plugin-dir ./&lt;plugin-dir&gt;</code>). The plugin registers the lifecycle    skills under the plugin&#39;s command namespace (<code>/tandem:*</code> in the public build) and inserts a    slim PM rules block into your root <code>CLAUDE.md</code>.</p>
-<li><strong>Materialize the PM tree</strong> by running the installer (or the <code>/tandem:install</code> skill, which</li>
-<p>   wraps it). Install is manifest-driven: it creates every PM work-folder, copies the seed files    with the kit/user ownership rule, wires the <code>pm:*</code> scripts into your <code>package.json</code>, registers    the hooks (lint-on-edit, conversation Mode on prompt, dashboard-on-stop) when none exist, and    generates the dashboard as its final step.</p>
+<li><strong>Install the plugin</strong> from your Claude Code marketplace — the public build installs as<p>   <code>/plugin install tandem@data-ai-xyz</code> — or point Claude Code at a local checkout for    development (<code>claude --plugin-dir ./&lt;plugin-dir&gt;</code>). The plugin registers the lifecycle    skills under the plugin&#39;s command namespace (<code>/tandem:*</code> in the public build) and inserts a    slim PM rules block into your root <code>CLAUDE.md</code>.</p>
+</li>
+<li><strong>Materialize the PM tree</strong> by running the installer (or the <code>/tandem:install</code> skill, which<p>   wraps it). Install is manifest-driven: it creates every PM work-folder, copies the seed files    with the kit/user ownership rule, wires the <code>pm:*</code> scripts into your <code>package.json</code>, registers    the hooks (lint-on-edit, conversation Mode on prompt, dashboard-on-stop) when none exist, and    generates the dashboard as its final step.</p>
+</li>
 </ol>
 <h2 id="wire-and-verify">Wire and verify</h2>
 <p>Run these from your project root:</p>
@@ -347,15 +347,15 @@ npm run pm:dash      # render the Command Center to 42-Monitor/DASHBOARD.html</c
 <p>Open <code>42-Monitor/DASHBOARD.html</code> in a browser — that interactive board is the live view of the plan. From here, use the lifecycle skills in order: anchor a North Star and OKRs under <code>00-Strategy/</code>, draft a PRD, draft an epic, split it into features, split those into stories (with paired testplans), refine to <code>ready</code>, then execute and close.</p>
 <p><strong>Next: the <a href="#">Guide</a></strong> walks that whole sequence end to end with the actual commands, and <a href="#">Playbook</a> is the day-to-day lookup once you are running. See also the <a href="#">Command lifecycle</a> for the canonical order and <a href="#">Features</a> for what each skill does.</p>
 <h2 id="everyday-commands">Everyday commands</h2>
-<div class="md-table-wrap"><table class="md-table"><thead><tr><th>Command</th><th>What it does</th></tr></thead><tbody><tr><td><code>npm run pm:lint</code></td><td>Validate frontmatter across all artefacts (also runs on edit via a hook).</td></tr><tr><td><code>npm run pm:dash</code></td><td>Regenerate the interactive Command Center (<code>DASHBOARD.html</code>).</td></tr><tr><td><code>npm run pm:monitor</code></td><td>Recompute the board counts/rollups from real story statuses.</td></tr><tr><td><code>npm run pm:docs</code></td><td>Render this <code>documentation/</code> folder to HTML.</td></tr><tr><td><code>npm run pm:all</code></td><td><code>pm:lint</code> → <code>pm:monitor</code> → <code>pm:dash</code> → <code>pm:docs</code> in one pass.</td></tr><tr><td><code>npm run pm:update</code></td><td>Non-destructively refresh kit-owned files to the latest kit version.</td></tr><tr><td><code>npm run pm:doctor</code></td><td>Re-check wiring and layout health; report if an update is available.</td></tr></tbody></table></div>
+<div class="md-table-wrap"><table class="md-table"><thead><tr><th>Command</th><th>What it does</th></tr></thead><tbody><tr><td><code>npm run pm:lint</code></td><td>Validate frontmatter across all artefacts (also runs on edit via a hook).</td></tr><tr><td><code>npm run pm:dash</code></td><td>Regenerate the interactive Command Center (<code>DASHBOARD.html</code>).</td></tr><tr><td><code>npm run pm:monitor</code></td><td>Recompute the board counts/rollups from real story statuses.</td></tr><tr><td><code>npm run pm:docs</code></td><td>Render this <code>documentation/</code> folder to HTML.</td></tr><tr><td><code>npm run pm:all</code></td><td>Wiki-stamp check → <code>pm:lint</code> → <code>pm:monitor</code> → <code>pm:dash</code> → <code>pm:docs</code> in one pass.</td></tr><tr><td><code>npm run pm:update</code></td><td>Non-destructively refresh kit-owned files to the latest kit version.</td></tr><tr><td><code>npm run pm:doctor</code></td><td>Re-check wiring and layout health; report if an update is available.</td></tr></tbody></table></div>
 <h2 id="troubleshooting">Troubleshooting</h2>
 <ul>
-<li>**<code>command not found</code> / <code>npm: not recognized</code> when a <code>pm:*</code> script runs.** The Node install</li>
-<p>  directory may not be on the shell PATH (notably Git Bash and the default PowerShell session   on Windows, which omit <code>C:\Program Files\nodejs</code>). Put the runtime on PATH before re-running   — PowerShell: <code>$env:PATH = &#39;C:\Program Files\nodejs;&#39; + $env:PATH</code>; bash:   <code>export PATH=&quot;/c/Program Files/nodejs:$PATH&quot;</code> — or invoke the absolute binary.</p>
-<li><strong><code>pm:smoke</code> exits 2 (&quot;no browser found&quot; / &quot;needs Node ≥ 22&quot;).</strong> The headless smoke drives</li>
-<p>  an already-installed system Chrome/Chromium/Edge over the DevTools Protocol with zero npm   dependencies. It needs a browser binary (override with <code>SMOKE_CHROME=&lt;path&gt;</code>) and Node ≥ 22.   Exit 2 means *blocked*, not a render failure — which is why it is deliberately not chained   into <code>pm:all</code>. Run it as <code>npm run pm:dash &amp;&amp; npm run pm:smoke</code>.</p>
-<li><strong><code>pm:install</code> refuses to write.</strong> A present-but-malformed <code>.claude/settings.json</code> or</li>
-<p>  <code>.claude-pm-config.json</code> is refused rather than silently overwritten, to preserve your   <code>permissions.deny</code> baseline. Fix the JSON and re-run.</p>
+<li><strong><code>command not found</code> / <code>npm: not recognized</code> when a <code>pm:*</code> script runs.</strong> The Node install<p>  directory may not be on the shell PATH (notably Git Bash and the default PowerShell session   on Windows, which omit <code>C:\Program Files\nodejs</code>). Put the runtime on PATH before re-running   — PowerShell: <code>$env:PATH = &#39;C:\Program Files\nodejs;&#39; + $env:PATH</code>; bash:   <code>export PATH=&quot;/c/Program Files/nodejs:$PATH&quot;</code> — or invoke the absolute binary.</p>
+</li>
+<li><strong><code>pm:smoke</code> exits 2 (&quot;no browser found&quot; / &quot;needs Node ≥ 22&quot;).</strong> The headless smoke drives<p>  an already-installed system Chrome/Chromium/Edge over the DevTools Protocol with zero npm   dependencies. It needs a browser binary (override with <code>SMOKE_CHROME=&lt;path&gt;</code>) and Node ≥ 22.   Exit 2 means <em>blocked</em>, not a render failure — which is why it is deliberately not chained   into <code>pm:all</code>. Run it as <code>npm run pm:dash &amp;&amp; npm run pm:smoke</code>.</p>
+</li>
+<li><strong><code>pm:install</code> refuses to write.</strong> A present-but-malformed <code>.claude/settings.json</code> or<p>  <code>.claude-pm-config.json</code> is refused rather than silently overwritten, to preserve your   <code>permissions.deny</code> baseline. Fix the JSON and re-run.</p>
+</li>
 </ul>
     </main>
     <footer class="doc-footer">

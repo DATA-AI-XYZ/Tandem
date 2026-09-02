@@ -162,13 +162,13 @@ The operator MAY request a persisted HTML critique artefact. This is **optional*
 
 When requested, write the artefact to:
 
-`41-Reports/CRITIQUE-<artefact-id>-<YYYY-MM-DD>.html`
+`41-Reports/reviews/CRITIQUE-<artefact-id>-<YYYY-MM-DD>.html`
 
 Where `<artefact-id>` is the artefact's ID token (e.g. `STORY-05.1.02`) and `<YYYY-MM-DD>` is today's date.
 
 The HTML file must contain the full severity-ranked findings report (same content as the chat output), structured for human readability. The skill **describes** the artefact and writes its content; it does not bundle a renderer or stylesheet beyond basic inline HTML. Use semantic HTML elements (`<h1>`, `<h2>`, `<table>`, `<ul>`) — no external CSS dependencies.
 
-This follows the kit's `41-Reports/` HTML-output convention: all generated report files live under `41-Reports/` at the project root, named with a type prefix, artefact ID, and ISO date.
+This follows the kit's `41-Reports/` HTML-output convention: all generated report files live under `41-Reports/`, named with a type prefix, artefact ID, and ISO date. Since STORY-27.3.03 they sit in a TOPIC FOLDER rather than at the root — a critique is an artefact review, so it files alongside the AI code reviews. Any sub-folder is a topic (ADR-0141), so a new report kind creates its own folder and needs no code change; the flat root is reserved for the autopilot control plane and is enforced by pm:lint R25.
 
 ## Non-negotiable rules from CLAUDE.md
 

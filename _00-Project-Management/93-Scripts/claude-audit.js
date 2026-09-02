@@ -269,8 +269,14 @@ function buildClaudeReport(root, templatesDir) {
   return { counts, findings };
 }
 
+// BUG-20260801-04 — was `new Date().toISOString().slice(0, 10)`, which stamped the report with the
+// UTC day and so dated it yesterday when run between midnight and the local offset. The heading is
+// markdown (no client-side locale rendering possible) and an ISO date is the right shape for a
+// report title anyway — so this fixes the wrong-day defect only, not the display format.
+const { localDay } = require('./lib/local-date.js');
+
 function isoDate() {
-  return new Date().toISOString().slice(0, 10);
+  return localDay(new Date());
 }
 
 const STATE_ORDER = ['covered', 'incomplete', 'gap', 'undecided', 'excluded'];

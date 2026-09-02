@@ -28,14 +28,35 @@
 
 'use strict';
 
-function stripQuotes(s) {
-  if (typeof s !== 'string') return s;
-  if ((s.startsWith("'") && s.endsWith("'")) ||
-      (s.startsWith('"') && s.endsWith('"'))) {
-    return s.slice(1, -1);
-  }
-  return s;
+/**
+ * Unwrap a quoted YAML scalar (STORY-25.2.04 / ADR-0115).
+ *
+ * THE CANONICAL IMPLEMENTATION. `generate-dashboard.js` had its own copy that
+ * drifted from this one, so an artefact could read differently depending on
+ * which script produced the view. Both now import this function; the parity
+ * case in `tests/frontmatter-unquote.test.js` asserts they are the same object,
+ * not merely that they agree today.
+ *
+ * In YAML single-quoted style `''` is the escape for one apostrophe, so it is
+ * collapsed. Double-quoted style uses backslash escapes and `''` carries no
+ * special meaning there, so it is left alone — collapsing it would corrupt any
+ * value legitimately containing two adjacent apostrophes.
+ *
+ * A string shorter than two characters cannot be a quoted scalar. Without that
+ * guard a lone `'` satisfied both startsWith and endsWith and sliced to the
+ * empty string.
+ */
+function unquoteScalar(s) {
+  if (typeof s !== 'string' || s.length < 2) return s;
+  const q = s.charAt(0);
+  if ((q !== "'" && q !== '"') || s.charAt(s.length - 1) !== q) return s;
+  const inner = s.slice(1, -1);
+  return q === "'" ? inner.replace(/''/g, "'") : inner;
 }
+
+// Historical name, kept so existing importers (validate-frontmatter.js,
+// generate-monitor.js) keep working. Same function object, deliberately.
+const stripQuotes = unquoteScalar;
 
 function parseFrontmatter(content) {
   // Match a YAML block delimited by --- on first and second occurrences at line start.
@@ -110,4 +131,4 @@ function parseFrontmatter(content) {
   return fm;
 }
 
-module.exports = { parseFrontmatter, stripQuotes };
+module.exports = { parseFrontmatter, stripQuotes, unquoteScalar };

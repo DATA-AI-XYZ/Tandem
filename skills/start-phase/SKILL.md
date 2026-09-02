@@ -116,3 +116,11 @@ See SOP §18 ("Subagent-per-batch — autonomous phase runs") for the full contr
   `CLAUDE.md` git rules (branch first; no force without authorisation).
 - Board update (Step 4) follows the kit's "when you change a status" rule — the `MONITOR.md` +
   `ACTIVE.md` edits and the `npm run pm:dash` regen happen together when the phase opens.
+
+## Next command
+
+Next: `/tandem:execute-batch`
+
+With the phase open and the branch cut, pull the phase's first chat:
+`/tandem:execute-batch <chat-id>` (the batched fork of the canonical chain —
+see the chain record in `core`).

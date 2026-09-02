@@ -22,6 +22,16 @@ completed_at: ''
 ## Summary
 <one sentence, plain English, from the user's perspective. What's broken.>
 
+## Impact
+<one or two sentences: WHAT this actually affects — which surface, which reader, which workflow,
+and whether there is a workaround. Distinct from Summary (what is broken) and from `severity:`
+(how bad). Surfaced on the expanded bug card alongside both. ADR-0129.
+
+WRITE-FORWARD: added 2026-08-03 and NOT backfilled onto the 88 bugs that predate it. `pm:lint` does
+not require it — a rule that fired on all 88 is the mistake EPIC-26's R25 avoids. A bug without this
+section renders "Not recorded in the artefact." on its card, which is honest and is accepted by
+TESTPLAN-25.5.03 TC-04.>
+
 ## Source
 - **Failing testplan:** `<path to TESTPLAN-*.md>`
 - **Failing test case:** TC-NN

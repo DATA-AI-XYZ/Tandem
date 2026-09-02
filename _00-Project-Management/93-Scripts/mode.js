@@ -10,6 +10,8 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+// BUG-20260801-04 — `set_at` is stored as UTC (machine state, correct); its DISPLAY must be local.
+const { localDay } = require('./lib/local-date.js');
 
 const STATE_FILE = '.tandem-mode.json';
 const VALID_MODES = ['plan', 'dev', 'dual', 'neutral'];
@@ -117,7 +119,9 @@ function bannerFor(state, sessionId) {
   if (!sessionId || !joined.includes(sessionId)) return '';
   const meta = [];
   if (state.set_by) meta.push(`set by ${state.set_by}`);
-  if (state.set_at) meta.push(String(state.set_at).slice(0, 10));
+  // BUG-20260801-04 — was `String(state.set_at).slice(0, 10)`, i.e. the UTC day of a UTC-stored
+  // instant, which showed yesterday's date in the banner between midnight and the local offset.
+  if (state.set_at) meta.push(localDay(state.set_at));
   if (state.context) meta.push(`"${state.context}"`);
   const ctx = meta.length ? ` (${meta.join(', ')})` : '';
   switch (state.mode) {

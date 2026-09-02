@@ -41,5 +41,5 @@ manually triggered; `pm:doctor` only reports drift) and ADR-0072 (kit/user owner
 - Keep deterministic logic in the script — the skill only previews (diff), confirms, and reports.
 
 ## Next
-Next: `/tandem:session-start` to re-orient after a refresh, or `/tandem:weekly-monitor` to fold the
-change into the Friday cadence.
+Next: `/tandem:session-start` to re-orient after a refresh, or
+`/tandem:weekly-monitor` to fold the change into the Friday cadence.

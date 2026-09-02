@@ -15,7 +15,7 @@
    - Purpose: compare 6+ candidate approaches side by side at planning time, then
      radio-select the winner and "Export selected → ADR options block" as paste-ready
      markdown for 40-Decisions/ADR-NNNN's "Alternatives considered" section.
-   - Drop-in: copy to 41-Reports/EXPLORATION-YYYY-MM-DD-<slug>.html, fill each option.
+   - Drop-in: copy to 41-Reports/explorations/EXPLORATION-YYYY-MM-DD-<slug>.html, fill each option.
    - Light + dark via [data-theme]. Toggle persisted to localStorage.
    ============================================================ */
 :root {
@@ -633,7 +633,7 @@ textarea.export-out {
     });
     lines.push('');
     lines.push('<!-- Exported from the EXPLORATION HTML artefact. Add to the new ADR frontmatter:');
-    lines.push('     exploration_html: \'_00-Project-Management/41-Reports/EXPLORATION-YYYY-MM-DD-<slug>.html\' -->');
+    lines.push('     exploration_html: \'_00-Project-Management/41-Reports/explorations/EXPLORATION-YYYY-MM-DD-<slug>.html\' -->');
     if (chosen) {
       lines.push('');
       lines.push('**Decision:** ' + chosen.name + '.');

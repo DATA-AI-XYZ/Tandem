@@ -99,7 +99,7 @@ the divergence and let a human rule on it; never mark it as an error or a gate f
 
 ### Step 4 — compile the report
 
-Write `41-Reports/PLAN-DRIFT-<YYYY-MM-DD>.md` (today's date) — this exact filename pattern is the pinned
+Write `41-Reports/audits/PLAN-DRIFT-<YYYY-MM-DD>.md` (today's date) — this exact filename pattern is the pinned
 contract (TESTPLAN-24.1.01 TC-01 greps for it; the inaugural run, 2026-08-01, fixed it). If a report for
 today already exists from an earlier run this session, overwrite it — one report per calendar day, not
 one per invocation or per scope. **Known limitation:** because the filename carries no scope marker, a
@@ -175,6 +175,6 @@ _(or: "No fidelity findings — every traced story matches its source requiremen
 
 ## Non-negotiable rules from CLAUDE.md
 
-- Read-only skill: never writes to any file except the dated `41-Reports/PLAN-DRIFT-*.md` report.
+- Read-only skill: never writes to any file except the dated `41-Reports/audits/PLAN-DRIFT-*.md` report.
 - Status enum: never touches `status:` in any file.
 - All requirement items accounted for: no check is skipped silently.

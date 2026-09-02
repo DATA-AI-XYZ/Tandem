@@ -1,6 +1,6 @@
 ---
 name: run-testplan
-description: Run every test case in a TESTPLAN. Use when the user asks to run a testplan, execute tests, verify a story, or work with a testplan file under the project's testplans folder. Runs each TC's Command verbatim, marks PASS/FAIL, and auto-files BUG-YYYYMMDD-NN files for every failure before reporting in chat.
+description: Run every test case in a TESTPLAN. Use when the user asks to run a testplan, verify a story against its paired testplan, or work with a testplan file under the project's testplans folder. Runs each TC's Command verbatim, marks PASS/FAIL, and auto-files BUG-YYYYMMDD-NN files for every failure before reporting in chat.
 ---
 
 # Tandem: run-testplan (QA hat)
@@ -65,7 +65,7 @@ Use `Read` / `Glob` to detect existence rather than assuming; treat missing file
 
 - Run TCs serially, not in parallel — easier to attribute failures.
 - **Batched-pattern invocation is OK** when commands share a runner (e.g. running multiple jest TCs in one `--testPathPattern` invocation), AS LONG AS the runner's per-file PASS/FAIL output keeps each TC's `Result:` line independently attributable. Don't batch across runners (jest + Playwright + bash scripts in one call); those run separately.
-- For UI test commands: capture screenshot artifacts to the resolved reports folder (`41-Reports/` canonical or `_Reports/` flattened) if helpful.
+- For UI test commands: capture screenshot artifacts to the ledger folder under the resolved reports root (`41-Reports/screenshots/` canonical or `_Reports/screenshots/` flattened) if helpful.
 - Trim log output in BUG evidence sections to ≤30 lines, key frames preserved.
 - For long-running test suites that produce noisy logs: spawn a fresh agent (SOP §18) and get back the PASS/FAIL summary — don't paste 500 lines of stdout into the main thread.
 

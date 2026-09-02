@@ -32,19 +32,32 @@
  *
  * Usage:
  *   node _00-Project-Management/93-Scripts/usage-capture.js --story STORY-21.2.01
+ *   node _00-Project-Management/93-Scripts/usage-capture.js --chat E29-CHAT-02
+ *   node _00-Project-Management/93-Scripts/usage-capture.js --chat CHAT-01 --phase EPIC-29
  *   node _00-Project-Management/93-Scripts/usage-capture.js --chat CHAT-01 --since 2026-07-18T00:00:00Z
  *   node _00-Project-Management/93-Scripts/usage-capture.js --story STORY-21.2.01 --source <file-or-dir>
  *   node _00-Project-Management/93-Scripts/usage-capture.js --story STORY-21.2.01 --out <log-file>   # test override
+ *   node _00-Project-Management/93-Scripts/usage-capture.js --chat E29-CHAT-05 --stories STORY-A,STORY-B
  *   PM_USAGE_LOG=<log-file> node _00-Project-Management/93-Scripts/usage-capture.js --story STORY-21.2.01
  *
  * Output: appends one JSON line to `_00-Project-Management/41-Reports/usage/usage-log.jsonl`
  * (created on demand) — `{ ts, id, kind, model, tokens:{input,output,cache_read,cache_creation}, source }`
- * — plus a one-line human summary on stdout.
+ * — plus `join_key` / `run_id` (STORY-29.1.03, ADR-0179: the one key the retro ledger writes
+ * too) and a one-line human summary on stdout.
+ *
+ * STORY-29.3.03 / ADR-0190 — WHERE A STORY BOUNDARY IS OBSERVABLE, BRACKET THE STORY. On a
+ * serial lane the boundary is real: `--story <id> --since <the previous boundary>` records what
+ * that story cost. Where it is NOT observable — parallel lanes, interleaved work — the chat
+ * bracket is written with `--stories <the constituents>`, which stamps the record
+ * `attribution: "unattributable-to-story"` and lists them. The remainder is stated whole and
+ * itemised; it is NEVER divided by the story count, because a prorated figure looks measured
+ * and is not.
  *
  * Exit-code contract (a metric must NEVER fail a run):
  *   0 — record captured and appended, OR graceful no-op (source unavailable/empty) — prints
  *       "usage source unavailable — skipped (no-op)" and exits 0 in the no-op case.
- *   2 — usage error: missing/conflicting --story/--chat, or a malformed id.
+ *   2 — usage error: missing/conflicting --story/--chat, a malformed id, or `--stories` on a
+ *       story bracket / with no usable id.
  *
  * Tolerant JSONL parser: malformed lines are skipped, never thrown. Dependency-free — Node
  * stdlib only, consistent with every other `93-Scripts/` tool.
@@ -56,6 +69,16 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+// THE JOIN KEY, FROM THE ONE MODULE THAT DEFINES IT (STORY-29.1.03, ADR-0179). Guarded for the
+// same reason `retro-capture.js` guards its schema require: an unguarded top-level require
+// exits 1 on a partial install, and this script's whole contract is that a metric never fails
+// the run it measures. With no module loaded the record is written WITHOUT the key rather than
+// not written — the key is additive, and losing it costs a join, not a measurement.
+let ledgerJoin = null;
+try {
+  ledgerJoin = require(path.join(__dirname, 'lib', 'ledger-join.js'));
+} catch { /* the key is additive; a capture without it is still a capture */ }
+
 const PM_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_LOG_PATH = path.join(PM_ROOT, '41-Reports', 'usage', 'usage-log.jsonl');
 const NOOP_MESSAGE = 'usage source unavailable — skipped (no-op)';
@@ -63,17 +86,62 @@ const NOOP_MESSAGE = 'usage source unavailable — skipped (no-op)';
 // ---------- CLI parsing ----------
 
 function parseArgs(argv) {
-  const args = { story: null, chat: null, source: null, since: null, out: null, help: false };
+  const args = {
+    story: null, chat: null, source: null, since: null, out: null, help: false,
+    // STORY-29.1.03. `--phase` exists ONLY to qualify a bare `--chat CHAT-04` into the
+    // canonical `E25-CHAT-04` the retro ledger writes; it is never recorded on its own.
+    // `--run` records the run beside the key. Both optional, both additive.
+    phase: null, run: null,
+    // STORY-29.3.03. `--stories` names the stories a CHAT bracket covered, when the bracket
+    // could not be split between them. It is the honest remainder, itemised — never a licence
+    // to divide the tokens by the story count. See ADR-0190.
+    stories: null,
+    // BUG-20260818-01. Anything the parser did not understand, collected here and refused by
+    // main() with exit 2 BEFORE any source is resolved. The incident: a probe's mistyped
+    // `--transcript-dir <fixture>` was silently ignored, the tool fell back to default
+    // transcript discovery (~/.claude/projects), and a 3-billion-token row of the operator's
+    // REAL spend was written as a fixture chat's — exit 0, reading as a success. An argument
+    // that is not understood must never be a fallback to measuring production data.
+    errors: [],
+  };
+  // Every option that consumes the NEXT token as its value. A missing or flag-shaped next
+  // token is a usage error, not "same as absent" — `--source` with nothing after it was
+  // silently identical to not passing it at all, which is the same defect one flag along.
+  const VALUE_FLAGS = {
+    '--story': 'story', '--chat': 'chat', '--source': 'source', '--since': 'since',
+    '--out': 'out', '--phase': 'phase', '--run': 'run', '--stories': 'stories',
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--story' && argv[i + 1]) args.story = argv[++i];
-    else if (a === '--chat' && argv[i + 1]) args.chat = argv[++i];
-    else if (a === '--source' && argv[i + 1]) args.source = argv[++i];
-    else if (a === '--since' && argv[i + 1]) args.since = argv[++i];
-    else if (a === '--out' && argv[i + 1]) args.out = argv[++i];
-    else if (a === '--help') args.help = true;
+    if (a === '--help') { args.help = true; continue; }
+    const key = Object.prototype.hasOwnProperty.call(VALUE_FLAGS, a) ? VALUE_FLAGS[a] : null;
+    if (key) {
+      const v = argv[i + 1];
+      if (v === undefined || String(v).indexOf('--') === 0) {
+        args.errors.push(`✗ usage-capture: ${a} requires a value`);
+        continue; // do not consume the next token — it may be a real flag
+      }
+      args[key] = argv[++i];
+      continue;
+    }
+    args.errors.push(`✗ usage-capture: unknown argument '${a}'`);
   }
   return args;
+}
+
+/** `--stories A,B ,C` → ['A','B','C']. Empty entries dropped; order preserved; duplicates kept
+ *  out (a story named twice is one constituent, not two). */
+function parseStoryList(value) {
+  if (typeof value !== 'string') return [];
+  const seen = new Set();
+  const out = [];
+  for (const part of value.split(',')) {
+    const id = part.trim();
+    if (id === '' || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
 }
 
 // ---------- default transcript-dir discovery (best-effort, tolerant) ----------
@@ -210,8 +278,18 @@ function main(argv) {
   const args = parseArgs(argv);
 
   if (args.help) {
-    console.log('Usage: node usage-capture.js (--story <id> | --chat <id>) [--source <path>] [--since <iso>] [--out <path>]');
+    console.log('Usage: node usage-capture.js (--story <id> | --chat <id>) [--phase <EPIC-NN>] [--run <run_id>] [--stories <id,id,...>] [--source <path>] [--since <iso>] [--out <path>]');
     return 0;
+  }
+
+  // BUG-20260818-01 — an unrecognised or valueless argument is a usage error: exit 2, name
+  // it, measure nothing, write nothing. This is the contract every sibling in 93-Scripts/
+  // already keeps (run-suite.js, autopilot-plan.js, autopilot-checkpoint.js all exit 2 on an
+  // unknown flag), and the alternative was measuring the operator's real transcripts.
+  if (args.errors.length) {
+    console.error('Usage: node usage-capture.js (--story <id> | --chat <id>) [--phase <EPIC-NN>] [--run <run_id>] [--stories <id,id,...>] [--source <path>] [--since <iso>] [--out <path>]');
+    for (const e of args.errors) console.error(e);
+    return 2;
   }
 
   if (!args.story && !args.chat) {
@@ -226,6 +304,19 @@ function main(argv) {
   const id = args.story || args.chat;
   if (!/^\S+$/.test(id)) {
     console.error(`✗ usage-capture: '${id}' is not a valid ${kind} id`);
+    return 2;
+  }
+  // STORY-29.3.03 — `--stories` describes what a CHAT bracket could not be split between. On a
+  // story bracket it would be a contradiction (the bracket already names its story), and a
+  // contradiction accepted silently is how a ledger acquires a field that means two things.
+  const constituents = parseStoryList(args.stories);
+  if (args.stories !== null && kind === 'story') {
+    console.error('✗ usage-capture: --stories describes a CHAT bracket\'s constituent stories; '
+      + 'a --story bracket already names its story');
+    return 2;
+  }
+  if (args.stories !== null && constituents.length === 0) {
+    console.error('✗ usage-capture: --stories was given no usable story id');
     return 2;
   }
 
@@ -276,6 +367,60 @@ function main(argv) {
     source: sourceDescription,
   };
 
+  // THE WINDOW, RECORDED (BUG-20260810-12). `--since` narrows what this row measures, and the row
+  // never said so — so two DISJOINT windows over one transcript directory were indistinguishable
+  // from two cumulative re-sums of the whole of it: same `source`, non-decreasing totals, which is
+  // exactly the signature `usage-rollup.detectCumulative()` reads. It took `max(rowTotal)` as the
+  // distinct-spend ceiling, and for windows of 100 then 300 that reports 300 against a true spend
+  // of 400 — the ceiling UNDERSTATES, which a ceiling must never do.
+  //
+  // WRITTEN ONLY WHEN THERE IS A WINDOW. An absent `since` is what every row already on disk has,
+  // and it must keep meaning what it means today — "this row measured everything the source held"
+  // (ADR-0165: old rows are records, and this change is additive with no migration).
+  if (typeof args.since === 'string' && args.since.trim() !== '') record.since = args.since.trim();
+
+  // THE JOIN KEY — THE SAME FIELD, FROM THE SAME MODULE, THAT `retro-capture.js` WRITES
+  // (STORY-29.1.03, closing BACKLOG-0144). The two ledgers previously agreed on nothing: this
+  // writer was handed `CHAT-01` for 31 of its 36 rows while the retro writer was handed
+  // `E27-CHAT-05`, so 14 of 22 chats had no counterpart to join to and the ones that did
+  // joined 1:5. Composing the key HERE, from the same `compose()` the other writer calls,
+  // is what makes the two ledgers name one chat one way.
+  //
+  // Written even when it is NULL — an unqualifiable bare `--chat CHAT-04` with no `--phase`
+  // records the absence rather than omitting the key, so a reader can tell "this writer did
+  // not know" from "this record predates the field".
+  if (ledgerJoin) {
+    try {
+      record[ledgerJoin.KEY_FIELD] = ledgerJoin.compose({ id, phase: args.phase });
+      record[ledgerJoin.RUN_FIELD] = (typeof args.run === 'string' && args.run.trim() !== '')
+        ? args.run.trim() : ledgerJoin.UNATTRIBUTED_RUN;
+    } catch { /* additive: a key that cannot be composed must not cost the measurement */ }
+    // THE SIBLING OF `retro-capture.js`'s SAME FALLBACK (BUG-20260811-02). This writer takes the
+    // identical `--run`-or-marker path, and the live incident produced one bad row in EACH ledger
+    // for the same chat — so warning in one writer and not the other would leave half the defect
+    // in place. One helper, both writers.
+    if (record[ledgerJoin.RUN_FIELD] === ledgerJoin.UNATTRIBUTED_RUN) {
+      try {
+        const msg = require(path.join(__dirname, 'lib', 'run-attribution.js'))
+          .missingRunWarning({ unit: `${kind} ${id}`, marker: ledgerJoin.UNATTRIBUTED_RUN });
+        if (msg) console.error(`usage-capture: ${msg}`);
+      } catch { /* additive: a warning must never cost the measurement */ }
+    }
+  }
+
+  // STORY-29.3.03 / ADR-0190 — THE EXPLICIT REMAINDER.
+  //
+  // A chat bracket whose constituent stories are known but whose spend cannot be split between
+  // them says so, in the record, by name. The alternative — dividing the tokens by the story
+  // count — would produce per-story numbers that look measured and are not, which is worse than
+  // the absence it replaces. `attribution` is written only when the caller states the
+  // constituents: a bare `--chat` capture is unattributable too, but with UNKNOWN constituents,
+  // and inventing an empty list would claim knowledge the writer does not have.
+  if (kind === 'chat' && constituents.length > 0) {
+    record.attribution = 'unattributable-to-story';
+    record.stories = constituents;
+  }
+
   const logPath = args.out || process.env.PM_USAGE_LOG || DEFAULT_LOG_PATH;
   try {
     fs.mkdirSync(path.dirname(logPath), { recursive: true });
@@ -287,7 +432,10 @@ function main(argv) {
     return 0;
   }
 
-  console.log(`usage: ${kind} ${id} — ${totals.input} in / ${totals.output} out / ${totals.cache_read} cache_read / ${totals.cache_creation} cache_creation tokens (model: ${models.join(', ') || 'unknown'}) -> ${logPath}`);
+  const remainder = record.attribution
+    ? ` [unattributable-to-story across ${constituents.length}: ${constituents.join(', ')} — counted whole, never split]`
+    : '';
+  console.log(`usage: ${kind} ${id} — ${totals.input} in / ${totals.output} out / ${totals.cache_read} cache_read / ${totals.cache_creation} cache_creation tokens (model: ${models.join(', ') || 'unknown'}) -> ${logPath}${remainder}`);
   return 0;
 }
 
@@ -295,4 +443,4 @@ if (require.main === module) {
   process.exit(main(process.argv.slice(2)));
 }
 
-module.exports = { main, parseArgs, resolveSourceFiles, extractUsage, defaultTranscriptDir, DEFAULT_LOG_PATH, NOOP_MESSAGE };
+module.exports = { main, parseArgs, parseStoryList, resolveSourceFiles, extractUsage, defaultTranscriptDir, DEFAULT_LOG_PATH, NOOP_MESSAGE };

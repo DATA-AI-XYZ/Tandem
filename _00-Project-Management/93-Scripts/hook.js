@@ -131,7 +131,8 @@ function stopDoubleFire(cwd) {
 }
 
 // Stamps the sentinel AFTER a successful regen so a sibling within the TTL will skip.
-// Must be called after runNode('generate-dashboard.js') succeeds.
+// Must be called after runNode('build-board.js') succeeds (the assembly lane — the
+// board regen path since the STORY-33.9.05 cutover).
 function stampStopSentinel(cwd) {
   try {
     fs.writeFileSync(_sentinelPath(cwd), String(Date.now()));
@@ -155,7 +156,7 @@ function main() {
     if (gitChangedPM(cwd)) {
       // Collapse a plugin+scaffold double-registration into one net regen (STORY-16.3.03).
       if (stopDoubleFire(cwd)) process.exit(0);
-      const regenStatus = runNode('generate-dashboard.js', cwd);
+      const regenStatus = runNode('build-board.js', cwd);
       // Stamp sentinel ONLY after a successful regen (exit 0) — runNode returns the child's
       // exit status (spawnSync does not throw on a non-zero exit), so a failed regen leaves
       // no stamp and the retry within the 10s TTL is always allowed (BACKLOG-0067). A

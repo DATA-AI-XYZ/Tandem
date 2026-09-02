@@ -34,9 +34,10 @@ Use `Read` / `Glob` to detect existence. Treat missing files as "not present" ra
 ## Task
 
 1. Read the source Epic's `## Features` outline. Each high-level title becomes one FEAT file (unless the user wants a different split — confirm split count up front to avoid under-decomposition).
+   - **Split gate (artefact economy — `90-Standards/ARTEFACT-ECONOMY.md`):** a Feature is earned only by a shippable slice with its own acceptance criteria that genuinely needs ≥2 stories; otherwise fold it into a sibling or keep it a single Story. Fewest Features that carry the Epic's claims.
 2. For each feature, find next-free `FEAT-NN.M` by scanning the target `EPIC-NN/` folder within the resolved `features` folder.
 3. Write each Feature file under the resolved `features` folder, organized as `EPIC-NN/FEAT-NN.M-<slug>.md`, using `FEATURE.template.md` verbatim. Number sequentially within the Epic (.1, .2, .3 …).
-   - **Apply `write-outcomes` for each Feature, inline-first:** After writing each FEAT file, apply the `write-outcomes` rules inline to the Feature's title and technical body to produce the outcome line; dispatch a sub-agent only under [ADR-0105](../../_00-Project-Management/40-Decisions/ADR-0105-write-outcomes-inline-first.md)'s named conditions (this producer's own context is near its limit, or an isolation-worthy batch run). Write the single line (plain text, no markdown) into the Feature's `outcome:` frontmatter field.
+   - **Apply `write-outcomes` for each Feature, inline-first:** After writing each FEAT file, apply the `write-outcomes` rules inline to the Feature's title and technical body to produce the outcome line; dispatch a sub-agent only under ADR-0105 — write-outcomes runs inline first, rather than dispatching a sub-agent per artefact's named conditions (this producer's own context is near its limit, or an isolation-worthy batch run). Write the single line (plain text, no markdown) into the Feature's `outcome:` frontmatter field.
 4. Fill every section:
    - **Goal** — the slice of the Epic this delivers.
    - **User value** — one sentence on UX improvement.

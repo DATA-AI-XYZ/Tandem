@@ -26,6 +26,17 @@
 const fs   = require('fs');
 const path = require('path');
 
+// STORY-30.4.01 / BACKLOG-0114 — THE canonical markdown parser, imported, not
+// re-implemented. This file used to carry its own `function mdToHtml(md)`, a
+// fork of the board's parser taken before either had grown up. Every renderer
+// fix since the split — HTML-comment stripping (STORY-21.5.02), the image rule
+// and its dangling-bang fix (BUG-20260618-02), the raw-block allow-list and its
+// attribute filter (BUG-20260731-03), structure-aware blockquotes and nested /
+// task lists (STORY-25.2.01) — landed on the board's copy and never reached the
+// docs. Deleted under ADR-0139's annotate-then-delete rule; see ADR-0205 for
+// what the convergence changed and why heading anchors stayed behind here.
+const { mdToHtml } = require('./generate-dashboard.js');
+
 /* ============================================================
  * Paths
  * ============================================================ */
@@ -62,178 +73,70 @@ function escapeHtml(s) {
 }
 
 /* ============================================================
- * Markdown → HTML  (minimal, stdlib-only)
- * Handles: headings, paragraphs, fenced code, inline code,
- *          ul/ol lists, blockquotes, tables, links, bold/italic, hr.
+ * Markdown → HTML  ·  the DOCS ENTRY POINT
+ *
+ * There is no parser here. `mdToHtml` is imported from
+ * generate-dashboard.js at the top of this file (STORY-30.4.01) — this
+ * section is the thin docs-specific wrapper around it.
+ *
+ * The only thing the docs need that the board must NOT have is heading
+ * anchors, so that is the whole of the wrapper.
  * ============================================================ */
 
-function mdToHtml(md) {
-  if (!md) return '';
-  const lines = md.split(/\r?\n/);
-  let out = '';
-  let inCode = false;
-  let codeBuf = [];
-  let codeLang = '';
-  let inList = false;
-  let listType = null;
-  let para = [];
-  let table = null;
-  let blockquote = [];
+// Reverse of the parser's escapeHtml, for slug computation only — never for
+// output. The old docs-local parser slugged the RAW markdown heading text; the
+// canonical parser hands us the RENDERED inner HTML, so the text has to be put
+// back the way the slugger used to see it (tags dropped, entities decoded) or a
+// heading like `## The \`pm:*\` scripts` would slug to `the-code-pm-code-scripts`
+// and every in-page link to it would 404 in place.
+function headingSlugText(innerHtml) {
+  return String(innerHtml)
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
+}
 
-  function inline(s) {
-    s = escapeHtml(s);
-    // Inline code (must come first, before bold/italic so backtick content is left alone)
-    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-    // Bold
-    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    // Italic (underscore form, word-boundary aware)
-    s = s.replace(/(^|\s|\()_([^_\n]+)_(?=$|\s|[.,;:!?\)])/g, '$1<em>$2</em>');
-    // Links
-    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (_, txt, href) {
-      const safe = /^(https?:|mailto:|#|\.\.?\/)/.test(href) ? href : '#';
-      const ext = safe.startsWith('http') ? ' target="_blank" rel="noopener"' : '';
-      return '<a href="' + safe + '"' + ext + '>' + txt + '</a>';
-    });
-    return s;
-  }
+function headingSlug(innerHtml) {
+  return headingSlugText(innerHtml)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
-  function flushPara() {
-    if (para.length) {
-      out += '<p>' + inline(para.join(' ')) + '</p>\n';
-      para = [];
-    }
-  }
-  function closeList() {
-    if (inList) { out += '</' + listType + '>\n'; inList = false; listType = null; }
-  }
-  function flushTable() {
-    if (!table) return;
-    out += '<div class="md-table-wrap"><table class="md-table"><thead><tr>';
-    for (const h of table.headers) out += '<th>' + inline(h) + '</th>';
-    out += '</tr></thead><tbody>';
-    for (const row of table.rows) {
-      out += '<tr>';
-      for (const cell of row) out += '<td>' + inline(cell) + '</td>';
-      out += '</tr>';
-    }
-    out += '</tbody></table></div>\n';
-    table = null;
-  }
-  function flushBlockquote() {
-    if (!blockquote.length) return;
-    out += '<blockquote>' + inline(blockquote.join(' ')) + '</blockquote>\n';
-    blockquote = [];
-  }
+// STORY-30.4.01 / ADR-0205 — heading anchors are a DOCS decoration, applied
+// after parsing, deliberately not pushed into the shared parser.
+//
+// documentation/*.md contains in-page links (`[Standards](#standards)`), which
+// need `<h2 id="standards">`. The board must not emit those ids: DASHBOARD.html
+// renders ~1,500 artefact bodies into ONE document, and near-every artefact has
+// a `## Summary`, so per-heading ids there would be mass duplicate-id collisions
+// on a single page. Keeping the anchors out here is what lets both surfaces
+// share one parser instead of forking it again over a one-surface need.
+//
+// Operates on emitted HTML rather than on markdown, safely: a literal `<h2>`
+// written inside a fenced code block reaches the output as `&lt;h2&gt;`, so the
+// tag pattern below can only ever match a heading the parser itself emitted.
+// A heading whose text slugs to nothing (e.g. `## ***`) is left without an id
+// rather than given `id=""`.
+function addHeadingIds(html) {
+  if (!html) return '';
+  return html.replace(/<h([1-6])>([\s\S]*?)<\/h\1>/g, function (whole, level, inner) {
+    const slug = headingSlug(inner);
+    if (!slug) return whole;
+    return '<h' + level + ' id="' + slug + '">' + inner + '</h' + level + '>';
+  });
+}
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Fenced code block continuation
-    if (inCode) {
-      if (line.trim().startsWith('```')) {
-        out += '<pre><code' + (codeLang ? ' class="lang-' + escapeHtml(codeLang) + '"' : '') + '>'
-             + escapeHtml(codeBuf.join('\n')) + '</code></pre>\n';
-        inCode = false; codeBuf = []; codeLang = '';
-      } else {
-        codeBuf.push(line);
-      }
-      continue;
-    }
-
-    // Fenced code block open
-    const codeStart = line.match(/^```(\w*)\s*$/);
-    if (codeStart) {
-      flushPara(); closeList(); flushTable(); flushBlockquote();
-      inCode = true; codeLang = codeStart[1];
-      continue;
-    }
-
-    // Table: current line has | and next line is a separator
-    if (
-      line.indexOf('|') !== -1 &&
-      i + 1 < lines.length &&
-      /^\s*\|?\s*:?-+:?(\s*\|\s*:?-+:?)+\s*\|?\s*$/.test(lines[i + 1])
-    ) {
-      flushPara(); closeList(); flushBlockquote();
-      const headers = line
-        .split('|')
-        .map(s => s.trim())
-        .filter((_, idx, a) => !(idx === 0 && a[0] === '') && !(idx === a.length - 1 && a[a.length - 1] === ''));
-      table = { headers, rows: [] };
-      i++; // skip separator line
-      while (i + 1 < lines.length && lines[i + 1].indexOf('|') !== -1 && lines[i + 1].trim() !== '') {
-        i++;
-        const cells = lines[i]
-          .split('|')
-          .map(s => s.trim())
-          .filter((_, idx, a) => !(idx === 0 && a[0] === '') && !(idx === a.length - 1 && a[a.length - 1] === ''));
-        table.rows.push(cells);
-      }
-      flushTable();
-      continue;
-    }
-
-    // Horizontal rule
-    if (/^---+\s*$/.test(line)) {
-      flushPara(); closeList(); flushBlockquote();
-      out += '<hr>\n';
-      continue;
-    }
-
-    // Headings
-    const heading = line.match(/^(#{1,6})\s+(.+)$/);
-    if (heading) {
-      flushPara(); closeList(); flushBlockquote();
-      const level = heading[1].length;
-      // Build an id slug for anchor linking
-      const headingId = String(heading[2]).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-      out += '<h' + level + ' id="' + headingId + '">' + inline(heading[2]) + '</h' + level + '>\n';
-      continue;
-    }
-
-    // Blockquote
-    const bq = line.match(/^>\s?(.*)$/);
-    if (bq) {
-      flushPara(); closeList();
-      blockquote.push(bq[1]);
-      continue;
-    }
-    if (blockquote.length) flushBlockquote();
-
-    // Unordered list
-    const ul = line.match(/^[-*]\s+(.+)$/);
-    if (ul) {
-      flushPara();
-      if (!inList || listType !== 'ul') { closeList(); out += '<ul>\n'; inList = true; listType = 'ul'; }
-      out += '<li>' + inline(ul[1]) + '</li>\n';
-      continue;
-    }
-
-    // Ordered list
-    const ol = line.match(/^\d+\.\s+(.+)$/);
-    if (ol) {
-      flushPara();
-      if (!inList || listType !== 'ol') { closeList(); out += '<ol>\n'; inList = true; listType = 'ol'; }
-      out += '<li>' + inline(ol[1]) + '</li>\n';
-      continue;
-    }
-
-    // Blank line → flush para / close list
-    if (line.trim() === '') {
-      flushPara(); closeList();
-      continue;
-    }
-
-    // Paragraph accumulation
-    para.push(line);
-  }
-
-  // Flush any trailing state
-  flushPara(); closeList(); flushBlockquote(); flushTable();
-  if (inCode) {
-    out += '<pre><code>' + escapeHtml(codeBuf.join('\n')) + '</code></pre>\n';
-  }
-  return out;
+// THE DOCS ENTRY POINT. Everything that renders a documentation page body goes
+// through here, and tests/mdtohtml.test.js --case docs-entry-parity drives THIS
+// function (not the imported parser directly) so the pair cannot silently
+// re-diverge: if anyone re-adds a local parser or a body-mutating pass, the
+// parity assertion against the board's parser fails.
+function renderDocBody(md) {
+  return addHeadingIds(mdToHtml(md));
 }
 
 /* ============================================================
@@ -640,7 +543,7 @@ function main() {
     }
 
     const { title, body } = parseMd(content);
-    const bodyHtml = mdToHtml(body);
+    const bodyHtml = renderDocBody(body);
     const html = renderPage(title || base, bodyHtml, mdName);
 
     try {
@@ -656,4 +559,13 @@ function main() {
   console.log('[generate-docs] Done — ' + written + ' file(s) written' + (skipped ? ', ' + skipped + ' skipped.' : '.'));
 }
 
-main();
+// STORY-30.4.01 — test seam, matching the one at the bottom of
+// generate-dashboard.js. `main()` used to run unconditionally on load, which is
+// precisely why nothing could reach the docs renderer from a test: any
+// `require()` of this file rendered the whole documentation folder as a side
+// effect. Guarded, so tests/mdtohtml.test.js --case docs-entry-parity can drive
+// the SHIPPED docs entry point rather than a re-typed copy of it — the same
+// reason phase-band-source.test.js drives the shipped reader.
+if (require.main === module) main();
+
+module.exports = { renderDocBody, addHeadingIds, headingSlug, parseMd };

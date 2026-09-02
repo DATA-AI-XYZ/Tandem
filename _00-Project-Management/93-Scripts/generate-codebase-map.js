@@ -12,6 +12,13 @@
  *   - Skips transient / dependency / build directories (DENY_DIRS) and `.git`.
  *     Other dot-prefixed directories that carry project meaning (e.g.
  *     `.claude-plugin`, `.github`) are KEPT — see ADR-0008.
+ *   - Skips anything GIT ALREADY IGNORES. DENY_DIRS is a hand-kept list and it
+ *     drifted: `.playwright-mcp/` is a machine-local scratch directory, listed in
+ *     .gitignore since it appeared, and this script mapped it into a TRACKED file
+ *     anyway — so `npm run pm:map` produced an uncommittable diff on any machine
+ *     that had ever run the Playwright MCP, and a clean one everywhere else
+ *     (BUG-20260818-11). The repository's own ignore list is the answer that
+ *     cannot drift from the repository.
  *   - Does NOT follow symlinks (uses lstat; symlinked dirs are skipped).
  *   - Idempotent + non-destructive: if CODEBASE-MAP.md already exists, rows whose
  *     Purpose/Owner have been filled in (i.e. are not the TODO placeholder) are
@@ -33,6 +40,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 // ---------- Config ----------
 
@@ -56,8 +64,25 @@ const DENY_DIRS = new Set([
 // ---------- Helpers ----------
 
 /**
+ * The candidate names git already ignores, in ONE batch call.
+ *
+ * Returns `consulted: false` when git is unavailable — in which case DENY_DIRS alone applies
+ * and the caller SAYS SO, rather than printing the same line either way. `check-ignore` exits
+ * 1 when nothing matched, which is a normal answer and not a failure.
+ */
+function gitIgnoredNames(root, names) {
+  if (!names.length) return { set: new Set(), consulted: false };
+  const r = spawnSync('git', ['check-ignore', '--stdin'], {
+    cwd: root, input: names.join('\n'), encoding: 'utf8',
+  });
+  if (r.error || (r.status !== 0 && r.status !== 1)) return { set: new Set(), consulted: false };
+  const hit = String(r.stdout || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  return { set: new Set(hit.map((x) => x.replace(/[/\\]+$/, ''))), consulted: true };
+}
+
+/**
  * Return the sorted list of mappable top-level directory names.
- * One level deep; skips DENY_DIRS and symlinks.
+ * One level deep; skips DENY_DIRS, anything git ignores, and symlinks.
  */
 function listTopLevelDirs(root) {
   let entries;
@@ -67,10 +92,14 @@ function listTopLevelDirs(root) {
     console.error(`✗ cannot read repo root: ${root}\n  ${err.message}`);
     process.exit(2);
   }
+  const ig = gitIgnoredNames(root, entries.filter((e) => !DENY_DIRS.has(e.name)).map((e) => e.name));
+  listTopLevelDirs.gitConsulted = ig.consulted;
+  listTopLevelDirs.gitSkipped = [];
   const dirs = [];
   for (const entry of entries) {
     const name = entry.name;
     if (DENY_DIRS.has(name)) continue;
+    if (ig.set.has(name)) { listTopLevelDirs.gitSkipped.push(name); continue; }
     // Resolve real type with lstat so we never follow a symlink into another tree.
     let st;
     try {
@@ -155,6 +184,16 @@ function main() {
 
   const rel = path.relative(REPO_ROOT, OUT_FILE).replace(/\\/g, '/');
   console.log(`✓ wrote ${rel} (${dirs.length} row${dirs.length === 1 ? '' : 's'})`);
+  // WHICH RULE APPLIED IS PART OF THE RESULT. On a machine without git the ignore list is not
+  // consulted at all, and the same success line either way would hide that this run mapped by
+  // a weaker rule than the last one.
+  if (listTopLevelDirs.gitConsulted) {
+    const sk = listTopLevelDirs.gitSkipped || [];
+    console.log(`  git-ignored directories skipped: ${sk.length ? sk.join(', ') : 'none'}`);
+  } else {
+    console.log('  note: git was not available, so only DENY_DIRS applied — a gitignored '
+      + 'directory may have been mapped into this tracked file.');
+  }
   process.exit(0);
 }
 

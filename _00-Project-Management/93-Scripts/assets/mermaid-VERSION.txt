@@ -1,0 +1,20 @@
+mermaid 11.16.0
+file:    dist/mermaid.min.js  (esbuild IIFE, sets globalThis.mermaid)
+source:  https://registry.npmjs.org/mermaid/-/mermaid-11.16.0.tgz
+sha256:  see `node -e "console.log(require('crypto').createHash('sha256').update(require('fs').readFileSync('mermaid.min.js')).digest('hex'))"`
+licence: MIT — mermaid-LICENSE.txt alongside (STORY-25.2.03, ADR-0092 precedent)
+
+Vendored, not installed: there is no `mermaid` entry in package.json and the board
+fetches nothing at runtime. The bundle is inlined into DASHBOARD.html by
+generate-dashboard.js (buildMermaidScript) exactly as the fonts are base64-inlined
+into the stylesheet by dashboard-css.js.
+
+Chosen deliberately over dist/mermaid.esm.min.mjs: the ESM build cannot be inlined
+into a single-file `file://` page, and the .core.mjs entry point resolves its
+diagram registry through bare specifiers. The IIFE build carries every diagram type
+statically — verified: zero `import(` call sites — which is the property that makes
+a single-file offline board possible at all.
+
+To upgrade: download the tarball, extract `package/dist/mermaid.min.js` and
+`package/LICENSE`, replace both files here, update this note, and re-run
+`node _00-Project-Management/93-Scripts/smoke-dashboard.js --mermaid-walk --assert-all-rendered`.

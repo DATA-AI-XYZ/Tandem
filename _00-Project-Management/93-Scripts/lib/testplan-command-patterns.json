@@ -1,0 +1,42 @@
+{
+  "$comment": "Testplan TC-command anti-pattern list (RETRO-2026-07 One change; proposed in RETRO-2026-05 and left unowned for three months). Consumed by validate-frontmatter.js as warn-tier rule W5 — non-fatal (ADR-0061), same stance as W1/W2/W3/W4, so it never fails pm:lint and never blocks a phase merge. Scope: fenced ```bash blocks inside 33-Testplans/**/TESTPLAN-*.md only. Each entry carries `id`, `pattern` (JS RegExp source), optional `flags`, `reason` (one clause, cited in the warning) and `fix`. Data-driven by design: extend this list WITHOUT touching validator code. ESCAPING: this is JSON, so a regex backslash needs TWO here (`\\s`, `\\b`, `\\|`) and a LITERAL backslash needs FOUR (`\\\\`). A first draft used four everywhere and silently turned `\\|` into 'any literal backslash OR ...', producing 439 false positives against unrelated greps. PRECISION IS THE POINT — re-measure the whole corpus before adding or editing an entry.",
+  "patterns": [
+    {
+      "id": "windows-absolute-path",
+      "pattern": "[A-Za-z]:\\\\[A-Za-z0-9_. -]+[\\\\/]",
+      "reason": "a drive-lettered absolute path only resolves on one machine, so the TC cannot run unattended anywhere else",
+      "fix": "use a repo-relative path, or resolve at run time (`process.cwd()`, `os.tmpdir()`, `__dirname`)"
+    },
+    {
+      "id": "posix-tmp-path",
+      "pattern": "(^|[^\\w./-])/tmp(/|\\b)",
+      "reason": "`/tmp` does not exist on Windows, so the TC is not cross-platform (precedent: BUG-20260607-02)",
+      "fix": "use `os.tmpdir()` in Node, or the project scratchpad — never a hardcoded POSIX temp path"
+    },
+    {
+      "id": "home-dir-tilde-path",
+      "pattern": "(^|\\s)~/",
+      "reason": "`~` is shell-expanded and does not resolve inside a Node string or on every shell",
+      "fix": "resolve it explicitly with `require('os').homedir()`"
+    },
+    {
+      "id": "destructive-rm",
+      "pattern": "\\brm\\s+-[A-Za-z]*(rf|fr)[A-Za-z]*\\s+(?![\"']?\\$)",
+      "reason": "a recursive force-delete aimed at a literal path can destroy real work if the path resolves unexpectedly",
+      "fix": "scope the removal to a temp dir held in a variable (`OUT=\"${TMPDIR:-/tmp}/x\" && rm -rf \"$OUT\"`), or assert rather than delete",
+      "$note": "Deliberately does NOT fire when the target is a variable (`\"$OUT\"`, `\"${TMPDIR}/x\"`) — that is the correct scoped idiom, used 15 times in TESTPLAN-22.1.01 alone. Flagging it would be noise, and a noisy warn-tier rule gets ignored, which is how the defect class survived three months in the first place."
+    },
+    {
+      "id": "destructive-git",
+      "pattern": "git\\s+(push[^\\n]*(--force|\\s-f\\b)|reset\\s+--hard|clean\\s+-[A-Za-z]*f)",
+      "reason": "a force-push, hard reset or force-clean inside a TC can discard committed or uncommitted work",
+      "fix": "assert on git state instead of mutating it; if a TC must mutate, do it in a temp clone"
+    },
+    {
+      "id": "gate-piped-into-tail-or-head",
+      "pattern": "\\|\\s*(tail|head)\\b",
+      "reason": "piping a gate into tail/head replaces the real exit status with tail's, so the gate can never fail (BUG-20260608-01)",
+      "fix": "gate on the exit code — `npm run pm:lint >/dev/null 2>&1 && echo OK`"
+    }
+  ]
+}

@@ -11,9 +11,14 @@ You are working in a project that uses the Greenfield PM Operating Kit. These ru
 
 This is the **one** place the lifecycle command order is recorded (ADR-0047). Every per-command `Next:` pointer in the lifecycle skills must agree with this chain; if a pointer ever disagrees, **this record wins** and the pointer is the bug.
 
-`/tandem:draft-okrs` → `/tandem:draft-prd` → `/tandem:draft-epic` → `/tandem:split-into-features` → `/tandem:split-into-stories` → `/tandem:refine-backlog` → `/tandem:execution-strategist` → `/tandem:execute-batch` → `/tandem:run-testplan` → `/tandem:close-out-story` → `/tandem:close-phase`
+The chain shares one planning prefix, then **forks** at `execution-strategist` into two honest paths. Follow exactly one path per unit of work — each step then runs exactly once:
 
-`close-phase` is terminal (no `Next:` pointer). Cadence / utility skills (`weekly-monitor`, `monthly-retro`, `reflect`, `session-start`, `critique`, `peer-review`, `document`, `curate-toolkit`, `fill-claude-md`, `execute-story`) are **not** chain members; `execute-story` is the single-story alternative to `execute-batch`.
+Planning prefix: `/tandem:draft-okrs` → `/tandem:draft-prd` → `/tandem:draft-epic` → `/tandem:split-into-features` → `/tandem:split-into-stories` → `/tandem:refine-backlog` → `/tandem:execution-strategist`
+
+- **Single-story path:** `/tandem:execution-strategist` → `/tandem:execute-story` → `/tandem:run-testplan` → `/tandem:close-out-story`
+- **Batched path:** `/tandem:execution-strategist` → `/tandem:start-phase` → `/tandem:execute-batch` → `/tandem:close-phase` — execute-batch composes the per-story skills (`execute-story` → `run-testplan` → `close-out-story`) internally; never re-run them separately after a batch, and never run a batch without `start-phase` cutting the phase branch first.
+
+`close-phase` is terminal (no `Next:` pointer). **Every skill not named in the chain is a non-chain utility** (cadence / review / setup — e.g. `weekly-monitor`, `monthly-retro`, `reflect`, `session-start`, `critique`, `peer-review`, `document`, `curate-toolkit`, `fill-claude-md`, `mode`); the two fork paths above are the only lifecycle orders.
 
 ## Reference order — where to look
 
@@ -91,9 +96,18 @@ On any non-obvious decision (library choice, schema field name, threshold settin
 
 Every new artefact starts from `91-Templates/<TYPE>.template.md`. Do not redraft section headings from memory.
 
-### Deliverable length — convention, not gate
+### Artefact economy — quality over count
 
-Match section length to substance — cover what the ACs need and stop; don't pad sections to look complete. This covers every producer skill at once; it is a writing convention, not a new MANDATORY gate.
+Before creating any EPIC / FEAT / STORY / BUG / BACKLOG artefact, apply `90-Standards/ARTEFACT-ECONOMY.md`: choose the **smallest** level that carries the claim; fewest artefacts that carry the claims; one intake item per initiative (tranches, not siblings); every artefact carries a falsifiable claim; small debt rides the next story touching the same files. Kill-before-promote cadence: `triage-backlog` before `refine-backlog`. When unsure between two levels, pick the smaller.
+
+### Concision — artefacts and chat (convention, not gate)
+
+One writing convention for every producer skill and every hat; not a new MANDATORY gate.
+
+- **Artefacts:** Match section length to substance — cover what the ACs need and stop; don't pad sections to look complete.
+- **Chat:** lead with the outcome or verdict; supporting detail after. Plain English, complete sentences, no ceremony or filler openers. Explain a thing once — don't restate what a table, file, or earlier line already says.
+- **Long enumerations** (finding lists, per-item tables, logs) belong in an artefact or report; chat carries the verdict plus the pointer.
+- **Respect stated output budgets** where a skill declares one (e.g. `session-start` ≤ 25 lines).
 
 ### Strategy linkage
 

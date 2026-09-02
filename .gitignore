@@ -9,8 +9,73 @@ dist/
 # Generated demo dashboard rendered from the fixture during the build
 demo-fixture/_00-Project-Management/42-Monitor/DASHBOARD.html
 
+# The live board (ADR-0276, STORY-35.3.04). ~38 MB of fully-regenerable build output — run
+# `npm run pm:dash` and it comes back; the Stop hook does it routinely. It was tracked for dev
+# convenience and that convenience was expensive: 583 commits touched it, it is the Windows
+# file-lock-during-merge hazard the phase merges have to use plumbing to work around, and it
+# sat in the dev-install payload. ADR-0082 already gitignores this file in every CONSUMER
+# install as "fully-regenerable build output"; this line applies the same stance to the repo
+# that wrote the rule. NOTE: history is NOT rewritten — the existing blobs stay in the object
+# store and the repo does not shrink. This stops the bleeding; it does not undo it.
+# A fresh clone has no board until the first `npm run pm:dash`, which is the documented step.
+_00-Project-Management/42-Monitor/DASHBOARD.html
+
 # Tandem conversation-mode state — machine/session-local (joined session IDs)
 .tandem-mode.json
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Mutant sidecars written by the suite's positive controls. A dozen tests copy a LIVE script
+# in 93-Scripts/ to `.mutant-<pid>-<seq>-<name>.js` (or `<name>.mutant-backup-<pid>-<seq>`),
+# break it, prove the guard fires, then delete it. On the happy path nothing survives — but a
+# timeout or a crash mid-mutant leaves a deliberately-BROKEN copy of a production script sitting
+# untracked next to the real one, and an unscoped `git add -A` would commit it. Ignored so that
+# cannot happen. (EPIC-30 phase-close review; the same run's own retro records the mutant harness
+# corrupting generate-dashboard.js twice.)
+.mutant-*
+*.mutant-backup-*
+
+# Control sidecars, same hazard from the other direction (STORY-33.10.01). TC-04's A/B needs a
+# copy of `generate-dashboard.js` with the pre-ADR-0267 hardcoded output path restored, and that
+# copy has to sit IN 93-Scripts/ so its `__dirname`-relative requires (lib/, the sibling modules,
+# assets/) resolve identically — otherwise the two legs differ for reasons other than the line
+# under test. Removed in `finally` and on SIGINT/SIGTERM, and swept at the start of each run; this
+# is the belt for the case none of those fire. Unlike a mutant sidecar it is a WORKING copy, which
+# is worse, not better: `lib/ship-filter.js` also excludes it, because a silent duplicate of a
+# production script would otherwise be copied into every consumer install and into the public
+# plugin, carrying no denylist token and so passing the scrub gate untouched.
+.control-*
+
+# EPIC-33 — the kit-side Preact board build workspace (ADR-0226 §1, ADR-0229).
+# esbuild/preact/node_modules live HERE and nowhere else; the built runtime bundle is
+# a regenerable output of `npm run board:build`, not a source file.
+board/node_modules/
+board/out/
+
+# The staging deliverable of the ported board (STORY-33.1.01). ~30 MB and rebuilt on
+# demand; cutover to the committed DASHBOARD.html name is STORY-33.9.05.
+# MOVED 2026-08-27 -- the ported board now builds to board/dist/, which the `dist/` rule above
+# already covers. This line is kept so a working tree that predates the move does not start
+# tracking the stale copy it may still be carrying; acceptance-run.test.js reports that copy
+# and asks for it to be deleted. Remove this line once no live tree has one.
+_00-Project-Management/42-Monitor/DASHBOARD-NEXT.html
+board/__redsrc/
+
+# Design prototype, generated 2026-08-27 (10.4 MB: a self-contained redesign HTML plus the
+# board payload it was extracted from). It was untracked, and a `git add -A` swept it into a
+# commit it had nothing to do with. Nothing in the repo references this folder -- the PRD it
+# relates to lives at 20-Requirements/CommandCenter/PRD-command-center-redesign.md. Ignored so
+# the accident cannot repeat; delete this block if the prototype should be versioned.
+command-center-redesign/
+
+# Playwright home for the EPIC-34 board-UX compare specs (ADR-0274): tests/board-ux carries its
+# own package.json + node_modules (already covered by the node_modules/ rule above). Dev-only,
+# never shipped — board/ stays the build toolchain's (esbuild/preact) only home.
+tests/board-ux/test-results/
+tests/board-ux/playwright-report/
+
+# STORY-33.9.05 assembly-lane interchange artefacts (review M2/M3): staging boards and
+# payload hand-off files are per-run scratch, wherever they land.
+*.assembling
+*.payload.json

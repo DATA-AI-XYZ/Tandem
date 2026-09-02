@@ -323,35 +323,35 @@ body {
 <ol>
 <li><strong>draft-okrs</strong> — turn a North Star into quarterly objectives and key results.</li>
 <li><strong>draft-prd</strong> — capture the requirement as a PRD under <code>20-Requirements/</code>.</li>
-<li><strong>draft-epic</strong> — open an <code>EPIC-NN</code>, linked to an OKR or PRD section (no strategy link, no</li>
-<p>   epic).</p>
+<li><strong>draft-epic</strong> — open an <code>EPIC-NN</code>, linked to an OKR or PRD section (no strategy link, no<p>   epic).</p>
+</li>
 <li><strong>split-into-features</strong> — decompose the epic into <code>FEAT-NN.M</code> files.</li>
-<li><strong>split-into-stories</strong> — decompose each feature into <code>STORY-NN.M.PP</code> files, writing the</li>
-<p>   paired <code>TESTPLAN-NN.M.PP</code> in the same step.</p>
+<li><strong>split-into-stories</strong> — decompose each feature into <code>STORY-NN.M.PP</code> files, writing the<p>   paired <code>TESTPLAN-NN.M.PP</code> in the same step.</p>
+</li>
 <li><strong>refine-backlog</strong> — run the Definition-of-Ready checklist and flip a story to <code>ready</code>.</li>
-<li><strong>execution-strategist</strong> — group ready stories into batched &quot;chats&quot; with serial/parallel</li>
-<p>   lanes (a dry-run plan; it changes no statuses).</p>
-<li><strong>start-phase</strong> — gate the entry state (clean tree, on <code>main</code>, every phase story</li>
-<p>   DoR-<code>ready</code>) and cut a <code>phase/&lt;phase-id&gt;</code> branch off <code>main</code> to run the batch on (ADR-0045).</p>
-<li><strong>execute-batch</strong> — run a chat&#39;s stories in order (or <strong>execute-story</strong> for a single</li>
-<p>   story), flipping <code>ready → in-progress</code> and implementing the acceptance criteria. A    file-disjoint batch can instead run through <strong>execute-batch-parallel</strong>, which fans out one    sub-agent per story and reconciles the results through a single writer.</p>
-<li><strong>run-testplan</strong> — run every test case&#39;s command verbatim, marking PASS/FAIL and</li>
-<p>    auto-raising a BUG on any failure.</p>
+<li><strong>execution-strategist</strong> — group ready stories into batched &quot;chats&quot; with serial/parallel<p>   lanes (a dry-run plan; it changes no statuses).</p>
+</li>
+<li><strong>start-phase</strong> — gate the entry state (clean tree, on <code>main</code>, every phase story<p>   DoR-<code>ready</code>) and cut a <code>phase/&lt;phase-id&gt;</code> branch off <code>main</code> to run the batch on (ADR-0045).</p>
+</li>
+<li><strong>execute-batch</strong> — run a chat&#39;s stories in order (or <strong>execute-story</strong> for a single<p>   story), flipping <code>ready → in-progress</code> and implementing the acceptance criteria. A    file-disjoint batch can instead run through <strong>execute-batch-parallel</strong>, which fans out one    sub-agent per story and reconciles the results through a single writer.</p>
+</li>
+<li><strong>run-testplan</strong> — run every test case&#39;s command verbatim, marking PASS/FAIL and<p>    auto-raising a BUG on any failure.</p>
+</li>
 <li><strong>close-out-story</strong> — run the Definition-of-Done gate and flip the story to <code>done</code>.</li>
-<li><strong>close-phase</strong> — gate the whole phase, compile the retro, and merge the phase branch</li>
-<p>    back to <code>main</code>. This step is terminal.</p>
+<li><strong>close-phase</strong> — gate the whole phase, compile the retro, and merge the phase branch<p>    back to <code>main</code>. This step is terminal.</p>
+</li>
 </ol>
 <h2 id="gates-between-the-steps">Gates between the steps</h2>
 <p>The chain is gated, not just sequential — each transition checks a contract before it proceeds:</p>
 <ul>
-<li><strong>Definition of Ready</strong> guards entry to <code>in-progress</code>: a missing testplan, an unrunnable</li>
-<p>  test case, or an unmet dependency stops the story at <code>refine-backlog</code>.</p>
-<li><strong>Definition of Done</strong> guards entry to <code>done</code>: every acceptance criterion ticked, the</li>
-<p>  testplan green, lint clean, and the AI-review field resolved.</p>
-<li><strong>Phase gates</strong> guard the merge: every story in the phase must be <code>done</code>, the board clean,</li>
-<p>  and the lint and smoke checks green before <code>close-phase</code> surfaces a merge command.</p>
+<li><strong>Definition of Ready</strong> guards entry to <code>in-progress</code>: a missing testplan, an unrunnable<p>  test case, or an unmet dependency stops the story at <code>refine-backlog</code>.</p>
+</li>
+<li><strong>Definition of Done</strong> guards entry to <code>done</code>: every acceptance criterion ticked, the<p>  testplan green, lint clean, and the AI-review field resolved.</p>
+</li>
+<li><strong>Phase gates</strong> guard the merge: every story in the phase must be <code>done</code>, the board clean,<p>  and the lint and smoke checks green before <code>close-phase</code> surfaces a merge command.</p>
+</li>
 </ul>
-<p>Cadence and utility commands — <code>weekly-monitor</code>, <code>monthly-retro</code>, <code>reflect</code>, <code>session-start</code>, <code>critique</code>, <code>peer-review</code>, <code>document</code>, <code>curate-toolkit</code>, and <code>mode</code> — sit outside the chain; they observe and maintain the board (or set how Claude converses) rather than advance a single story along it. <code>autopilot</code> also sits outside the chain: it *drives* the chain — start-phase → each batch → close-phase, unattended, usage-governed — rather than being a step in it. Setup commands — <code>install</code>, <code>update</code>, <code>fill-claude-md</code> — wire the kit into a project and keep it current. See <a href="#">Features</a> for what each does.</p>
+<p>Cadence and utility commands — <code>weekly-monitor</code>, <code>monthly-retro</code>, <code>reflect</code>, <code>session-start</code>, <code>critique</code>, <code>peer-review</code>, <code>plan-drift</code>, <code>triage-backlog</code>, <code>document</code>, <code>curate-toolkit</code>, and <code>mode</code> — sit outside the chain; they observe and maintain the board (or set how Claude converses) rather than advance a single story along it. <code>triage-backlog</code> sits just upstream of step 6: it rules on whether a backlog item is still worth refining at all, before <code>refine-backlog</code> gates readiness. <code>autopilot</code> also sits outside the chain: it <em>drives</em> the chain — start-phase → each batch → close-phase, unattended, usage-governed — rather than being a step in it. Setup commands — <code>install</code>, <code>update</code>, <code>fill-claude-md</code> — wire the kit into a project and keep it current. See <a href="#">Features</a> for what each does.</p>
     </main>
     <footer class="doc-footer">
       Source: command-lifecycle.md

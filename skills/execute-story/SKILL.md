@@ -7,7 +7,7 @@ description: Start work on a Ready STORY. Use when the user asks to begin a stor
 
 Operate as **Dev hat**. The user is pulling a Ready story into active work.
 
-> **Parallel-execution note.** When this story runs as part of a fanned-out parallel batch, the concurrency model in [ADR-0075](../../_00-Project-Management/40-Decisions/ADR-0075-parallel-execution-concurrency-model.md) governs: the batch must be provably file-disjoint (`pm:batch-check`), and the **main thread is the sole writer** of `MONITOR.md` / `ACTIVE.md` and the sole assigner of sequential `ADR-NNNN` / `BUG-YYYYMMDD-NN` IDs — a sub-agent running this skill proposes ADR/BUG bodies but never claims an ID or edits the board. Atomic status+timestamp flips are unchanged.
+> **Parallel-execution note.** When this story runs as part of a fanned-out parallel batch, the concurrency model in ADR-0075 — parallel execution is sub-agents-with-merge, and only under a provably file-disjoint precondition governs: the batch must be provably file-disjoint (`pm:batch-check`), and the **main thread is the sole writer** of `MONITOR.md` / `ACTIVE.md` and the sole assigner of sequential `ADR-NNNN` / `BUG-YYYYMMDD-NN` IDs — a sub-agent running this skill proposes ADR/BUG bodies but never claims an ID or edits the board. Atomic status+timestamp flips are unchanged.
 
 ## Pre-flight — refuse loudly if the kit isn't wired
 
@@ -85,6 +85,16 @@ finalisation (the DoD gate, or the combined-cycle exception above) to attribute 
 usage (tokens, per ADR-0079) to this story. A usage-source-unavailable no-op is fine — the
 helper always exits 0 and never blocks the story.
 
+## Retro ledger — pointer only, this command writes nothing
+
+**This command appends no retro ledger line.** Item-level capture is owned entirely by
+`close-out-story` (SOP §14.1, PRD §A.3) — the universal chokepoint every item passes through
+regardless of whether this command, `execute-batch`, `execute-batch-parallel` or `autopilot` drove
+it. A second capture site here could only double-write and drift, so there deliberately is not one.
+
+This is the one place the retro ledger differs from usage capture above, which *does* attribute per
+item here (ADR-0079). Different granularity, deliberately not unified.
+
 ## Non-negotiable rules from CLAUDE.md
 
 - Frontmatter timestamps (set `started_at` on in-progress; do **not** set `completed_at` yet).
@@ -103,3 +113,10 @@ Only report a status you can point to a gate or tool result from this session fo
 - BUGs filed: <list of paths>
 - Status now: `in-progress` | `in-review` | `blocked`
 - Next step: `/tandem:run-testplan` if in-review; fix block if blocked
+
+## Next command
+
+Next: `/tandem:run-testplan`
+
+The single-story fork of the canonical chain (see the chain record in `core`): with the story
+`in-review`, the paired testplan runs next. Fix the block first if the story ended `blocked`.

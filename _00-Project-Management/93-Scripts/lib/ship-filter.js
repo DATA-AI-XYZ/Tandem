@@ -27,6 +27,21 @@ function shouldShipKitScript(relPath) {
   if (/^test-.*\.js$/.test(base)) return false;   // dev self-tests (test-pm-paths.js, test-mode.js, …)
   if (/\.test\.[cm]?js$/.test(base)) return false; // dev suites (foo.test.js / .cjs / .mjs)
   if (base === 'smoke-dashboard.js') return false; // dev smoke harness
+  // …and the modules STORY-34.1.06 split it into (BACKLOG-0190). The harness stopped being one
+  // file; it did not stop being dev-only. Without this the split would have quietly ADDED ~15k
+  // lines of dev harness to every consumer install and to the public plugin — a behaviour change
+  // the split was explicitly not allowed to make. Scoped to `lib/`, so a future shipped script
+  // whose name happens to start with `smoke-` at the scripts root is not caught by accident.
+  if (/^lib\/smoke-[^/]*\.js$/.test(p)) return false;
+  // Transient copies of production scripts that test harnesses write INTO this tree so that
+  // `__dirname`-relative requires still resolve (`.mutant-<pid>-…` from the mutation harnesses,
+  // `.control-<pid>-…` from STORY-33.10.01's A/B arm). They are removed in `finally`, but a
+  // SIGTERM — including run-suite.js's own `--timeout` kill — skips that. `.gitignore` already
+  // stops a survivor being committed; without this it would still be COPIED into every consumer
+  // install (install.js step 0b, update.js step 2) and into the public plugin
+  // (release-tandem.js copyPmAssets), where it is a silent duplicate of a production script that
+  // carries no denylist token and so passes the scrub gate untouched.
+  if (/^\.(mutant|control)-/.test(base) || /\.mutant-backup-/.test(base)) return false;
   return true;
 }
 

@@ -317,36 +317,36 @@ body {
     </header>
     <main class="doc-body">
 <h1 id="context-economics">Context economics</h1>
-<p>Every skill, sub-agent, and bundled plugin you install costs something *before it does any work*: it occupies space in the model&#39;s context window the moment it loads. This page defines that cost — the kit calls it the <strong>context tax</strong> — and explains the token-cost view (delivered in FEAT-11.3) that lets you see and manage it.</p>
+<p>Every skill, sub-agent, and bundled plugin you install costs something <em>before it does any work</em>: it occupies space in the model&#39;s context window the moment it loads. This page defines that cost — the kit calls it the <strong>context tax</strong> — and explains the token-cost view (delivered in FEAT-11.3) that lets you see and manage it.</p>
 <h2 id="what-the-context-tax-is">What the context tax is</h2>
 <p><strong>Context-load cost</strong> is the number of tokens an artefact adds to the context window simply by being loaded — its instructions, its always-loaded references, the definition the model must read before it can act. The kit names this the <strong>context tax</strong>: a standing charge you pay on every session that loads the artefact, whether or not you ever invoke it.</p>
-<p>It is <strong>not</strong> a completion cost. It is explicitly distinct from the per-invocation completion cost — the tokens spent generating a response when a command actually runs — and it is <strong>not a dollar cost</strong>. The figure is a *context-weight* estimate measured in tokens, not money and not a per-invocation charge. The point of the metric is capacity, not billing: a large catalogue of rarely-used skills can quietly consume the window and crowd out the work you actually care about, and the context tax is how you notice that before it bites.</p>
+<p>It is <strong>not</strong> a completion cost. It is explicitly distinct from the per-invocation completion cost — the tokens spent generating a response when a command actually runs — and it is <strong>not a dollar cost</strong>. The figure is a <em>context-weight</em> estimate measured in tokens, not money and not a per-invocation charge. The point of the metric is capacity, not billing: a large catalogue of rarely-used skills can quietly consume the window and crowd out the work you actually care about, and the context tax is how you notice that before it bites.</p>
 <p>Why it matters:</p>
 <ul>
 <li>The context window is finite; the tax is paid up front, every session.</li>
-<li>A cheap-to-invoke artefact can still be expensive to *load* if its instructions are long.</li>
+<li>A cheap-to-invoke artefact can still be expensive to <em>load</em> if its instructions are long.</li>
 <li>Trimming or deferring high-tax artefacts you rarely use buys back working space.</li>
 </ul>
 <h2 id="reading-the-token-cost-view">Reading the token-cost view</h2>
 <p>FEAT-11.3 surfaces the context tax directly in the AI catalogue (the Command Center&#39;s toolkit view in <a href="index.html">the dashboard</a> — local in-repo only). The token-cost view counts the tax <strong>per scope</strong>:</p>
 <ul>
-<li><strong>Command / skill</strong> — the tokens of the skill body (its <code>SKILL.md</code>) plus any references it</li>
-<p>  always loads.</p>
+<li><strong>Command / skill</strong> — the tokens of the skill body (its <code>SKILL.md</code>) plus any references it<p>  always loads.</p>
+</li>
 <li><strong>Sub-agent</strong> — the tokens of the agent definition the model reads to adopt that role.</li>
-<li><strong>Plugin total</strong> — the summed cost of everything a bundled plugin auto-loads, shown as a</li>
-<p>  distinct <strong>plugin total</strong> so a whole plugin&#39;s footprint is visible at a glance.</p>
+<li><strong>Plugin total</strong> — the summed cost of everything a bundled plugin auto-loads, shown as a<p>  distinct <strong>plugin total</strong> so a whole plugin&#39;s footprint is visible at a glance.</p>
+</li>
 </ul>
 <p>How to read it:</p>
 <ul>
 <li><strong>Per-card figure</strong> — each catalogue card shows its own <code>~N tok</code> context-load badge.</li>
-<li><strong>Per-kind rollup</strong> — a roll-up header totals the tax by kind (commands, skills,</li>
-<p>  sub-agents), so you can see where the weight concentrates.</p>
-<li><strong>Plugin total</strong> — the bundled-plugin total is reported separately and deliberately kept</li>
-<p>  out of the grand total, to avoid double-counting folded-in items.</p>
-<li><strong>Sort and filter by cost</strong> — sort the catalogue ascending/descending by context-load</li>
-<p>  cost, and filter to a minimum cost, to find the heaviest artefacts fast.</p>
+<li><strong>Per-kind rollup</strong> — a roll-up header totals the tax by kind (commands, skills,<p>  sub-agents), so you can see where the weight concentrates.</p>
+</li>
+<li><strong>Plugin total</strong> — the bundled-plugin total is reported separately and deliberately kept<p>  out of the grand total, to avoid double-counting folded-in items.</p>
+</li>
+<li><strong>Sort and filter by cost</strong> — sort the catalogue ascending/descending by context-load<p>  cost, and filter to a minimum cost, to find the heaviest artefacts fast.</p>
+</li>
 </ul>
-<p>Read the number as *context weight*, not price. For the precise counting method behind the figure, see the <code>tokenCost()</code> helper in <code>generate-dashboard.js</code> (STORY-11.3.01); this page defines what the number <strong>means</strong> and how to use the view to keep your context economics healthy.</p>
+<p>Read the number as <em>context weight</em>, not price. For the precise counting method behind the figure, see the <code>tokenCost()</code> helper in <code>generate-dashboard.js</code>, the board&#39;s data-payload producer since the Preact port (STORY-11.3.01); this page defines what the number <strong>means</strong> and how to use the view to keep your context economics healthy.</p>
     </main>
     <footer class="doc-footer">
       Source: context-economics.md

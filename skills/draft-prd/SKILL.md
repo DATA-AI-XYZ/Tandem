@@ -1,6 +1,6 @@
 ---
 name: draft-prd
-description: Draft a Product Requirements Document from a North Star, an OKR Key Result, raw founder notes, or a BACKLOG entry that needs more spec. Use when the user asks to draft a PRD, write a PRD, write requirements, write a spec, turn notes into a PRD, or invokes /tandem:draft-prd. Operates as Founder hat (synthesis) handing to PM hat (write). Reads strategy sources and produces 20-Requirements/PRD-<slug>.md following 91-Templates/PRD.template.md — 8 mandatory H2 sections, lightweight markdown, no frontmatter.
+description: Draft a Product Requirements Document from a North Star, an OKR Key Result, raw founder notes, or a BACKLOG entry that needs more spec. Use when the user asks to draft a PRD, write a PRD, write requirements, write a product spec / PRD, turn notes into a PRD, or invokes /tandem:draft-prd. Operates as Founder hat (synthesis) handing to PM hat (write). Reads strategy sources and produces 20-Requirements/PRD-<slug>.md following 91-Templates/PRD.template.md — 8 mandatory H2 sections, lightweight markdown, no frontmatter.
 ---
 
 # Tandem: draft-prd (Founder → PM hat)
@@ -84,7 +84,7 @@ Wait for edits before saving.
 
 Write to `_00-Project-Management/20-Requirements/PRD-<slug>.md` using the template verbatim. Plain markdown — **no frontmatter** (matches the kit's existing PRD convention; validator does not scan `20-Requirements/`). Set the document `Status:` field at the top to `draft` and the `Date:` to today.
 
-**Write-outcomes, inline-first:** Before saving, apply the `write-outcomes` rules inline to the PRD's technical content (Problem through Open questions) to produce the outcome line; dispatch a sub-agent only under [ADR-0105](../../_00-Project-Management/40-Decisions/ADR-0105-write-outcomes-inline-first.md)'s named conditions (this producer's own context is near its limit, or an isolation-worthy batch run). Insert the single-line outcome (founder voice, no label or quotes) as a founder-facing summary immediately below the `Status:` line. It is one outcome sentence, not a re-digest of every section.
+**Write-outcomes, inline-first:** Before saving, apply the `write-outcomes` rules inline to the PRD's technical content (Problem through Open questions) to produce the outcome line; dispatch a sub-agent only under ADR-0105 — write-outcomes runs inline first, rather than dispatching a sub-agent per artefact's named conditions (this producer's own context is near its limit, or an isolation-worthy batch run). Insert the single-line outcome (founder voice, no label or quotes) as a founder-facing summary immediately below the `Status:` line. It is one outcome sentence, not a re-digest of every section.
 
 ## Output rules
 

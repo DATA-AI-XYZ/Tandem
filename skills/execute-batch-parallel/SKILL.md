@@ -146,6 +146,14 @@ that, in these stages — **first** collect, **then** number, **then** flip, **t
    matches ADR-0077's `ready → in-progress → done` lifecycle, collapsed into one atomic write at
    reconciliation. For each failed story (DoD gap, TC FAIL, or no usable handoff), see
    partial-failure handling below.
+
+   **Per-item retro ledger line — run it here, once per flip.** Because this stage re-implements the
+   close-out gate rather than delegating to it, the item-level ledger line would otherwise never be
+   written on the parallel path, and the level would be silently empty for every fanned-out batch.
+   So: for each item that flips to `done`, run **`close-out-story` step 5's capture command
+   verbatim**, substituting that item's values. Do **not** restate the command here — it is defined
+   in exactly one place on purpose (SOP §14.1), and a second copy is precisely the drift that rule
+   exists to prevent. This is a side-effect, not a gate: it never blocks a flip.
 4. **Write the board once — `MONITOR.md` + `ACTIVE.md`.** A single (`once`) `MONITOR` + `ACTIVE`
    write covers the whole batch — one revision-history block for every shipped story, one ACTIVE
    update — not once per story. Only this board write is batched; the per-story DoD gate in stage 3
@@ -191,6 +199,27 @@ safety gate (Step 1):
   soft batch-size limit (ADR-0026), and a batch beyond that bound **queues** — distinct from the WIP
   cap. See SOP §5 + ADR-0077.
 
+## Retro capture
+
+After reconciliation completes, append the chat-level retro ledger line (SOP §14.1) — from the
+main thread, never from a lane. Always exits 0, never blocks the chat; skip silently if the
+script is absent.
+
+```bash
+node _00-Project-Management/93-Scripts/retro-capture.js --level chat --id <CHAT-NN> --phase <EPIC-NN> [--stories <n>] [--halts <n>] [--lanes parallel] [--wall-clock-s <n>] [--dispatch-overhead-s <n>] [--fallback-fired|--no-fallback-fired] [--friction "…"] [--artefact-gap <ID>] [--kit-signal "…"]
+```
+
+- `--lanes parallel` — the one field that distinguishes this command's line from `execute-batch`'s,
+  and the whole point of capturing it: it is what lets the rollup compare the two lane strategies.
+- `--fallback-fired` when the ADR-0081 nesting wall forced the orchestrator to run a chat itself in
+  the main thread instead of dispatching it.
+- `--dispatch-overhead-s` covers fan-out **and** the serialised reconciliation, which is where this
+  command's overhead actually lives.
+- Sub-agents write **no** ledger lines. Lanes never flip board status, and capture follows the same
+  single-writer rule as reconciliation.
+- This section covers the **chat** level only. The per-item lines are written during reconciliation
+  stage 3, one per flip — see Step 4. Both come from the main thread.
+
 ## Output rules
 
 - Status changes are THIS command's job (it is **not** dry-run — that's `execution-strategist`).
@@ -205,4 +234,8 @@ pattern in SOP §18, which chains whole chats one at a time across a phase.
 
 ## Next command
 
-Next: `/tandem:run-testplan`
+Next: `/tandem:close-phase`
+
+When every chat in the phase is executed, close the phase (retrospective + gated merge). Do
+**not** hand a finished batch to `run-testplan` — the lanes above already ran every story's
+testplan inside the fan-out; re-running them after the batch does each step twice.

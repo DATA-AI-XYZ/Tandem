@@ -50,12 +50,27 @@ html_context: []                 # optional: repo-relative paths to PRIOR siblin
      or (c) use a sentinel that cannot appear in any artefact body. -->
 
 <!-- Lint/verify-TC guidance: a TC (or a chat verify line) that checks a quality gate must use an
-     EXIT-CODE gate, not a substring-of-output gate. Write `npm run pm:lint >/dev/null 2>&1 && echo OK`
+     EXIT-CODE gate, not a substring-of-output gate. Write `npm run pm:lint >/dev/null && echo OK`
      and assert the exit code / the `OK` sentinel. NEVER gate on `npm run pm:lint 2>&1 | grep -E
      "violations" | tail -1` — the summary reads `N violation(s)` (no bare `violations` substring) and
      a trailing `| tail` always exits 0, so that pipeline can never fail and silently green-lights a
      dirty corpus (precedent: BUG-20260608-01). validate-frontmatter.js already exits non-zero on any
-     violation, so the exit code is the load-bearing signal — let it gate. -->
+     violation, so the exit code is the load-bearing signal — let it gate.
+
+     KEEP STDERR ON A GATED STEP — every step whose exit code gates the rest of the line MUST let its
+     stderr through. `>/dev/null` quiets the progress chatter; adding `2>&1` also throws
+     away the only account of WHY the step failed, and the two decisions are not the same one. On
+     2026-08-03 a chat verify line exited 1 at its final `pm:dash` and the cause is now permanently
+     unrecoverable for exactly this reason — a 22 MB non-atomic write racing a reader and an npm
+     transient could not be told apart, because both had gone to /dev/null (BACKLOG-0137, STORY-28.1.02).
+     So: `npm test >/dev/null && …`, never `npm test >/dev/null 2>&1 && …`.
+
+     A discard is only acceptable where it cannot cost you a diagnosis: inside a `$( … )` discovery
+     substitution, on a set-up command whose exit code is not the segment's, or on a non-final stage
+     of a pipeline. On the LAST step of a chain — which gates nothing — it is permitted but must be
+     annotated (a sidecar chat carries `verify_stderr_suppression_note`), because an unexplained
+     suppression cannot be told from an accidental one. `tests/stderr-kept.test.js` enforces this over
+     the live EXECUTION-STRATEGY sidecars and their `.md` twins on every `npm test`. -->
 
 <!-- Artefact-discovery / __DATA-extraction guidance (precedent: EPIC-21 waves 1-7, 2026-07-18: 6 TC
      commands repaired in-review): never resolve a target artefact with order-fragile discovery like

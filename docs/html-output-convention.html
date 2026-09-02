@@ -320,33 +320,33 @@ body {
 <p>The kit renders its human-facing views from the same Markdown that holds the plan. The rule is uniform: a source <code>*.md</code> renders to a sibling <code>*.html</code> of the same basename, the HTML is a generated artefact, and you never hand-edit it. This page documents that convention so the read views stay reproducible.</p>
 <h2 id="the-rule">The rule</h2>
 <ul>
-<li><strong>Source is Markdown.</strong> Each documentation page is a <code>documentation/*.md</code> file. The first</li>
-<p>  <code># </code> heading becomes the page title and the Docs-view tile name.</p>
-<li><strong>Output is a sibling <code>.html</code>.</strong> <code>npm run pm:docs</code> reads every <code>documentation/*.md</code> and</li>
-<p>  writes a self-contained <code>*.html</code> beside it — <code>architecture.md</code> → <code>architecture.html</code>. The   HTML inlines the kit&#39;s brand tokens, so it needs no external CSS.</p>
-<li><strong>Generated, never hand-edited.</strong> The <code>.html</code> is overwritten on every render. Edit the</li>
-<p>  <code>.md</code> and re-run the generator; any manual change to the <code>.html</code> is lost on the next build.</p>
-<li><strong>Idempotent.</strong> Same input produces the same body HTML — the generated-at stamp lives only</li>
-<p>  in an HTML comment, so re-rendering an unchanged page yields an identical styled body.</p>
+<li><strong>Source is Markdown.</strong> Each documentation page is a <code>documentation/*.md</code> file. The first<p>  <code># </code> heading becomes the page title and the Project Wiki index entry.</p>
+</li>
+<li><strong>Output is a sibling <code>.html</code>.</strong> <code>npm run pm:docs</code> reads every <code>documentation/*.md</code> and<p>  writes a self-contained <code>*.html</code> beside it — <code>architecture.md</code> → <code>architecture.html</code>. The   HTML inlines the kit&#39;s brand tokens, so it needs no external CSS.</p>
+</li>
+<li><strong>Generated, never hand-edited.</strong> The <code>.html</code> is overwritten on every render. Edit the<p>  <code>.md</code> and re-run the generator; any manual change to the <code>.html</code> is lost on the next build.</p>
+</li>
+<li><strong>Idempotent.</strong> Same input produces the same body HTML — the generated-at stamp lives only<p>  in an HTML comment, so re-rendering an unchanged page yields an identical styled body.</p>
+</li>
 </ul>
 <h2 id="where-the-convention-applies">Where the convention applies</h2>
 <p>The same <code>*.md</code> → <code>*.html</code> pattern runs across the kit&#39;s generated surfaces:</p>
 <ul>
-<li><strong>Documentation</strong> — <code>generate-docs.js</code> (<code>npm run pm:docs</code>) renders this <code>documentation/</code></li>
-<p>  folder. <code>buildDocs()</code> in the dashboard generator then lists every <code>documentation/*.html</code>   as a Docs-view tile, so a new page appears simply by adding its <code>.md</code> and re-rendering.</p>
-<li><strong>Dashboard</strong> — <code>generate-dashboard.js</code> (<code>npm run pm:dash</code>) renders the whole board to</li>
-<p>  <code>42-Monitor/DASHBOARD.html</code> from the plan&#39;s Markdown artefacts.</p>
-<li><strong>Public docs site</strong> — <code>npm run build:tandem</code> ships the rendered <code>documentation/*.html</code> into</li>
-<p>  the public <code>docs/</code> site (GitHub Pages root) alongside the dashboard at <code>docs/index.html</code>   (<code>release-tandem.js</code>, STORY-04.6.05), so the same <code>.md</code> sources serve both the in-repo Command   Center and the public docs.</p>
+<li><strong>Documentation</strong> — <code>generate-docs.js</code> (<code>npm run pm:docs</code>) renders this <code>documentation/</code><p>  folder to sibling <code>.html</code> pages. Separately, the board&#39;s <strong>Project Wiki</strong> view reads the   <code>.md</code> SOURCES and renders them in place through the same markdown parser the drawer uses,   so a new page appears on the board simply by adding its <code>.md</code> and re-running <code>pm:dash</code>.</p>
+</li>
+<li><strong>Dashboard</strong> — <code>build-board.js</code> (<code>npm run pm:dash</code>) assembles the whole board into<p>  <code>42-Monitor/DASHBOARD.html</code>: the prebuilt Preact runtime bundle plus a data payload   generated from the plan&#39;s Markdown artefacts. The wiki&#39;s page bodies are rendered into the   file at assembly time and its drift verdicts ride the payload (ADR-0261).</p>
+</li>
+<li><strong>Public docs site</strong> — <code>npm run build:tandem</code> ships the rendered <code>documentation/*.html</code> into<p>  the public <code>docs/</code> site (GitHub Pages root) alongside the dashboard at <code>docs/index.html</code>   (<code>release-tandem.js</code>, STORY-04.6.05), so the same <code>.md</code> sources serve both the in-repo Command   Center and the public docs.</p>
+</li>
 </ul>
 <h2 id="practical-notes">Practical notes</h2>
 <ul>
-<li>To add a page: create <code>documentation/&lt;name&gt;.md</code>, give it a <code># </code> title and at least a couple</li>
-<p>  of <code>## </code> sections, then run <code>npm run pm:docs</code>.</p>
-<li>To remove a page: delete <strong>both</strong> its <code>.md</code> and its <code>.html</code>, or the stale tile lingers in</li>
-<p>  the Docs view (which lists the rendered <code>.html</code>).</p>
-<li>Do not commit a hand-edited <code>.html</code>: regenerate it instead, so the source and the output</li>
-<p>  never disagree.</p>
+<li>To add a page: create <code>documentation/&lt;name&gt;.md</code>, give it a <code># </code> title and at least a couple<p>  of <code>## </code> sections, then run <code>npm run pm:docs</code>.</p>
+</li>
+<li>To remove a page: delete <strong>both</strong> its <code>.md</code> and its <code>.html</code>, or the stale tile lingers in<p>  the Project Wiki (which reads the <code>.md</code> sources directly).</p>
+</li>
+<li>Do not commit a hand-edited <code>.html</code>: regenerate it instead, so the source and the output<p>  never disagree.</p>
+</li>
 </ul>
     </main>
     <footer class="doc-footer">

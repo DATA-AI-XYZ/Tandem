@@ -7,6 +7,27 @@ description: End-of-session reflection that proposes updates to CLAUDE.md / SOP.
 
 Use at the end of a substantive session (>30 min of real work) to capture lessons that should bleed back into the kit's rules. The blog's "self-improvement loop" pattern.
 
+## Ground the scan in the ledger first
+
+Before scanning from memory, read what the run **recorded at the time**. The retro ledger holds one
+line per development boundary — the friction, the kit signals and the estimate-vs-actual calls each
+close-out wrote as it happened — and recalling those is stronger evidence than reconstructing them
+at the end of a long session:
+
+```bash
+node _00-Project-Management/93-Scripts/retro-report.js --month <YYYY-MM>
+```
+
+Read the **current month only** — that is the in-flight view this skill needs, and the ledger grows
+monotonically, so loading all of it would cost more than it is worth here. This is
+`93-Scripts/retro-report.js`, the same aggregator `close-phase` and `monthly-retro` read: `reflect`
+does not re-implement the join, so the three surfaces cannot disagree about what happened.
+
+**An empty window changes nothing about this skill.** The output says
+`No retro records for this window.`; carry on with the scan below exactly as before. No error, no
+banner, and nothing attributed to a ledger that has nothing in it — a reflection with no ledger
+line to cite is still a valid reflection, and every session before 2026-08 has none.
+
 ## What to scan in this session
 
 1. **Decisions made** — did you create an ADR? Did you make a decision that *should* have become an ADR but didn't? (the rule says "any non-obvious decision" — be honest.)

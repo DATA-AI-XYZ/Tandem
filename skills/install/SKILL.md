@@ -12,9 +12,16 @@ command. This skill is the entry point; the deterministic work lives in the cano
 or from the CLI.
 
 ## Source of truth
-`_00-Project-Management/93-Scripts/install.js` (run as `npm run pm:install`). It is idempotent and
-additive — re-running it never overwrites an existing definition or a user-owned file. See
-ADR-0072 (manifest schema + kit/user ownership boundary) and ADR-0054 (canonical entrypoint).
+`_00-Project-Management/93-Scripts/install.js`. It is idempotent and additive — re-running it never
+overwrites an existing definition or a user-owned file. See ADR-0072 (manifest schema + kit/user
+ownership boundary) and ADR-0054 (canonical entrypoint).
+
+**Where that script lives depends on where you are in the install.** Before the install, the
+project has no `_00-Project-Management/` at all — the only copy of the script is the one shipped
+inside the installed plugin, at
+`${CLAUDE_PLUGIN_ROOT}/_00-Project-Management/93-Scripts/install.js`. After the install, the
+project has its own copy and the wired `pm:install` script reaches it. Both run the same file; the
+difference is only which copy is reachable.
 
 ## What it does (delegated to install.js)
 1. **Materialize the tree** — create every folder declared in `lib/pm-manifest.json` and copy seed
@@ -28,7 +35,13 @@ ADR-0072 (manifest schema + kit/user ownership boundary) and ADR-0054 (canonical
    own name and working links.
 
 ## How to run it
-- Default (this repo): `npm run pm:install`
+- **Fresh consumer — the first install, from the plugin cache.** The project is empty of kit
+  files, so run the copy the plugin ships:
+  `node "${CLAUDE_PLUGIN_ROOT}/_00-Project-Management/93-Scripts/install.js" --target .`
+  (drop `--target` when the shell's cwd is already the project root). This is the entry point a
+  stranger who has only installed the plugin can reach.
+- **Post-install variant — once the kit is wired.** The project now owns a copy of the script and
+  the merged `pm:*` scripts: `npm run pm:install` re-runs it (idempotent, additive).
 - Another project root: `node _00-Project-Management/93-Scripts/install.js --target <dir>`
 - Pin a layout instead of auto-detecting: `--layout full|flattened`
 - Preview without writing: `--dry-run`
@@ -47,5 +60,6 @@ ADR-0072 (manifest schema + kit/user ownership boundary) and ADR-0054 (canonical
 - Keep deterministic logic in the script — the skill only orchestrates + confirms.
 
 ## Next
-Next: `/tandem:session-start` (orient), then begin planning with `/tandem:draft-okrs`. Pull kit
-improvements later with `/tandem:update`.
+Next: `/tandem:session-start` (orient), then begin planning with
+`/tandem:draft-okrs`. Pull kit improvements later with
+`/tandem:update`.

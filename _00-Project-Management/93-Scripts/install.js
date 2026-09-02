@@ -35,9 +35,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { detectLayout, loadPaths, PRESETS } = require('./lib/pm-paths');
+const { detectLayout, loadPaths, PRESETS, dashboardOutPath } = require('./lib/pm-paths');
 const { ROLE_BY_FULL_FOLDER, remapPmSubPath, remapPmRepoPath, walkFiles, readJson } = require('./lib/pm-materialize');
 const { shouldShipKitScript } = require('./lib/ship-filter');
+const { scriptMap, legacyCommands, kitScriptCommand } = require('./lib/pm-scripts');
 
 // The kit's own _00-Project-Management (this file lives at 93-Scripts/install.js).
 // Seed SOURCES (`seedFiles[].src` in the manifest) are resolved against this — they
@@ -82,19 +83,23 @@ function isInside(parentAbs, childAbs) {
   return child === parent || child.startsWith(parent + path.sep);
 }
 
-// pm:* scripts wired into a host package.json. pm:install / pm:doctor point at the
-// canonical install.js / doctor.js (ADR-0054), not the retired pm-*.js names.
-const SCRIPTS = {
-  'pm:lint': 'validate-frontmatter.js',
-  'pm:dash': 'generate-dashboard.js',
-  'pm:monitor': 'generate-monitor.js',
-  'pm:map': 'generate-codebase-map.js',
-  'pm:doctor': 'doctor.js',
-  'pm:install': 'install.js',
-  'pm:update': 'update.js',
-  'pm:claude-scaffold': 'claude-scaffold.js',
-  'pm:claude-audit': 'claude-audit.js',
-};
+// The install contract, stated in every transcript (ADR-0226 / STORY-32.2.02): the framework
+// board BUILDS only in the Tandem kit repo; a consumer install DELIVERS or REGENERATES the
+// board with zero consumer-side build steps. Today the board comes from the dependency-free
+// generator; after the Command Center rewrite it comes from data inlined into the kit-shipped
+// PREBUILT runtime — either way nothing here ever asks a consumer for npm, a bundler, or a
+// compile. Printed on both the real and --dry-run paths so a transcript reader can hold the
+// run to the contract.
+const INSTALL_CONTRACT_LINE =
+  '  · install contract (ADR-0226): board builds run in the Tandem kit repo only — this install ' +
+  'delivers/regenerates the board with zero consumer-side build steps ' +
+  '(prebuilt kit-shipped runtime: 93-Scripts/assets/board-runtime.js + lib/board-assemble.js, ' +
+  'inlined with locally-produced data by 93-Scripts/build-board.js — no bundler, no npm, no node_modules)';
+
+// The pm:* script map, the kit-repo override and the legacy-spelling table all live in
+// `lib/pm-scripts.js` — declared once, read by this file AND by update.js's stale-wiring
+// notice. Two copies of the same string is how the kit's own prior spelling drifts out of
+// one of them (STORY-33.10.01's DoD lesson, applied before the drift rather than after).
 
 // The kit's Claude Code hooks, written into a target's .claude/settings.json ONLY
 // when it has none (guarded write — ADR-0055). Cross-platform Node entrypoint per
@@ -137,14 +142,44 @@ function writeIfChanged(p, content) {
 // ---- CONSUMER-only .gitignore policy for generated artefacts (ADR-0082) ----
 // The generated DASHBOARD.html is fully regenerable build output (`npm run pm:dash`); a
 // CONSUMER install gitignores it so `git add` and a `close-phase` merge can never fail on it
-// (BACKLOG-0084). The kit's OWN repo keeps its live dashboard tracked (dev convenience) — this
-// block is only ever written into a target that is not the kit repo (see isConsumerInstall in
-// main()). Marker-delimited so it's idempotent (upsert, not append-forever) and refreshes the
+// (BACKLOG-0084). The kit's OWN repo used to keep its live dashboard tracked for dev convenience;
+// ADR-0276 ended that (STORY-35.3.04), so dev and consumer now hold the same policy — but by
+// different means, and that distinction is the point: the kit repo ignores its board through a
+// hand-written line in its own `.gitignore`, while this managed block is still only ever written
+// into a target that is not the kit repo (see isConsumerInstall in main()). Do not "unify" them
+// by writing the block here — `isConsumerInstall` is what keeps an install from editing the
+// kit's own ignore file, and that guard is worth more than one duplicated line.
+// Marker-delimited so it's idempotent (upsert, not append-forever) and refreshes the
 // ignored path if the monitor folder is later renamed via a layout overlay. Deliberately a
 // reusable "managed block" — ADR-0082 names it as the future home for other generated,
 // regenerable-and-not-authored artefacts (e.g. a usage-log .jsonl), not a DASHBOARD.html one-off.
 const GITIGNORE_BLOCK_BEGIN = '# BEGIN pm-kit managed generated-artefact ignores (ADR-0082) — do not edit by hand';
 const GITIGNORE_BLOCK_END = '# END pm-kit managed generated-artefact ignores (ADR-0082)';
+
+// ---------------------------------------------------------------------------
+// WHERE THE BOARD LANDS — ONE ANSWER, CONSUMED THREE TIMES (STORY-33.10.01 / CF-45).
+//
+// Three call sites need this path: the dry-run report, the real-run report, and the
+// ADR-0082 gitignore entry. They used to compute it three times, and two of them spelled
+// the default folder name literally while the third resolved `layoutMap.monitor` — which
+// is how a flattened-layout consumer ended up with the board IGNORED at one path and
+// WRITTEN to another (BUG-20260819-01). Re-typing a shared rule is what let them
+// disagree, so the rule now lives here and is consumed.
+//
+// The folder name is deliberately not spelled anywhere in this file, comments included:
+// `tests/delivery-layout-role.test.js` scans the delivery scripts textually and takes no
+// comment carve-out, because a carve-out is how such a scan goes soft (BUG-20260824-02 is
+// the same trap from the other side).
+//
+// `generate-dashboard.js` resolves the same role for its own `OUT_FILE` under ADR-0267,
+// so the reported path and the written path are now two readings of one map rather than
+// two independent guesses.
+//
+// The resolver itself is `dashboardOutPath()` in `lib/pm-paths.js` — imported at the top of
+// this file, not defined here. It briefly DID live here, and that was already enough for
+// `update.js` to keep its own copy and drift: this story's DoD review caught `pm:update`
+// reporting a path nothing had been written to. A shared rule has to be a shared FUNCTION,
+// not a shared idea.
 
 // STORY-21.2.03 AC-4: the usage-log .jsonl is the first tenant of the "future generated
 // artefacts" home ADR-0082 named — same rationale as DASHBOARD.html (locally-captured,
@@ -219,6 +254,13 @@ function main() {
   const changes = [];
   const skipped = [];
 
+  // Is this a CONSUMER install, or the kit installing into itself? Resolved HERE, at the top,
+  // because three separate steps need the answer and one of them is the script map (below).
+  // It used to be computed just before the .gitignore step; a second computation further down
+  // would be a second definition of "consumer", and this file has already paid once for a rule
+  // spelled twice (see the comment above buildDashboardIgnoreBlock).
+  const isConsumerInstall = path.resolve(PM_ROOT) !== path.resolve(KIT_PM_ROOT);
+
   // ---- 1. package.json scripts (additive; never overwrite) ----
   const pkgPath = path.join(REPO_ROOT, 'package.json');
   if (!fs.existsSync(pkgPath)) {
@@ -229,11 +271,23 @@ function main() {
   try { pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')); } catch (e) { console.error(`✗ Malformed package.json: ${e.message}`); process.exit(1); }
   pkg.scripts = pkg.scripts || {};
   const added = [];
-  for (const [name, file] of Object.entries(SCRIPTS)) {
-    const cmd = `node _00-Project-Management/93-Scripts/${file}`;
-    if (!pkg.scripts[name]) { pkg.scripts[name] = cmd; added.push(name); }
+  const retargeted = [];
+  const leftAlone = [];
+  for (const [name, file] of Object.entries(scriptMap(isConsumerInstall))) {
+    const cmd = kitScriptCommand(file);
+    if (!pkg.scripts[name]) { pkg.scripts[name] = cmd; added.push(name); continue; }
+    if (pkg.scripts[name] === cmd) continue;                       // already current
+    // The migration is CONSUMER-ONLY. In the kit repo the entry points are the kit's own
+    // business and their cutover is a story, never an install side effect (ADR-0269 §4).
+    if (isConsumerInstall && legacyCommands(name).includes(pkg.scripts[name])) {
+      pkg.scripts[name] = cmd;
+      retargeted.push(`${name} → ${file}`);
+    } else if (isConsumerInstall) {
+      leftAlone.push(`${name} is customised (${pkg.scripts[name]}) — left as-is`);
+    }
   }
   if (!pkg.scripts['pm:all']) { pkg.scripts['pm:all'] = 'npm run pm:lint && npm run pm:monitor && npm run pm:dash'; added.push('pm:all'); }
+  for (const s of leftAlone) skipped.push(s);
   const pkgContent = JSON.stringify(pkg, null, 2) + '\n';
 
   // ---- 2. layout: pin .claude-pm-config.json + write 90-Standards/pm-paths.json ----
@@ -397,11 +451,9 @@ function main() {
   // skipped entirely — the kit's own live dashboard stays tracked (deliberate exception, ADR-0082).
   // A genuine consumer target gets the managed .gitignore block, resolved through the SAME
   // layoutMap the rest of this run used, so a renamed monitor folder is honoured correctly.
-  const isConsumerInstall = path.resolve(PM_ROOT) !== path.resolve(KIT_PM_ROOT);
   let gitignoreStep = null;
   if (isConsumerInstall) {
-    const monitorFolder = layoutMap.monitor || PRESETS.full.monitor;
-    const dashRelPosix = path.relative(REPO_ROOT, path.join(PM_ROOT, monitorFolder, 'DASHBOARD.html')).split(path.sep).join('/');
+    const dashRelPosix = path.relative(REPO_ROOT, dashboardOutPath(PM_ROOT, layoutMap)).split(path.sep).join('/');
     // STORY-21.2.03 AC-4: the usage-log .jsonl is the second tenant of this managed block —
     // resolved through the SAME layoutMap as the dashboard path above, for the same
     // renamed-folder-overlay correctness (custom `reports` role).
@@ -417,7 +469,12 @@ function main() {
   }
 
   const plan = [
-    { path: pkgPath, content: pkgContent, label: added.length ? `package.json → added scripts: ${added.join(', ')}` : null },
+    { path: pkgPath, content: pkgContent, label: (added.length || retargeted.length)
+      ? 'package.json → ' + [
+        added.length ? `added scripts: ${added.join(', ')}` : null,
+        retargeted.length ? `retargeted: ${retargeted.join(', ')}` : null,
+      ].filter(Boolean).join('; ')
+      : null },
     { path: cfgPath, content: cfgContent, label: layout !== priorLayout ? `.claude-pm-config.json → layout: "${layout}"` : null },
     { path: pathsCfgPath, content: pathsContent, label: 'pm-paths.json' },
     ...(settingsContent ? [{ path: settingsPath, content: settingsContent, label: '.claude/settings.json → hooks registered' }] : []),
@@ -433,7 +490,8 @@ function main() {
     if (changes.length) for (const c of changes) console.log(`  • ${c}`);
     else console.log('  Nothing to do — already wired. ✓');
     for (const s of skipped) console.log(`  · ${s}`);
-    console.log(`  • would generate dashboard → ${path.relative(REPO_ROOT, path.join(PM_ROOT, '42-Monitor', 'DASHBOARD.html'))}`);
+    console.log(`  • would generate dashboard → ${path.relative(REPO_ROOT, dashboardOutPath(PM_ROOT, layoutMap))}`);
+    console.log(INSTALL_CONTRACT_LINE);
     console.log('\n(dry-run — no files written)');
     process.exit(0);
   }
@@ -450,16 +508,23 @@ function main() {
   // resolves the TARGET project's name (consuming D.project, STORY-15.2.04) and bundled links
   // resolve. The dashboard is mandatory (a failure fails the install); docs render only when a
   // documentation/ source exists — a brand-new project has none, so it's skipped gracefully.
-  const dashOut = path.join(PM_ROOT, '42-Monitor', 'DASHBOARD.html');
+  const dashOut = dashboardOutPath(PM_ROOT, layoutMap);
   try {
-    // Setting PM_DASH_ROOT also flips the generator's EXTERNAL_ROOT on, so the install-time
-    // dashboard is intentionally AI-catalogue-blind (no ~/.claude scan, no machine-absolute
-    // paths) — correct for a just-installed project; the operator's later `pm:dash` (run from
-    // the project, no PM_DASH_ROOT) renders the live catalogue. Conscious choice, not a leak.
-    execFileSync(process.execPath, [path.join(__dirname, 'generate-dashboard.js')], {
-      env: { ...process.env, PM_DASH_ROOT: PM_ROOT },
-      stdio: ['ignore', 'ignore', 'inherit'],
-    });
+    // EVERY install runs the ASSEMBLER (STORY-33.9.05 cutover; ADR-0269 §4's kit-repo
+    // exception is discharged — the generator is payload-only now, ADR-0277, and a bare
+    // spawn of it exits 2). build-board.js runs the generator as a child for its payload
+    // and inlines it into the kit-shipped prebuilt runtime — zero build steps, see
+    // INSTALL_CONTRACT_LINE.
+    //
+    // On the AI catalogue: EXTERNAL_ROOT is same-tree-aware since BUG-20260828-04's fix —
+    // a target tree rendering ITSELF (including a self-install) scans its own machine's
+    // catalogue like any pm:dash run; only a FOREIGN target (installing into another tree
+    // from here) stays catalogue-blind, which is the leak-guard working as designed.
+    execFileSync(process.execPath,
+      [path.join(__dirname, 'build-board.js'), '--quiet'], {
+        env: { ...process.env, PM_DASH_ROOT: PM_ROOT },
+        stdio: ['ignore', 'ignore', 'inherit'],
+      });
     console.log(`  • dashboard → ${path.relative(REPO_ROOT, dashOut)}`);
   } catch (e) {
     console.error(`✗ pm:install: dashboard generation failed: ${e.message}`);
@@ -479,6 +544,7 @@ function main() {
     }
   }
 
+  console.log(INSTALL_CONTRACT_LINE);
   console.log(`\n✓ pm:install done — dashboard at ${dashOut}`);
   console.log('Next: npm run pm:doctor');
   process.exit(0);

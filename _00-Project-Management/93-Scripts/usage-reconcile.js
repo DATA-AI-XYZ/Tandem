@@ -55,6 +55,20 @@ const fs = require('fs');
 const path = require('path');
 const { parseFrontmatter } = require('./lib/frontmatter');
 const { loadPaths } = require('./lib/pm-paths');
+// STORY-27.3.02 / ADR-0141 — the shared shape-agnostic 41-Reports reader.
+const reportTree = require('./lib/report-tree.js');
+// STORY-29.1.03 / ADR-0179 — the ONE join-key helper. This file is one of the three consumers
+// AC-4 names; it reads the key rather than re-deriving one.
+const ledgerJoin = require('./lib/ledger-join.js');
+// STORY-29.3.01 / ADR-0188 — THE rollup module. The tolerant ledger primitives below used to be
+// defined in this file and imported from it by both generators; they now live in one place with
+// the rollup that consumes them, and are re-exported here so every existing importer of
+// `usage-reconcile` keeps working unchanged.
+const usageRollup = require('./lib/usage-rollup.js');
+const {
+  readUsageLog, sumTokens, actualTotalsByStoryId, actualTotalsByChatId, actualTotalsByChatKey,
+  parsePositiveInt,
+} = usageRollup;
 const { DEFAULT_LOG_PATH } = require('./usage-capture');
 
 const PM_ROOT = path.resolve(__dirname, '..');
@@ -73,6 +87,9 @@ function parseArgs(argv) {
     chat: null, seed: false, estimateBand: null, type: null,
     usageLog: null, storiesDir: null, strategyDir: null, help: false,
     project: false, stories: null,
+    // STORY-29.3.03 — the attribution surface: what attached to a story, what could not, and
+    // the arithmetic that proves nothing fell between the two.
+    attribution: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -85,64 +102,20 @@ function parseArgs(argv) {
     else if (a === '--strategy-dir' && argv[i + 1]) args.strategyDir = argv[++i];
     else if (a === '--project') args.project = true;
     else if (a === '--stories' && argv[i + 1]) args.stories = argv[++i];
+    else if (a === '--attribution') args.attribution = true;
     else if (a === '--help') args.help = true;
   }
   return args;
 }
 
-// ---------- usage-log reading (tolerant — mirrors usage-capture.js's parser) ----------
-
-// Returns { found, records }. `found` is false only when the file does not exist at all —
-// the "no actuals recorded yet" case the story requires. An existing-but-empty/malformed
-// file is tolerated the same way usage-capture.js tolerates malformed transcript lines:
-// bad lines are skipped, never thrown.
-function readUsageLog(logPath) {
-  if (!fs.existsSync(logPath)) return { found: false, records: [] };
-  let content;
-  try {
-    content = fs.readFileSync(logPath, 'utf8');
-  } catch {
-    return { found: false, records: [] };
-  }
-  const records = [];
-  for (const line of content.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    let obj;
-    try { obj = JSON.parse(trimmed); } catch { continue; } // malformed line — skip, tolerant
-    if (obj && typeof obj === 'object' && obj.id && obj.tokens) records.push(obj);
-  }
-  return { found: true, records };
-}
-
-function sumTokens(tokens) {
-  if (!tokens || typeof tokens !== 'object') return 0;
-  return (Number(tokens.input) || 0) + (Number(tokens.output) || 0) +
-    (Number(tokens.cache_read) || 0) + (Number(tokens.cache_creation) || 0);
-}
-
-// Map<storyId, totalTokens> summed across every 'story'-kind record for that id — a story
-// may be executed across more than one captured session, so this is total actual spend so
-// far, not a single sample.
-function actualTotalsByStoryId(records) {
-  const totals = new Map();
-  for (const r of records) {
-    if (r.kind !== 'story') continue;
-    totals.set(r.id, (totals.get(r.id) || 0) + sumTokens(r.tokens));
-  }
-  return totals;
-}
-
-// Map<chatId, totalTokens> — 'chat'-kind records (a whole batch captured as one bracket via
-// `usage-capture.js --chat`), summed the same way.
-function actualTotalsByChatId(records) {
-  const totals = new Map();
-  for (const r of records) {
-    if (r.kind !== 'chat') continue;
-    totals.set(r.id, (totals.get(r.id) || 0) + sumTokens(r.tokens));
-  }
-  return totals;
-}
+// ---------- usage-log reading ----------
+//
+// STORY-29.3.01 — `readUsageLog`, `sumTokens`, `actualTotalsByStoryId`,
+// `actualTotalsByChatId`, `actualTotalsByChatKey` and `parsePositiveInt` were DEFINED here and
+// imported from here by `generate-monitor.js` and `generate-dashboard.js`. They now live in
+// `lib/usage-rollup.js` beside the rollup that composes them — one module owning "what counts
+// as an actual" — and are destructured at the top of this file and re-exported at the bottom.
+// Every existing `require('./usage-reconcile')` call site is unchanged by the move.
 
 // ---------- story frontmatter collection ----------
 
@@ -154,17 +127,6 @@ function walkMd(dir, list = []) {
     else if (entry.isFile() && entry.name.endsWith('.md')) list.push(full);
   }
   return list;
-}
-
-// Positive-integer parse mirroring validate-frontmatter.js's R23 shape rule. An invalid
-// usage_estimate (0, negative, non-numeric, decimal) is treated as ABSENT here — R23
-// already flags the shape problem at lint time; this reporting script must not crash on it
-// or silently coerce it into a fabricated number.
-function parsePositiveInt(value) {
-  if (value === undefined || value === null) return null;
-  const str = String(value).trim();
-  if (!/^[1-9]\d*$/.test(str)) return null;
-  return Number(str);
 }
 
 function collectStories(storiesDir) {
@@ -266,10 +228,13 @@ function rollupByFeature(rows) {
 // when the chat id isn't found in any sidecar (caller reports that explicitly).
 function findChatStoryIds(reportsDir, chatId) {
   if (!fs.existsSync(reportsDir)) return null;
-  for (const entry of fs.readdirSync(reportsDir)) {
-    if (!/^EXECUTION-STRATEGY-.*\.json$/.test(entry)) continue;
+  // STORY-27.3.02 — reader site 5 of 6. Was a flat `readdirSync`. `--chat` would
+  // have started reporting "chat id not found in any sidecar" for every chat the
+  // moment the sidecars moved — an answer indistinguishable from a genuinely
+  // unknown chat id.
+  for (const found of reportTree.findReportDocs(reportsDir, (n) => /^EXECUTION-STRATEGY-.*\.json$/.test(n))) {
     let data;
-    try { data = JSON.parse(fs.readFileSync(path.join(reportsDir, entry), 'utf8')); } catch { continue; }
+    try { data = JSON.parse(fs.readFileSync(found.full, 'utf8')); } catch { continue; }
     const phases = Array.isArray(data && data.phases) ? data.phases : [];
     for (const phase of phases) {
       const chats = Array.isArray(phase && phase.chats) ? phase.chats : [];
@@ -356,6 +321,101 @@ function computeSeed(stories, actualsByStoryId, estimateBand, typeOfWork) {
   return { ok: true, seedValue: median(samples.map(s => s.actual)), samples };
 }
 
+// ---------- attribution mode (STORY-29.3.03 / ADR-0190) ----------
+
+function fmtTok(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+/**
+ * The attribution report. Three sections and a proof, in that order because that is the order a
+ * reader needs them: what attached to a story, what could not, and whether the two together
+ * account for the whole ledger.
+ *
+ * The unattributable section is ITEMISED — one line per bracket, with its constituent stories
+ * named when the writer knew them. A single "remainder: N tokens" line would be arithmetically
+ * identical and useless: the point of stating a remainder is that someone can look at what is
+ * in it and decide whether the boundary could be made observable next time.
+ */
+function formatAttribution(attribution, varianceRows) {
+  const lines = [];
+  const t = attribution.totals;
+
+  lines.push(`usage attribution — ${t.records} ledger record(s)`);
+  lines.push('');
+  lines.push(`ATTRIBUTED TO A STORY — ${attribution.attributed.length} stor(y/ies), ${fmtTok(t.attributed)} tokens`);
+  if (attribution.attributed.length === 0) {
+    lines.push('  (none — no story-kind record on this ledger; a story bracket is written by '
+      + '`usage-capture.js --story` at a story boundary)');
+  } else {
+    for (const r of attribution.attributed) {
+      lines.push(`  ${r.storyId}  ${fmtTok(r.tokens)} tokens  (${r.records} bracket${r.records === 1 ? '' : 's'})`);
+    }
+  }
+
+  lines.push('');
+  lines.push(`UNATTRIBUTABLE — ${attribution.unattributable.length} bracket(s), ${fmtTok(t.unattributable)} tokens`);
+  if (attribution.unattributable.length === 0) {
+    lines.push('  (none)');
+  } else {
+    for (const u of attribution.unattributable) {
+      const across = u.stories.length
+        ? `across [${u.stories.join(', ')}] — NOT SPLIT`
+        : 'constituent stories not recorded';
+      lines.push(`  ${u.key || u.id}  ${fmtTok(u.tokens)} tokens  ${across}`);
+    }
+    lines.push(`  proration: ${attribution.proration}`);
+  }
+
+  if (attribution.leaks.length) {
+    lines.push('');
+    lines.push(`UNACCOUNTED — ${attribution.leaks.length} record(s) in NEITHER bucket:`);
+    for (const l of attribution.leaks) {
+      lines.push(`  ${l.id || '(no id)'} kind=${l.kind === null ? '(none)' : l.kind}  ${fmtTok(l.tokens)} tokens`);
+    }
+  }
+
+  lines.push('');
+  // BUG-20260810-11 — RECONCILES ANSWERS ONE QUESTION, AND IT IS NOT "IS THIS SPEND".
+  //
+  // The word used to sit, bare, beside a total inflated 26.6× by cumulative re-sums. It was
+  // true — the buckets do account for every record — and it read as an endorsement of the
+  // figure. It is now qualified whenever the total is known to be bracket-inflated, and the
+  // distinct-spend ceiling is printed on the next line rather than left in a payload.
+  const bracketed = attribution.cumulative && attribution.cumulative.detected;
+  const verdict = attribution.reconciles
+    ? (bracketed
+      ? 'RECONCILES AS A SUM OF BRACKETS (every record is accounted for; the total is NOT distinct spend — see NOTE)'
+      : 'RECONCILES')
+    : 'DOES NOT RECONCILE';
+  lines.push(`TOTALS: attributed ${fmtTok(t.attributed)} + unattributable ${fmtTok(t.unattributable)} `
+    + `= ${fmtTok(t.attributed + t.unattributable)} · ledger ${fmtTok(t.ledger)} — ${verdict}`);
+  if (attribution.distinctSpendUpperBound !== null && attribution.distinctSpendUpperBound !== undefined) {
+    lines.push(`DISTINCT SPEND: at most ${fmtTok(attribution.distinctSpendUpperBound)} tokens `
+      + '(the sum above counts the same tokens repeatedly)');
+  }
+  if (attribution.overlapNote) lines.push(`NOTE: ${attribution.overlapNote}`);
+
+  lines.push('');
+  lines.push(`ESTIMATE vs ACTUAL — ${varianceRows.length} row(s) where either side exists`);
+  if (varianceRows.length === 0) {
+    lines.push('  (no story carries an estimate or an attributed actual yet)');
+  } else {
+    for (const r of varianceRows) {
+      if (r.state === 'compared') {
+        const sign = r.varianceAbs > 0 ? '+' : '';
+        const pct = r.variancePct === null ? '' : ` (${sign}${r.variancePct.toFixed(1)}%)`;
+        lines.push(`  ${r.id}  estimate=${fmtTok(r.estimate)}  actual=${fmtTok(r.actual)}  `
+          + `variance=${sign}${fmtTok(r.varianceAbs)}${pct}`);
+      } else if (r.state === 'no-actual') {
+        lines.push(`  ${r.id}  estimate=${fmtTok(r.estimate)}  actual=— (no actual recorded — `
+          + 'no story bracket for it; a chat bracket is never split to fill this)');
+      } else {
+        lines.push(`  ${r.id}  estimate=— (no estimate)  actual=${fmtTok(r.actual)}`);
+      }
+    }
+  }
+  return lines.join('\n');
+}
+
 // ---------- main ----------
 
 function main(argv) {
@@ -366,6 +426,7 @@ function main(argv) {
     console.log('       node usage-reconcile.js --seed --estimate-band <XS|S|M|L> --type <type_of_work>');
     console.log('       node usage-reconcile.js --project --chat <id>');
     console.log('       node usage-reconcile.js --project --stories <id,id,...>');
+    console.log('       node usage-reconcile.js --attribution');
     return 0;
   }
 
@@ -376,6 +437,17 @@ function main(argv) {
   const { found, records } = readUsageLog(usageLogPath);
   const actualsByStoryId = actualTotalsByStoryId(records);
   const stories = collectStories(storiesDir);
+
+  if (args.attribution) {
+    if (!found) console.log(NO_ACTUALS_MESSAGE);
+    const attribution = usageRollup.attributeUsage(records);
+    const varianceRows = usageRollup.estimateVsActual(stories, attribution);
+    console.log(formatAttribution(attribution, varianceRows));
+    // Exit 0 even when the arithmetic does not reconcile: this is a REPORT, and a reporting
+    // tool must never fail the run it reports on (the file's standing contract). The verdict is
+    // in the output, in words, where a reader sees it.
+    return 0;
+  }
 
   if (args.project) {
     if ((!args.chat && !args.stories) || (args.chat && args.stories)) {
@@ -472,9 +544,15 @@ if (require.main === module) {
 }
 
 module.exports = {
-  main, parseArgs, readUsageLog, sumTokens, actualTotalsByStoryId, actualTotalsByChatId,
+  main, parseArgs, ledgerJoin,
+  // STORY-29.3.01 — re-exported from lib/usage-rollup.js, their new home. Named here so the
+  // existing importers (`generate-monitor.js`, `generate-dashboard.js`, three test files) did
+  // not have to change in the same commit that moved them.
+  readUsageLog, sumTokens, actualTotalsByStoryId, actualTotalsByChatId, actualTotalsByChatKey,
+  usageRollup,
   collectStories, parsePositiveInt, buildRows, variance, sumRollup, rollupByFeature,
   findChatStoryIds, median, computeSeed, formatStoryLine, formatRollupLine,
   computeProjection, formatProjectionRow, formatProjectionSummary,
+  formatAttribution, fmtTok,
   DEFAULT_STORIES_DIR, DEFAULT_REPORTS_DIR, NO_ACTUALS_MESSAGE,
 };

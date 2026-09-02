@@ -84,12 +84,86 @@ When **all** the chat's stories reach `done`, set the chat's **`executed: true`*
 `AUTO-EXECUTED`), then regenerate the dashboard. Finally, run the chat's **verify-before-closing**
 command and report its result.
 
+### The flag is ONE track's forward write, not the board's truth (ADR-0186)
+
+Since ADR-0182 the sidecar carries the same stories twice: `phases[].chats[]` (the chat track,
+which this skill executes) and `autopilot_runs[]` (the autopilot track). **This flag belongs to the
+chat track only.**
+
+- **Never write an executed marker into `autopilot_runs[]`.** ADR-0184 fixes a run at ten fields
+  and none of them is an executed flag. Two flags over one corpus is a double count, and it stays
+  plausible: the same story would be counted once under its chat and again under its run.
+- **Never flip a flag for work this invocation did not do.** If the chat's stories are already
+  `done` because the other track ran them, leave the flag alone and say so in the summary. The
+  board reconciles that case itself: a chat whose stories are all `done` with no flag renders
+  **`covered-by-reference`**, naming the run that covered it — never `not-executed`
+  (`93-Scripts/lib/track-reconcile.js`, ADR-0186).
+- **The story's `status:` is the one truth.** The flag records *who ran the chat*; `status: done`
+  records *that the work landed*. When they disagree, the board wins.
+
 ## Usage capture
 
-Run `node _00-Project-Management/93-Scripts/usage-capture.js --chat <CHAT-NN>` when the chat
-finishes (after the loop's last close-out-story) to attribute the batch's actual usage record
-to this chat (ADR-0079). A usage-source-unavailable no-op is fine — it always exits 0 and
-never blocks the chat.
+**Bracket the story where a story boundary is observable; state the remainder where it is not**
+(STORY-29.3.03 / ADR-0190). A usage-source-unavailable no-op is fine at every step below — the
+helper always exits 0 and never blocks the chat.
+
+**1 — Serial lanes: one bracket per story.** A serial lane means one story is worked at a time,
+so its boundary is real and observable. Immediately after each story's `close-out-story`, run:
+
+```bash
+node _00-Project-Management/93-Scripts/usage-capture.js --story <STORY-NN.M.PP> --since <ISO of the previous boundary>
+```
+
+`--since` is what makes it a bracket rather than a running total: pass the chat's start time for
+the first story, and the timestamp of the previous story's capture for each one after it. Without
+it, every story records the whole session and the numbers are cumulative rather than per-story.
+
+**2 — Parallel or mixed lanes: no story brackets at all.** When stories run concurrently (or work
+interleaves), no boundary is observable in the transcript and any per-story figure would be a
+guess. Do not write story records. Write the chat record with its constituents named:
+
+```bash
+node _00-Project-Management/93-Scripts/usage-capture.js --chat <CHAT-NN> --stories <STORY-A,STORY-B,…>
+```
+
+That stamps the record `attribution: "unattributable-to-story"` and lists them, so the rollup
+reports "N tokens across [stories], **not split**". **Never divide the tokens by the story
+count.** A prorated figure looks measured, is not, and flows into variance figures where nobody
+can tell it from a real one.
+
+**3 — The chat bracket is always written**, serial or not (ADR-0079), and on a serial lane it
+still names its constituents with `--stories`. Note that a chat capture re-sums the whole session
+and therefore OVERLAPS the story brackets inside it; `usage-reconcile.js --attribution` states
+that overlap rather than pretending the totals are disjoint.
+
+**Check it:** `node _00-Project-Management/93-Scripts/usage-reconcile.js --attribution` prints
+what attached to a story, what could not, and whether the two together account for the ledger.
+
+## Retro capture
+
+Alongside the usage-capture call above, append the chat-level retro ledger line at chat end
+(SOP §14.1). The two ledgers join on the `id` **field**, so pass the same `CHAT-NN` to both.
+Same contract as usage capture: always exits 0, never blocks the chat. Skip silently if the
+script is absent.
+
+```bash
+node _00-Project-Management/93-Scripts/retro-capture.js --level chat --id <CHAT-NN> --phase <EPIC-NN> [--stories <n>] [--halts <n>] [--lanes serial] [--wall-clock-s <n>] [--dispatch-overhead-s <n>] [--fallback-fired|--no-fallback-fired] [--friction "…"] [--artefact-gap <ID>] [--kit-signal "…"]
+```
+
+- `--lanes serial` — this command runs its loop sequentially. The parallel sibling writes
+  `--lanes parallel`. That single field is what lets the rollup compare the two strategies.
+- `--stories` — items this chat closed to `done`.
+- `--halts` — times the chat **stopped and handed back to the operator** rather than continuing:
+  a failed TC with a raised BUG, a false story premise, a DoR/branch gate refusal. A story that
+  merely needed a second pass is `--rework` at item level, not a halt here.
+- `--wall-clock-s` — elapsed seconds from chat dispatch to the `executed` flag being set.
+- `--dispatch-overhead-s` — of that total, the seconds spent on dispatch, context loading and
+  board reconciliation rather than execution. A fresh-context sub-agent per chat is not free;
+  this is the only field that measures what it costs.
+- **Omit any flag you cannot measure.** Absent records "not recorded"; a guess is
+  indistinguishable from a measurement, and a value the schema rejects refuses the whole line.
+- Per-item capture is **not** this command's job — the loop's `close-out-story` already wrote
+  one line per item it closed.
 
 ## Output rules
 
@@ -130,8 +204,11 @@ honest signal.
 
 ## Next command
 
-Next: `/tandem:run-testplan`
+Next: `/tandem:close-phase`
 
-`/tandem:weekly-monitor` — after a chat closes, fold the delta into the Friday
-cadence. Or re-run `/tandem:execute-batch <next-chat-id>` for the next chat in the
+When every chat in the phase is executed, close the phase (retrospective + gated merge). Until
+then, re-run `/tandem:execute-batch <next-chat-id>` for the next chat in the
 strategy (mind the chat's `depends_on` edges — run unlocked chats first).
+`/tandem:weekly-monitor` — after a chat closes, fold the delta into the Friday
+cadence. Do **not** hand a finished chat to `run-testplan` — this command already ran every
+story's testplan inside its loop; re-running them after the batch does each step twice.

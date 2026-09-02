@@ -36,7 +36,13 @@ If the change is small and obvious, you can skip straight to a PR.
 3. If you're adding or changing a hook / skill: test it locally with `claude --plugin-dir .` against a throwaway project.
 4. Update [CHANGELOG.md](CHANGELOG.md) under `## [Unreleased]` describing your change.
 5. If your PR closes an item tracked in `_00-Project-Management/`, link the artefact path in the PR description.
-6. Open the PR using the template. CI runs `pm:lint` on every push.
+6. Open the PR using the template.
+
+> **There is no CI enforcement on this repository.** The only workflow in `.github/workflows/`
+> is `plugin-metrics.yml`, a daily cron that appends a launch-metrics row — it runs no lint, no
+> test and no build, and nothing is triggered by push. The quality gates above are run
+> **locally**, by you, before you push. `npm test` (the script suite) is the third one worth
+> running on anything that touches `93-Scripts/`.
 
 ## What the maintainer looks for
 

@@ -2,6 +2,34 @@
 
 All notable changes to **Tandem** are tracked here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [3.0.0] — 2026-09-02
+
+**The Command Center is rebuilt from the ground up — faster, bounded, and honest on every screen.** The major version signals the scale of the rewrite underneath, not a breaking change: the status enum, the frontmatter contract, and every command name are exactly as they were. Upgrading is safe; run `pm:dash` once after updating and the new board assembles itself.
+
+### Added
+- **A rebuilt board engine.** The Command Center now runs on a compiled component runtime instead of a string-templating generator — the same board, dramatically leaner to regenerate, still a single offline HTML file with the brand fonts embedded and no external requests. Your `pm:dash` assembles the prebuilt engine with your project's own data.
+- **Nothing scrolls forever.** Every view you land on renders at about three screens or less, enforced by a measurement probe in the build rather than by promise. Long lists page through one shared control that says exactly what it delivers — "Show 30 more (350 remaining)" — and delivers it.
+- **Search on every work list.** The per-view search box narrows the list you're looking at, within whatever slice is active, and composes with sorting and paging. A term that matches nothing tells you so and names the exit — never a blank page.
+- **An honest slicer.** Filter pills that would yield zero results are disabled with their count shown; empty states name the actual filter in force ("No stories match Status in review. Clear resets.") and can tell "nothing matches" apart from "this term can't exist here".
+- **Sort-aware grouping.** Sorting by Epic or Feature renders the list grouped with sticky headers and per-group fold; sorting by Status, Age, or ID renders flat. Structure when you ask for lineage, urgency first when you don't.
+- **A denser Toolkit.** The AI catalogue shows your installed skills, agents, commands, and plugins as ranked rows — name, one-line description, context cost, fit rank — with the detail one click away in the drawer, and a glossary of the kit's terms rendered as term and definition.
+- **The Project Wiki.** Your `documentation/` set renders as a board view, and each page declares what it describes — the board flags a stale page with its evidence (dead anchors, newer decisions) rather than a guess.
+- **A This-week timeline** — a day-grouped view of everything that moved, every event opening through the drawer.
+- **Autonomous-run observability.** Unattended runs write an append-only retro ledger, a reviewable plan before dispatch, named terminal states, and a plan-vs-actual comparison — so an autopilot run leaves the same paper trail a human session would. The execution strategist emits paste-ready per-run prompts with risk-first ordering, model tiers, and a stop condition.
+- **`/tandem:triage-backlog`** — backlog *validity* triage upstream of refinement: verifies each item's claim against the repo as it is today and rules it through a closed verdict set, flipping items only with your confirmation.
+- **An artefact-economy standard** — quality-over-count governance for planning artefacts: split gates, a testable-claim bar, kill-before-promote, and ride-alongs, wired into the split skills.
+
+### Changed
+- **Accessibility is measured, not asserted.** Text contrast is swept across every element that paints text (34,390 element-visits per build) against WCAG AA; six status colours are distinguishable with in-review as an outline; every control carries a visible focus ring; keyboard and screen-reader paths through the drawer, palette, and rail are probe-checked.
+- **Narrow screens get a real layout.** Below ~900px the rail becomes an off-canvas overlay behind a burger — all views reachable, nothing cramped, nothing hidden behind a sideways scroll.
+- **Filters, drawer, and rendering** — dropdown multi-select filters with count badges and per-filter Clear; the drawer opens every record type with per-section collapse; the markdown pipeline renders bold-in-italic, code spans quoting bold markers, and every corpus diagram correctly.
+- **The release path leaves a record.** The public build now runs its own release-record producer, so a release cannot ship without its record — plus the standing scrub gate that fails the build if anything internal survives.
+
+### Fixed
+- A grouped list's first page now holds the front of the grouped order; the board's revision-history parser survives asterisks in titles and fails loudly if an entry cannot parse (it used to drop the entry silently); the Toolkit no longer scrolls the page sideways; record-table rows are height-bounded so a view's size doesn't depend on its sort order; the glossary shows terms instead of placeholders; and an unmatched search shows a message instead of a blank list.
+
+---
+
 ## [2.8.0] — 2026-08-01
 
 **A redesigned Command Center — brand identity end to end, one-click depth on every artefact, and a new plan-integrity check.** Upgrading is safe: the status enum, the frontmatter contract, and every existing command name are unchanged.

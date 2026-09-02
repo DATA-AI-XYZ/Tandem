@@ -27,23 +27,42 @@ const fs = require('fs');
 const path = require('path');
 const { parseFrontmatter, stripQuotes } = require('./lib/frontmatter');
 
-const PM_ROOT = path.resolve(__dirname, '..');
+// PM_ROOT defaults to the `_00-Project-Management/` one level up from this script. Override
+// with PM_MONITOR_ROOT to run against another PM tree — the PM_DASH_ROOT seam
+// generate-dashboard.js already carries, added by STORY-28.3.03 so the anchor guard can be
+// proved against a fixture board without planting a corrupted MONITOR.md in the real one.
+// Backward-compatible: unset env var = identical behaviour.
+const PM_ROOT = process.env.PM_MONITOR_ROOT
+  ? path.resolve(process.env.PM_MONITOR_ROOT)
+  : path.resolve(__dirname, '..');
 // Resolve logical PM sub-folder names through the layout map (full / flattened /
 // custom). PATHS.<logical> → physical folder name for this project. See lib/pm-paths.js.
 const { loadPaths } = require('./lib/pm-paths');
 const PATHS = loadPaths(PM_ROOT).map;
+// STORY-28.3.03 / BUG-20260804-01 — the anchors this script writes through, and the
+// assertion that each of them is unambiguous. See lib/monitor-anchors.js.
+const monitorAnchors = require('./lib/monitor-anchors.js');
 const MONITOR = path.join(PM_ROOT, PATHS.monitor, 'MONITOR.md');
 const CHANGELOG = path.join(PM_ROOT, '..', 'CHANGELOG.md');
 
-// Usage rollup (STORY-21.2.03 / ADR-0079): actual tokens `usage-capture.js` recorded +
-// estimated tokens (`usage_estimate:` frontmatter) rolled up by epic/feature. Reuses the
-// SAME tolerant log reader / positive-int shape check as usage-reconcile.js (STORY-21.2.02)
-// rather than re-implementing the parsing, so the two surfaces never drift on what counts as
-// "an actual" or "a valid estimate". DEFAULT_LOG_PATH is usage-capture.js's own canonical
-// (non-layout-mapped) write location — read from the exact place it writes, not a
-// layout-remapped guess.
-const { readUsageLog, actualTotalsByStoryId, parsePositiveInt } = require('./usage-reconcile');
+// Usage rollup (STORY-21.2.03 / ADR-0079, converged by STORY-29.3.01 / ADR-0188): actual
+// tokens `usage-capture.js` recorded + estimated tokens (`usage_estimate:` frontmatter),
+// through THE rollup — the same function `generate-dashboard.js` calls. Reusing the same
+// *parser* was never enough: this file had its own rollup body, and that body filtered to
+// story-kind records only, so MONITOR asserted "no usage actuals recorded yet" over a ledger
+// holding 31 chat-kind ones (BUG-20260805-01). There is now one rollup and no second opinion.
+const usageRollup = require('./lib/usage-rollup.js');
 const { DEFAULT_LOG_PATH } = require('./usage-capture');
+// The ledger this board reports on, resolved the way `generate-dashboard.js` resolves its own:
+// from THIS run's PM root (so `PM_MONITOR_ROOT` renders that tree's ledger, not the installed
+// kit's), with `PM_USAGE_LOG` — the same env seam `usage-capture.js` writes through and
+// `usage-reconcile.js` reads through — taking precedence.
+//
+// With no env var set this is byte-identical to usage-capture.js's `DEFAULT_LOG_PATH`, which is
+// asserted in tests/usage-rollup-consumers.test.js rather than assumed: the path is deliberately
+// NOT layout-mapped, because it must be the exact place the writer writes.
+const USAGE_LOG_PATH = process.env.PM_USAGE_LOG
+  || path.join(PM_ROOT, '41-Reports', 'usage', 'usage-log.jsonl');
 
 const TERMINAL = new Set(['done', 'wontfix', 'duplicate', 'archived']);
 
@@ -132,44 +151,62 @@ function deriveEpicTimestamps(epics, stories) {
   return derived;
 }
 
-// ---------- usage rollup (STORY-21.2.03 / ADR-0079) ----------
+/**
+ * epicTimestampDrift — does this epic's own window disagree with its children's?
+ *
+ * Extracted from main()'s inline filter (BUG-20260827-01) so the advisory's rule is
+ * addressable by a test rather than only observable through a console line.
+ *
+ * `derived` is one value of deriveEpicTimestamps(): { derivedStartedAt, derivedCompletedAt }.
+ * `efm` is the epic's own frontmatter.
+ */
+function epicTimestampDrift(efm, derived) {
+  if (!efm || !derived) return false;
 
-// Rolls up ACTUAL usage (usage-log.jsonl, tolerant of absence) + ESTIMATED usage
-// (`usage_estimate:` frontmatter, stories only) by epic and by feature. CRITICAL HONESTY
-// RULE: a map entry is created ONLY when a story actually contributes an estimate or an
-// actual — an epic/feature with neither is simply absent from the map, never a fabricated
-// all-zero row. `hasAnyActual` distinguishes "zero actuals recorded anywhere yet" (the
-// whole-block "no usage actuals recorded yet" case) from "some actuals exist, just not for
-// this epic/feature" (handled per-row via the dash below).
-function computeUsageRollup(stories) {
-  const { records } = readUsageLog(DEFAULT_LOG_PATH); // tolerant: missing/malformed → []
-  const actualsByStoryId = actualTotalsByStoryId(records);
+  // THE INVARIANT IS CONTAINMENT, NOT EQUALITY (BUG-20260827-01).
+  // An epic's window BRACKETS its children: it is opened before the first story starts
+  // (planned, then worked) and closed after the last one completes (the close-out is its
+  // own act). Both are the normal case. The original rule tested `!==`, which no correctly
+  // bracketed epic can satisfy — it reported 9 correct epics for every 1 real violation,
+  // and that noise is why BACKLOG-0080's 'classify each by hand' has been open since June.
+  //
+  // What is genuinely impossible is the reverse ordering, and that is all this now flags.
 
-  const byEpic = new Map();
-  const byFeature = new Map();
-
-  function bump(map, key) {
-    if (!map.has(key)) map.set(key, { estimateSum: 0, estimateCount: 0, actualSum: 0, actualCount: 0 });
-    return map.get(key);
+  // A child cannot start before its parent opened.
+  if (derived.derivedStartedAt && efm.started_at && efm.started_at > derived.derivedStartedAt) {
+    return true;
   }
 
-  for (const s of stories) {
-    const epicId = s.fm.epic || '(no epic)';
-    const featureId = s.fm.feature || '(no feature)';
-    const estimate = parsePositiveInt(s.fm.usage_estimate);
-    const actual = s.fm.id && actualsByStoryId.has(s.fm.id) ? actualsByStoryId.get(s.fm.id) : null;
+  // An epic cannot have finished while a story under it was still running.
+  //
+  // NO STATUS GUARD HERE, DELIBERATELY. The first draft skipped this arm unless the epic
+  // was TERMINAL, reasoning that an open epic has no completion to compare. A mutant that
+  // deleted that guard SURVIVED the suite, which was the tell: `efm.completed_at` is `''`
+  // on an open epic, so the truthiness check below already short-circuits and the guard was
+  // doing nothing. Worse, it would have SUPPRESSED a genuine inconsistency — an epic
+  // reverted to a non-terminal status without its `completed_at` being cleared (the kit
+  // requires clearing it; this arm is how you find out when that did not happen).
+  return Boolean(
+    derived.derivedCompletedAt && efm.completed_at && efm.completed_at < derived.derivedCompletedAt
+  );
+}
 
-    if (estimate !== null) {
-      const e = bump(byEpic, epicId); e.estimateSum += estimate; e.estimateCount += 1;
-      const f = bump(byFeature, featureId); f.estimateSum += estimate; f.estimateCount += 1;
-    }
-    if (actual !== null) {
-      const e = bump(byEpic, epicId); e.actualSum += actual; e.actualCount += 1;
-      const f = bump(byFeature, featureId); f.actualSum += actual; f.actualCount += 1;
-    }
-  }
 
-  return { byEpic, byFeature, hasAnyActual: actualsByStoryId.size > 0 };
+// ---------- usage rollup (STORY-21.2.03 / ADR-0079 · converged STORY-29.3.01 / ADR-0188) ----------
+
+/**
+ * THE ROLLUP, CALLED — not a second one written here.
+ *
+ * What this function still owns is the SHAPE ADAPTER: this file carries stories as
+ * `{ fm, file }` pairs, the dashboard carries flat records, and the rollup takes either
+ * (`normaliseStory`). Everything else — what counts as an actual, what counts as a valid
+ * estimate, the no-fabricated-zero rule, the chat census — is `lib/usage-rollup.js`'s.
+ *
+ * `opts.logPath` exists so a fixture board can be pointed at a fixture ledger.
+ */
+function computeUsageRollup(stories, opts) {
+  const logPath = (opts && opts.logPath) || USAGE_LOG_PATH;
+  return usageRollup.buildUsageRollup(stories, { logPath });
 }
 
 // ---------- compute ----------
@@ -279,46 +316,107 @@ function renderWip(c) {
 // Thousands separator without relying on locale/ICU (dependency-free, stdlib-only stance).
 function fmtThousands(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
-// Renders one rollup table ('Epic' or 'Feature' keyed) from a computeUsageRollup() map.
-// Returns null when the map is empty (nothing to show for that grouping) rather than an
-// empty table — the caller decides what to say when both groupings are empty.
+// Renders one rollup table ('Epic' or 'Feature' keyed) from a buildUsageRollup() payload map
+// ({ id: { estimated, actual, coverage } }). Returns null when the map is empty (nothing to
+// show for that grouping) rather than an empty table — the caller decides what to say when
+// both groupings are empty.
+//
+// STORY-29.3.01 — reads the PAYLOAD shape (`estimated` / `actual` are null when nothing
+// contributed) rather than this file's old accumulator shape. The null IS the dash: a cell is
+// only a number when a story put a number in it.
 function renderUsageTable(map, keyLabel) {
-  const ids = [...map.keys()].sort();
+  const src = map || {};
+  const ids = (src instanceof Map ? [...src.keys()] : Object.keys(src)).sort();
   if (ids.length === 0) return null;
+  const get = (id) => (src instanceof Map ? src.get(id) : src[id]) || {};
   const rows = [`| ${keyLabel} | Estimated tokens | Actual tokens |`, '|---|---|---|'];
   for (const id of ids) {
-    const r = map.get(id);
-    const estCell = r.estimateCount > 0
-      ? `${fmtThousands(r.estimateSum)} (${r.estimateCount} ${r.estimateCount === 1 ? 'story' : 'stories'})`
-      : '—';
-    const actCell = r.actualCount > 0
-      ? `${fmtThousands(r.actualSum)} (${r.actualCount} ${r.actualCount === 1 ? 'story' : 'stories'})`
-      : '—';
+    const r = get(id);
+    const cov = r.coverage || { storiesWithEstimate: 0, storiesWithActual: 0 };
+    const estCell = (r.estimated === null || r.estimated === undefined)
+      ? '—'
+      : `${fmtThousands(r.estimated)} (${cov.storiesWithEstimate} ${cov.storiesWithEstimate === 1 ? 'story' : 'stories'})`;
+    const actCell = (r.actual === null || r.actual === undefined)
+      ? '—'
+      : `${fmtThousands(r.actual)} (${cov.storiesWithActual} ${cov.storiesWithActual === 1 ? 'story' : 'stories'})`;
     rows.push(`| ${id} | ${estCell} | ${actCell} |`);
   }
   return rows.join('\n');
 }
 
-// CRITICAL HONESTY RULE (STORY-21.2.03 AC-1): absent data renders as absent. When NO usage
-// actuals are recorded anywhere, say so in one explicit line — never a table of fabricated
-// zeros. Estimated-tokens cells only appear for epics/features that actually have a story
-// carrying `usage_estimate`; the same for actuals. When there is genuinely nothing to roll
-// up (no estimates AND no actuals anywhere in the corpus), print one explicit line instead
-// of two empty tables.
+/**
+ * CRITICAL HONESTY RULE (STORY-21.2.03 AC-1): absent data renders as absent — never a table of
+ * fabricated zeros, and never an absence claim the ledger contradicts.
+ *
+ * STORY-29.3.01 / BUG-20260805-01 — the three states this block must tell apart, which the old
+ * renderer conflated into one sentence:
+ *
+ *   (a) nothing on disk                        → "no usage actuals recorded yet" is TRUE, say it
+ *   (b) records on disk, none attributable     → say what IS on disk, and why it is not attributed
+ *   (c) attributable records                   → the tables, plus (b)'s line for the rest
+ *
+ * The block used to print (a)'s sentence in all three states, over a ledger of 31 records. The
+ * figures below come from the same rollup the dashboard renders, so the two boards cannot
+ * report different numbers for the same ledger (TESTPLAN-29.3.01 TC-04 measures exactly that).
+ */
 function renderUsage(c) {
-  const epicTable = renderUsageTable(c.usage.byEpic, 'Epic');
-  const featureTable = renderUsageTable(c.usage.byFeature, 'Feature');
+  const u = c.usage || {};
+  const led = u.ledger || { found: false, recordCount: 0, storyRecordCount: 0, chatRecordCount: 0, skipped: { total: 0, malformed: 0, shape: 0 } };
+  const skip = led.skipped || { total: 0, malformed: 0, shape: 0 };
+  const epicTable = renderUsageTable(u.byEpic, 'Epic');
+  const featureTable = renderUsageTable(u.byFeature, 'Feature');
 
   const parts = [];
-  if (!epicTable && !featureTable) {
+  if (epicTable) parts.push('**By epic:**\n\n' + epicTable);
+  if (featureTable) parts.push('**By feature:**\n\n' + featureTable);
+
+  // The ledger census — always stated when the ledger holds anything, whether or not a single
+  // row of it could be attributed to a story. This one line is the difference between a board
+  // that says "nothing was recorded" and a board that says what was recorded.
+  if (led.recordCount > 0) {
+    parts.push(`**Ledger:** ${led.recordCount} record(s) on disk — ` +
+      `${led.storyRecordCount} story-level, ${led.chatRecordCount} chat-level` +
+      // MAJOR-2 (review of E29-CHAT-05) — a row of an unrecognised kind used to be counted in
+      // `recordCount` and then contribute to no figure anywhere, so the only way to notice the
+      // gap was to subtract two censuses from a third. Its tokens are now named.
+      (led.otherRecordCount > 0
+        ? `, ${led.otherRecordCount} of an unrecognised kind (${(led.otherKinds || []).join(', ')}) ` +
+          `carrying ${fmtThousands(led.otherTokens)} token(s) that are in NO figure below`
+        : '') + '.');
+  }
+
+  // The stated-count path (ADR-0124): name the count, the tokens and the reason. Never guess
+  // an epic, and never let the absence of an epic become an absence of the record.
+  //
+  // BUG-20260810-11 — AND NEVER STATE THE TOTAL WITHOUT STATING WHAT IT IS. This block printed
+  // "74,078,704,903 tokens" for a ledger whose distinct spend is at most 2,785,764,867: forty
+  // cumulative re-sums of one transcript directory, summed. The caveat now travels WITH the
+  // figure — one wording, from the rollup, so this board and the dashboard cannot disagree
+  // about what the number means any more than they can disagree about its digits.
+  if (u.chat) {
+    const tok = (u.chat.totalTokens === null || u.chat.totalTokens === undefined)
+      ? 'no token figure — none of them carries a non-zero count'
+      : `${fmtThousands(u.chat.totalTokens)} tokens (summed across brackets)`;
+    parts.push(`**Chat-level usage — counted, not attributed:** ${u.chat.recordCount} record(s) ` +
+      `across ${u.chat.idCount} chat id(s), resolving to ${u.chat.keyCount} chat key(s); ${tok}. ` +
+      u.chat.reason);
+    const note = usageRollup.cumulativeNote(u.chat);
+    if (note) parts.push(`⚠️ **Not distinct spend:** ${note}`);
+  }
+
+  if (skip.total > 0) {
+    parts.push(`_${skip.total} ledger line(s) skipped (${skip.malformed} unparseable, ` +
+      `${skip.shape} wrong shape) — the figures above are from the rest._`);
+  }
+
+  if (parts.length === 0) {
+    // State (a), and ONLY state (a): nothing carries an estimate and the ledger is genuinely
+    // empty. This sentence is now unreachable when a single record exists.
     parts.push('_No stories carry a `usage_estimate` yet, and no usage actuals recorded yet._');
-  } else {
-    if (epicTable) parts.push('**By epic:**\n\n' + epicTable);
-    if (featureTable) parts.push('**By feature:**\n\n' + featureTable);
-    if (!c.usage.hasAnyActual) {
-      parts.push('_no usage actuals recorded yet — run `usage-capture.js` (via `execute-story` / ' +
-        '`execute-batch`) to start recording; figures above are estimates only._');
-    }
+  } else if (!u.hasAnyActual && (epicTable || featureTable)) {
+    parts.push('_no usage actuals are attributed to a story yet — the per-epic/feature figures ' +
+      'above are estimates only; run `usage-capture.js --story` (via `execute-story` / ' +
+      '`execute-batch`) to record story-level actuals._');
   }
   return parts.join('\n\n');
 }
@@ -326,8 +424,10 @@ function renderUsage(c) {
 // ---------- upsert ----------
 
 function upsert(text, key, body) {
-  const begin = `<!-- pm:monitor:${key}:begin (generated by pm:monitor — do not edit by hand) -->`;
-  const end = `<!-- pm:monitor:${key}:end -->`;
+  // The marker strings come from lib/monitor-anchors.js so the block this writes and the
+  // anchor the guard checks are the same string, not two that match today (STORY-28.3.03).
+  const begin = monitorAnchors.markerBegin(key);
+  const end = monitorAnchors.markerEnd(key);
   const re = new RegExp(`${begin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${end.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
   const block = `${begin}\n${body}\n${end}`;
   if (!re.test(text)) {
@@ -338,15 +438,43 @@ function upsert(text, key, body) {
   return text.replace(re, block);
 }
 
+// One renderer per managed key, keyed by the SAME list the guard reads. A key added to
+// MANAGED_KEYS without a renderer here is a loud error rather than a block silently left
+// stale (STORY-28.3.03).
+const RENDERERS = {
+  overall: renderOverall,
+  rollup: renderRollup,
+  counts: renderCounts,
+  wip: renderWip,
+  usage: renderUsage,
+};
+
 function main() {
   if (!fs.existsSync(MONITOR)) { console.error(`✗ MONITOR.md not found at ${MONITOR}`); process.exit(2); }
-  const c = compute();
   let text = fs.readFileSync(MONITOR, 'utf8');
-  text = upsert(text, 'overall', renderOverall(c));
-  text = upsert(text, 'rollup', renderRollup(c));
-  text = upsert(text, 'counts', renderCounts(c));
-  text = upsert(text, 'wip', renderWip(c));
-  text = upsert(text, 'usage', renderUsage(c));
+
+  // ---- THE ANCHOR GUARD (STORY-28.3.03 / BUG-20260804-01) -------------------------
+  // Before the corpus is walked and long before anything is written: every anchor this
+  // script resolves must occur exactly once. `upsert()` below uses `String.replace` with
+  // a non-global regex, which silently edits the FIRST match — that is precisely how a
+  // duplicated MONITOR.md kept accepting writes into one of its two bodies for eight
+  // phases while the other body went stale. Refusing costs one run; choosing costs a
+  // forked history nobody can reconstruct afterwards.
+  const guard = monitorAnchors.assertSingleAnchors(text, { file: MONITOR, who: 'pm:monitor' });
+  if (!guard.ok) {
+    console.error(guard.message);
+    process.exit(2);
+  }
+
+  const c = compute();
+  for (const key of monitorAnchors.MANAGED_KEYS) {
+    const render = RENDERERS[key];
+    if (typeof render !== 'function') {
+      console.error(`✗ pm:monitor — no renderer for managed block '${key}'; MONITOR.md unchanged.`);
+      process.exit(2);
+    }
+    text = upsert(text, key, render(c));
+  }
   if (process.exitCode === 2) { console.error('✗ pm:monitor — aborted (missing markers); MONITOR.md unchanged.'); return; }
 
   // STORY-09.3.04: Write MONITOR atomically via a temp file + rename.
@@ -374,8 +502,7 @@ function main() {
     const epicRow = c.byEpic.get(id);
     if (!epicRow) return false;
     const efm = epicRow.epic.fm;
-    return (d.derivedStartedAt && efm.started_at !== d.derivedStartedAt) ||
-           (d.derivedCompletedAt && efm.completed_at !== d.derivedCompletedAt);
+    return epicTimestampDrift(efm, d);
   });
   const driftNote = driftedEpics.length > 0
     ? ` | ${driftedEpics.length} epic(s) with timestamp drift vs children: ${driftedEpics.map(([id]) => id).join(', ')}`
@@ -394,5 +521,10 @@ if (require.main === module) {
 // the usage-rollup logic is unit-testable without spawning the full generator.
 module.exports = {
   parseFrontmatter, stripQuotes,
+  // BUG-20260827-01 — the drift advisory's rule, exported so a test can address it.
+  deriveEpicTimestamps, epicTimestampDrift,
   computeUsageRollup, renderUsage, renderUsageTable, fmtThousands,
+  // STORY-29.3.01 — both paths exported so the consumer test can assert they are the SAME path
+  // with no env override, rather than trusting the comment that says so.
+  USAGE_LOG_PATH, CAPTURE_DEFAULT_LOG_PATH: DEFAULT_LOG_PATH,
 };

@@ -1,6 +1,6 @@
 ---
 name: peer-review
-description: On-demand code peer review of an explicitly-scoped target. Use when the user asks for a peer review, a code review, to review this diff, review a branch, review a PR, or review a file. Reviews across correctness, security, performance, maintainability, test coverage, and error paths, then returns severity-ranked findings (blocker / major / minor) each with a suggested fix.
+description: On-demand code peer review of an explicitly-scoped target. Use when the user asks for a peer review, a code review, or to review a source/code file, diff, branch, or PR. Reviews across correctness, security, performance, maintainability, test coverage, and error paths, then returns severity-ranked findings (blocker / major / minor) each with a suggested fix.
 ---
 
 # Tandem: peer-review (reviewer / QA hat)
@@ -80,7 +80,7 @@ Beyond printing the severity-ranked findings to the thread, `peer-review` **emit
 
 1. **Emit from the template.** Copy `_00-Project-Management/91-Templates/AI-CODE-REVIEW.template.html` and produce a populated artefact from it: write the resolved unified diff into the `data-slot="diff"` slot (one `.file-hunk` per file, one `.row` per line, `add`/`del` classes on +/- lines), and write **one `<article class="anno-card severity-<level>">` annotation card per finding** into the `data-slot="annotations"` slot. Render each finding's reasoning and suggested fix as **TEXT** (`textContent` / escaped template literals) into the `.reasoning` and `.fix` elements — **never `innerHTML`**, so untrusted diff/finding text can never execute (XSS-safe, per the template's security note). Keep each card's `data-severity` / `data-file` / `data-line` / `data-category` attributes in sync with the visible text, since the template's verdict, count strip, filters, and PR-comment exporter all read those attributes.
 
-2. **Output path.** Write the emitted artefact into `41-Reports/` named `AI-CODE-REVIEW-<scope>-<YYYY-MM-DD>.html` — i.e. the literal path `41-Reports/AI-CODE-REVIEW-<scope-id>-<YYYY-MM-DD>.html`, where `<scope-id>` identifies the reviewed target (story id, branch, or PR) and `<YYYY-MM-DD>` is the review date. This is the same location and naming convention `close-out-story` expects to find at R14 review time.
+2. **Output path.** Write the emitted artefact into `41-Reports/reviews/` named `AI-CODE-REVIEW-<scope>-<YYYY-MM-DD>.html` — i.e. the literal path `41-Reports/reviews/AI-CODE-REVIEW-<scope-id>-<YYYY-MM-DD>.html`, where `<scope-id>` identifies the reviewed target (story id, branch, or PR) and `<YYYY-MM-DD>` is the review date. This is the same location and naming convention `close-out-story` expects to find at R14 review time.
 
 3. **R15b conformance.** The emitted artefact MUST be **R15b**-conformant — it must satisfy the validator's **R15b** check (the AI-review-artefact presence + existence rule) so it passes the DoD gate. Because `peer-review` writes the **R15b**-conformant artefact to exactly the path `close-out-story` reads, the close-out gate finds the artefact it expects in the location it expects, with no second emission step.
 

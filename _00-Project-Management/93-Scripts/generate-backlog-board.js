@@ -3,7 +3,7 @@
  * generate-backlog-board.js
  *
  * Builds a single self-contained interactive HTML backlog-prioritization board
- * at _00-Project-Management/41-Reports/BACKLOG-BOARD.html from the BACKLOG-*.md
+ * at _00-Project-Management/41-Reports/boards/BACKLOG-BOARD.html from the BACKLOG-*.md
  * files in _00-Project-Management/11-Backlog/.
  *
  * The board is a THROWAWAY single-purpose tool (per CLAUDE-CODE-CONFIG §4 and
@@ -42,9 +42,22 @@ const PM_ROOT = path.resolve(__dirname, '..');
 // Resolve logical PM sub-folder names through the layout map (full / flattened /
 // custom). PATHS.<logical> → physical folder name for this project. See lib/pm-paths.js.
 const { loadPaths } = require('./lib/pm-paths');
+// BUG-20260801-04 — displayed dates must be LOCAL, never UTC-normalised. See lib/local-date.js.
+const { localIso, localDay } = require('./lib/local-date.js');
+// STORY-28.3.01 / ADR-0175 — which files are BACKLOG artefacts is decided by the one
+// artefact-id grammar, not by a third private regex that happened to agree with the
+// other two.
+const artefactId = require('./lib/artefact-id.js');
 const PATHS = loadPaths(PM_ROOT).map;
 const BACKLOG_DIR = path.join(PM_ROOT, PATHS.backlog);
-const OUT_FILE = path.join(PM_ROOT, PATHS.reports, 'BACKLOG-BOARD.html');
+// STORY-27.3.03 — the board is written into the `boards/` topic folder, not the
+// flat root. This is a WRITE path with no reader module in front of it, so the
+// shape-agnostic reader (ADR-0141) could not have saved it: left pointing at the
+// root, `pm:board` would have re-created BACKLOG-BOARD.html there on its next run
+// and quietly re-flattened the corpus one file at a time. The folder is created
+// on demand below so a fresh install does not have to ship an empty directory.
+const OUT_DIR = path.join(PM_ROOT, PATHS.reports, 'boards');
+const OUT_FILE = path.join(OUT_DIR, 'BACKLOG-BOARD.html');
 
 // Priority enum used for the filter pills + colour mapping.
 const PRIORITY_ORDER = ['P0', 'P1', 'P2', 'P3'];
@@ -55,14 +68,12 @@ const PRIORITY_ORDER = ['P0', 'P1', 'P2', 'P3'];
  * raw line text around so the exporter can build a byte-faithful diff.
  * ============================================================ */
 
-function stripQuotes(s) {
-  if (typeof s !== 'string') return s;
-  if ((s.startsWith("'") && s.endsWith("'")) ||
-      (s.startsWith('"') && s.endsWith('"'))) {
-    return s.slice(1, -1);
-  }
-  return s;
-}
+// STORY-25.2.04 / ADR-0115: this was a THIRD byte-identical copy of the same
+// helper, carrying the same missing `''` unescape. Migrated to the canonical
+// implementation in lib/frontmatter.js — the board is a reader of the same
+// format, so it has to agree with the dashboard and the monitor about what an
+// artefact says. Covered by the parity case in tests/frontmatter-unquote.test.js.
+const { unquoteScalar: stripQuotes } = require('./lib/frontmatter.js');
 
 // Split a file into { fmLines, fmText } where fmLines are the raw lines BETWEEN
 // the opening and closing `---` (no delimiters), preserving exact text. Returns
@@ -116,13 +127,20 @@ function computeRice(reach, impact, confidence, effort) {
  * Collect backlog items
  * ============================================================ */
 
+// A `.md` file whose name leads with a BACKLOG id. The two conditions used to be one
+// private regex (`/^BACKLOG-\d+.*\.md$/`); the id half now comes from the shared grammar
+// and only the "is it markdown" half stays here, because that is not an id question.
+function isBacklogArtefactFile(name) {
+  return /\.md$/.test(name) && artefactId.isArtefactFileOf(name, 'BACKLOG');
+}
+
 function collect() {
   if (!fs.existsSync(BACKLOG_DIR)) {
     console.error('✗ backlog folder not found: ' + BACKLOG_DIR);
     process.exit(2);
   }
   const files = fs.readdirSync(BACKLOG_DIR)
-    .filter(f => /^BACKLOG-\d+.*\.md$/.test(f))
+    .filter(isBacklogArtefactFile)
     .sort();
 
   const items = [];
@@ -262,7 +280,10 @@ function renderCard(item, index) {
 
 function buildHtml(items) {
   const now = new Date();
-  const genDate = now.toISOString().slice(0, 10);
+  // BUG-20260801-04 — was `now.toISOString().slice(0, 10)`, which rendered the UTC day and so
+  // showed the wrong date between midnight and the local offset. genIso feeds <time datetime>.
+  const genDate = localDay(now);
+  const genIso = localIso(now);
 
   // Patch context payload (JSON, embedded). textContent of a <script type=…>
   // tag — never eval'd, parsed with JSON.parse — so no injection surface.
@@ -470,7 +491,7 @@ textarea.export-out {
       <div class="art-sub">Throwaway tool · STORY-01.1.06 · BACKLOG-0016 Tranche A</div>
     </div>
     <div style="display:flex; align-items:center; gap:0.75rem;">
-      <span class="art-meta">Generated · ${genDate} · ${items.length} items</span>
+      <span class="art-meta">Generated · <time datetime="${genIso}">${genDate}</time> · ${items.length} items</span>
       <button class="theme-btn" type="button" id="theme-toggle" aria-label="Toggle dark mode">Dark mode</button>
     </div>
   </header>
@@ -533,6 +554,17 @@ ${cards}
 <script>
 (function () {
   'use strict';
+
+  /* ----- Locale-render dates (BUG-20260801-04) -----
+     The markup carries ISO in the datetime attribute (machine-readable, and the no-JS
+     fallback); the text is rewritten to the VIEWER's locale. No locale argument is passed
+     to toLocaleDateString() on purpose — it resolves to the viewer's own settings. */
+  try {
+    Array.prototype.forEach.call(document.querySelectorAll('time[datetime]'), function (el) {
+      var d = new Date(el.getAttribute('datetime'));
+      if (!isNaN(d.getTime())) el.textContent = d.toLocaleDateString();
+    });
+  } catch (e) { /* cosmetic only — never break the board over it */ }
 
   /* ----- Theme toggle (persists) — from HTML-ARTEFACT ----- */
   var root = document.documentElement;
@@ -800,4 +832,15 @@ function main() {
   process.exit(0);
 }
 
-main();
+// STORY-28.3.01 — run as CLI only, the guard validate-frontmatter.js and
+// generate-monitor.js already carry. Without it this file could not be `require`d at all
+// (it built and wrote a board, then called process.exit, on import), so the propagation
+// proof had no way to ask the THIRD consumer what it makes of a filename. `npm run
+// pm:board` is unaffected.
+if (require.main === module) {
+  main();
+}
+
+// Exported for STORY-28.3.01's propagation proof: the predicate this file actually uses
+// to decide what is a backlog artefact.
+module.exports = { isBacklogArtefactFile, collect };

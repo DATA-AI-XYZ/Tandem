@@ -57,7 +57,7 @@ function parseArgs() {
 }
 
 // pm:* scripts, split by how badly a project breaks without them.
-const CORE_SCRIPTS = { 'pm:lint': 'validate-frontmatter.js', 'pm:dash': 'generate-dashboard.js' };
+const CORE_SCRIPTS = { 'pm:lint': 'validate-frontmatter.js', 'pm:dash': 'build-board.js' };
 const RECOMMENDED_SCRIPTS = { 'pm:monitor': 'generate-monitor.js', 'pm:map': 'generate-codebase-map.js', 'pm:doctor': 'doctor.js', 'pm:install': 'install.js', 'pm:update': 'update.js' };
 const OPTIONAL_SCRIPTS = { 'pm:claude-scaffold': 'claude-scaffold.js', 'pm:claude-audit': 'claude-audit.js' };
 
@@ -65,7 +65,7 @@ function readJson(p) { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } ca
 
 // Run every check and return { lines, coreBroken } — pure (no writes), so the gate
 // wrapper (STORY-12.2.03) can reuse the verdict without re-implementing the checks.
-function diagnose(REPO_ROOT) {
+function diagnose(REPO_ROOT, opts) {
   const PM_ROOT = path.join(REPO_ROOT, '_00-Project-Management');
   const lines = [];
   let coreBroken = false;
@@ -161,12 +161,35 @@ function diagnose(REPO_ROOT) {
     // Guard unavailable/erroring must never break doctor — silently skip this notice.
   }
 
+  // 7. Parent-status rollup drift (READ-ONLY count, non-fatal — STORY-35.3.05, BACKLOG-0232
+  // Tranche C). Reports how many feature/epic parents pm:reconcile would reconcile; doctor
+  // itself never writes. Skipped in --gate mode via `full` (a corpus parse is not a cheap
+  // wiring probe) and wrapped in try/catch: a missing/erroring reconcile.js degrades to
+  // silence, never a doctor crash, and never touches `coreBroken`.
+  if (opts && opts.full) {
+    try {
+      const { analyseTree } = require('./reconcile');
+      const pending = analyseTree(PM_ROOT);
+      if (pending.length > 0) {
+        warn('Parent status rollup drift',
+          `${pending.length} feature/epic parent(s) out of sync with their children — ` +
+          'run `npm run pm:reconcile` (dry-run) then `-- --apply` to fix');
+      } else {
+        ok('Parent status rollup', 'parents agree with their children');
+      }
+    } catch (_e) {
+      // Read-only nicety only — silently skip when unavailable.
+    }
+  }
+
   return { lines, coreBroken };
 }
 
 function main() {
   const { target: REPO_ROOT, gate } = parseArgs();
-  const { lines, coreBroken } = diagnose(REPO_ROOT);
+  // The rollup count (step 7) parses the epic/feature/story corpus, so it runs only in the
+  // full report — the --gate pre-flight stays the cheap wiring probe it was built to be.
+  const { lines, coreBroken } = diagnose(REPO_ROOT, { full: !gate });
 
   // --gate: the cheap skill pre-flight. ONE line on failure, silence on success — so
   // a skill can refuse loudly and surface the canonical message verbatim, with no

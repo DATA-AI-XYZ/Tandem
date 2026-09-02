@@ -324,31 +324,33 @@ body {
 <pre><code class="lang-bash">/plugin marketplace add DATA-AI-XYZ/Tandem
 /plugin install tandem@data-ai-xyz</code></pre>
 <p>Then, in a Claude Code session opened on your project:</p>
-<pre><code>/tandem:session-start</code></pre>
+<pre><code class="lang-">/tandem:session-start</code></pre>
 <p><code>session-start</code> orients the session — it reads active work, recent decisions, and the board, then tells you which hat to wear and what the next step is. On a fresh repo there is nothing to read yet, so run the installer:</p>
-<pre><code>/tandem:install</code></pre>
+<pre><code class="lang-">/tandem:install</code></pre>
 <p>That materializes <code>_00-Project-Management/</code>, wires the <code>pm:*</code> scripts into <code>package.json</code>, registers the three hooks, pins your folder layout, and renders the board. Verify:</p>
 <pre><code class="lang-bash">npm run pm:doctor</code></pre>
 <p><code>pm:doctor</code> exits non-zero only on real wiring problems, so it is safe to use as a CI gate.</p>
-<blockquote><strong>One-time question.</strong> The installer asks what kind of project this is — <code>web-app</code>, <code>mobile</code>, <code>cli</code>, <code>library</code>, <code>backend-service</code>, <code>data-pipeline</code>, <code>power-platform</code>, or <code>automation</code>. The answer is written to <code>90-Standards/PROJECT-CONTEXT.md</code> and tailors later guidance. Answer honestly; you can edit the file afterwards.</blockquote>
+<blockquote>
+<p><strong>One-time question.</strong> The installer asks what kind of project this is — <code>web-app</code>, <code>mobile</code>, <code>cli</code>, <code>library</code>, <code>backend-service</code>, <code>data-pipeline</code>, <code>power-platform</code>, or <code>automation</code>. The answer is written to <code>90-Standards/PROJECT-CONTEXT.md</code> and tailors later guidance. Answer honestly; you can edit the file afterwards.</p>
+</blockquote>
 <hr>
 <h2 id="1-anchor-the-strategy">1 · Anchor the strategy</h2>
 <p>Every epic must trace to a business outcome, and Tandem will refuse to write one that does not. So strategy comes first.</p>
 <p>Write a North Star into <code>00-Strategy/NORTH-STAR.md</code> — one paragraph on what winning looks like beyond this quarter. Then:</p>
-<pre><code>/tandem:draft-okrs</code></pre>
+<pre><code class="lang-">/tandem:draft-okrs</code></pre>
 <p>This runs as the <strong>Founder</strong> hat. It reads the North Star, the previous quarter&#39;s OKRs, and any recent retros, and produces <code>00-Strategy/OKR-YYYY-Qx.md</code> with objectives and measurable key results. Expect to push back on the first draft — key results that are not numbers are not key results.</p>
 <hr>
 <h2 id="2-draft-the-prd-and-the-epic">2 · Draft the PRD and the epic</h2>
-<pre><code>/tandem:draft-prd</code></pre>
+<pre><code class="lang-">/tandem:draft-prd</code></pre>
 <p>Turns an OKR key result (or raw notes) into a PRD under <code>20-Requirements/</code>. Skip it only if the scope is genuinely obvious; the PRD is what an epic points at when there is no single OKR to cite.</p>
-<pre><code>/tandem:draft-epic</code></pre>
+<pre><code class="lang-">/tandem:draft-epic</code></pre>
 <p>Produces <code>30-Epics/EPIC-NN-&lt;slug&gt;.md</code>. The epic must carry either <code>okr:</code> or <code>prd_section:</code> in its frontmatter — if you cannot say which outcome it moves, Tandem asks before writing rather than inventing a justification.</p>
 <p>An epic covers goal, scope, explicit out-of-scope, measurable success criteria, dependencies, data touched, and risks. Out-of-scope is not filler: it is what stops the epic growing silently.</p>
 <hr>
 <h2 id="3-decompose">3 · Decompose</h2>
-<pre><code>/tandem:split-into-features</code></pre>
+<pre><code class="lang-">/tandem:split-into-features</code></pre>
 <p>Breaks the epic into <code>FEAT-NN.M</code> files under <code>31-Features/EPIC-NN/</code>. A feature is a slice you could ship and demo on its own.</p>
-<pre><code>/tandem:split-into-stories</code></pre>
+<pre><code class="lang-">/tandem:split-into-stories</code></pre>
 <p>Breaks a feature into <code>STORY-NN.M.PP</code> files — <strong>and creates the paired testplan for each story in the same response</strong>. This pairing is not optional and not deferred:</p>
 <ul>
 <li>every acceptance criterion in the story maps to at least one test case in the testplan;</li>
@@ -356,45 +358,46 @@ body {
 </ul>
 <p>If a criterion cannot be expressed as something a machine can check, that is a signal the criterion is vague — rewrite it before moving on.</p>
 <p>Optionally, run a quality pass before refining:</p>
-<pre><code>/tandem:critique</code></pre>
+<pre><code class="lang-">/tandem:critique</code></pre>
 <p>Advisory only. It reviews a planning artefact against the kit&#39;s check set and reports; it never rewrites the file.</p>
 <hr>
 <h2 id="4-refine-to-ready-the-dor-gate">4 · Refine to ready (the DoR gate)</h2>
-<pre><code>/tandem:refine-backlog</code></pre>
+<pre><code class="lang-">/tandem:refine-backlog</code></pre>
 <p>Runs the Definition of Ready checklist as the <strong>PM</strong> hat. A story is promoted to <code>ready</code> only if all of it passes: paired testplan exists, every criterion maps to a test case, every test case has a runnable command, dependencies are done or scheduled, an estimate is set, and risks are written down.</p>
 <p>If anything is missing the command <strong>stops, lists the gaps, and asks</strong>. It never silently promotes. That refusal is the point of the gate.</p>
+<p>For an older backlog, run <code>/tandem:triage-backlog</code> first. It checks whether each item is still <em>true</em> — not delivered by a later epic, not a duplicate, premise intact — before <code>refine-backlog</code> asks whether it is <em>ready</em>. Status fields lag reality; triage is how the backlog stays honest.</p>
 <hr>
 <h2 id="5-execute">5 · Execute</h2>
 <p>For a single story:</p>
-<pre><code>/tandem:execute-story</code></pre>
+<pre><code class="lang-">/tandem:execute-story</code></pre>
 <p>For a planned group of them, first work out the order:</p>
-<pre><code>/tandem:execution-strategist</code></pre>
+<pre><code class="lang-">/tandem:execution-strategist</code></pre>
 <p>which groups <code>ready</code> stories into batches by dependency chain and shared-files affinity, then:</p>
-<pre><code>/tandem:execute-batch          # sequential, one batch end-to-end
+<pre><code class="lang-">/tandem:execute-batch          # sequential, one batch end-to-end
 /tandem:execute-batch-parallel # file-disjoint stories concurrently, one sub-agent each</code></pre>
 <p>Execution runs as the <strong>Dev</strong> hat. The story flips to <code>in-progress</code> with a timestamp in the same edit as the status change — never as a separate save.</p>
 <p>To run the whole plan unattended:</p>
-<pre><code>/tandem:autopilot</code></pre>
+<pre><code class="lang-">/tandem:autopilot</code></pre>
 <p>Autopilot drives phase → batches → close, checkpoints as it goes, halts on any failure, pauses itself near your Claude usage limit, and resumes when the window resets.</p>
 <hr>
 <h2 id="6-verify">6 · Verify</h2>
-<pre><code>/tandem:run-testplan</code></pre>
+<pre><code class="lang-">/tandem:run-testplan</code></pre>
 <p>Runs as the <strong>QA</strong> hat and executes every test case in the paired testplan. When a test case fails, Tandem files a structured <code>BUG-YYYYMMDD-NN</code> under <code>34-Bugs/</code> <strong>before</strong> reporting the failure back to you — reproduction steps, environment snapshot, a first hypothesis, and a fix direction a junior developer can act on.</p>
 <p>You do not ask for the bug. You get it.</p>
 <hr>
 <h2 id="7-close-out-the-dod-gate">7 · Close out (the DoD gate)</h2>
-<pre><code>/tandem:close-out-story</code></pre>
+<pre><code class="lang-">/tandem:close-out-story</code></pre>
 <p>Runs the Definition of Done checklist: every acceptance criterion ticked, the testplan run with all test cases passing (or failures linked to bugs), project quality gates green, the AI-code review recorded, frontmatter flipped to <code>done</code> with <code>completed_at</code> set, and <code>42-Monitor/MONITOR.md</code> updated in the same response.</p>
 <p>When the last story in a phase closes:</p>
-<pre><code>/tandem:close-phase</code></pre>
+<pre><code class="lang-">/tandem:close-phase</code></pre>
 <p>which gates on every story being done, compiles the retro, and merges the phase branch.</p>
 <hr>
 <h2 id="8-watch-it">8 · Watch it</h2>
 <p>The board regenerates itself — the Stop hook runs <code>pm:dash</code> whenever your plan changes — but you can force it:</p>
-<pre><code class="lang-bash">npm run pm:all   # lint → monitor → dash → docs</code></pre>
+<pre><code class="lang-bash">npm run pm:all   # wiki-stamp check → lint → monitor → dash → docs</code></pre>
 <p>Open <code>_00-Project-Management/42-Monitor/DASHBOARD.html</code>. That is the Command Center: the live interactive view of everything above. The published <a href="https://data-ai-xyz.github.io/Tandem/" target="_blank" rel="noopener">live demo</a> is the same file generated from a sample project.</p>
 <p>On a cadence:</p>
-<pre><code>/tandem:weekly-monitor   # Friday summary; flags stalls and blocks
+<pre><code class="lang-">/tandem:weekly-monitor   # Friday summary; flags stalls and blocks
 /tandem:monthly-retro    # monthly retrospective
 /tandem:reflect          # end-of-session improvements, which you approve before they apply</code></pre>
 <hr>
