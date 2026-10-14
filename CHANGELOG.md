@@ -2,6 +2,21 @@
 
 All notable changes to **Tandem** are tracked here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [3.1.0] — 2026-10-14
+
+**Delivery batches on the board.** If your execution strategy groups its review slices into delivery batches, Build · Phases now shows them as phase → delivery batch → review slice → story, with what each batch is for, how it is being run, whether its approval still holds and whether it has landed. Upgrading is safe: a strategy without batches renders exactly as before, and the status enum, the frontmatter contract and every command name are unchanged.
+
+### Added
+- **Delivery batches on Build · Phases.** An execution-strategy file may carry an optional `delivery_batches` layer. Each batch row shows its outcome, membership, dependencies, gates, owner actions, holds, review progress, acceptance and landing, with the recorded delivery facts kept apart from the live story state.
+- **Evidence, not inference.** A batch's state comes from its batch record and from git. A planned autopilot run reads as a proposal until a written run plan authorises it. Approvals are bound to the commits that were reviewed, and a change outside the permitted close-out invalidates them until a re-review. A batch has landed only when its reviewed commits are on `main`; evidence that cannot be read shows as Unverified or Unknown, never as Landed or clean.
+- **A batch-record template and a lint rule.** `91-Templates/BATCH-RECORD.template.md` documents the record, and `pm:lint` rule R34 checks its shape. A malformed record is shown on its batch with the reason, never hidden or replaced by an older one.
+- **The delivery journey fits the screen.** For a strategy with batches, Build · Phases pages from the phase list to a phase, a batch and the story drawers, and every page fits the window at five sizes from 1920×1080 down to 900×800. Long content is split at natural boundaries; nothing is clipped or shrunk. Review reports open in their own, labelled tab.
+
+### Known issues
+- Two of the board's own browser checks fail in the maintainers' suite (97 of 99 pass), exactly as they did on 3.0.0: the back-to-top check needs a route taller than two screens, which the current corpus no longer has, and the dense Toolkit-rows check fails when an installed plugin ships no description. Both are open bugs, and neither check has been removed or loosened.
+
+---
+
 ## [3.0.0] — 2026-09-02
 
 **The Command Center is rebuilt from the ground up — faster, bounded, and honest on every screen.** The major version signals the scale of the rewrite underneath, not a breaking change: the status enum, the frontmatter contract, and every command name are exactly as they were. Upgrading is safe; run `pm:dash` once after updating and the new board assembles itself.

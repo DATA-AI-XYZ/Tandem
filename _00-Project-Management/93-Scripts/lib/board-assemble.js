@@ -1373,6 +1373,29 @@ dl.kv dd{margin:0;color:var(--ink-dim);flex:1 1 200px;min-width:0}
 .chat-tok{font-family:var(--font-mono);font-size:11px}
 .story-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
 .run-chats{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+/* DELIVERY BATCHES (STORY-36.1.02 \xB7 ADR-0305) \u2014 phase \u2192 batch \u2192 slice \u2192 story, drawn as
+   the paged journey since ADR-0306. Only a sidecar that declares delivery_batches renders
+   these; every class is new, so a legacy board's DOM and styles are unchanged. The batch
+   row borrows the phase row's shape one level in; colours are tokens only. */
+.batch-group{border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:5px 10px}
+.batch-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+.batch-title{font-family:var(--font-display);font-size:13px;min-width:0}
+.exec-tag,.batch-acceptance,.batch-landing,.batch-progress{font-family:var(--font-mono);font-size:11px;
+  color:var(--ink-dim);border:1px solid var(--line);border-radius:4px;padding:0 5px;white-space:nowrap}
+.batch-progress{border:none;padding:0}
+.batch-open-btn{margin-left:auto;border:1px solid var(--line);border-radius:999px;background:var(--panel);
+  color:var(--ink);font:inherit;font-size:11px;padding:2px 12px;cursor:pointer;position:relative}
+.batch-open-btn::after{content:"";position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);min-width:24px;min-height:24px;width:100%;height:100%}
+.batch-open-btn:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.batch-outcome,.batch-drawer-outcome{margin:0 0 8px;font-size:12px;line-height:1.6}
+.ev-block{border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12px;min-width:0}
+.ev-block p{margin:0 0 4px;line-height:1.5}
+.ev-block .lab{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--ink-dim)}
+.ev-h{font-family:var(--font-display);font-size:13px;margin:0 0 6px}
+.ev-reasons,.ev-changed,.batch-drawer-approvals{margin:4px 0 6px;padding-left:18px;font-size:12px}
+.ev-flag{color:var(--ink)}
 .run-chat-chip{font-family:var(--font-mono);font-size:11px;color:var(--ink-dim);
   border:1px solid var(--line);border-radius:4px;padding:1px 6px}
 .phase-drawer-facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0 0 12px;
@@ -1579,6 +1602,91 @@ dl.kv dd{margin:0;color:var(--ink-dim);flex:1 1 200px;min-width:0}
 .stale-notice-toggle:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
 .stale-notice-toggle::after{content:"";position:absolute;top:50%;left:0;
   transform:translateY(-50%);min-height:24px;height:100%;width:100%}
+
+/* ---- the paged region (STORY-36.1.04 \xB7 ADR-0306) -----------------------
+   A page shows only its own blocks; every other block carries data-pg-hid.
+   The rule is !important because a block's own display (a flex row, a grid)
+   would otherwise outrank a plain hide. The source the region copies from is
+   never shown. Nothing here clips, clamps or shrinks: long lines and unbroken
+   strings wrap, code wraps, and a table wider than the page reflows.
+   BACKTICK-FREE ZONE: this comment is inside a template literal. */
+.pg-source{display:none !important}
+[data-pg-hid]{display:none !important}
+.pg-region{min-width:0}
+.pg-host{outline:none;overflow-wrap:anywhere;min-width:0}
+.pg-host:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.pg-cont{font-size:12px;color:var(--ink-dim);margin:0 0 8px;font-style:italic}
+.pg-bar{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:10px 0 0}
+.pg-bar[hidden]{display:none}
+.pg-prev,.pg-next{min-width:44px;min-height:32px;padding:6px 14px;border:1px solid var(--line);
+  border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
+.pg-prev:hover:not(:disabled),.pg-next:hover:not(:disabled){background:var(--hover)}
+.pg-prev:focus-visible,.pg-next:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.pg-prev:disabled,.pg-next:disabled{color:var(--ink-faint);cursor:default}
+.pg-ind{font-family:var(--font-mono);font-size:12px;color:var(--ink-dim)}
+/* The page announcement is for screen readers only: visually hidden by the standard
+   pattern, pinned at the top so it never adds to what scrolls. */
+.pg-region{position:relative}
+.pg-live{position:absolute;top:0;left:0;width:1px;height:1px;margin:-1px;padding:0;border:0;
+  overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.pg-host pre{white-space:pre-wrap;overflow-wrap:anywhere;overflow:visible;max-width:100%}
+.pg-host .pg-line{display:block}
+.pg-host .wide{overflow:visible}
+.pg-host img{max-width:none}
+.pg-host .pg-run{margin:0}
+.pg-host li.pg-piece{list-style:none}
+.pg-host table.pg-measure-words,.pg-host table.pg-measure-words *{overflow-wrap:normal;word-break:normal}
+.pg-reflow,.pg-reflow tbody,.pg-reflow tfoot,.pg-reflow tr,.pg-reflow td,.pg-reflow th{display:block;width:auto}
+.pg-reflow thead{display:none}
+.pg-reflow tr{border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin:0 0 6px}
+.pg-reflow td,.pg-reflow th{border:0;padding:2px 0}
+.pg-reflow td::before,.pg-reflow th::before{content:attr(data-label) ": ";font-weight:600;color:var(--ink-dim)}
+.pg-tile-part{margin:0 0 8px}
+.pg-tile{position:relative;overflow:hidden;border:1px dashed var(--line);background:var(--paper)}
+.pg-tile-media{position:absolute;max-width:none}
+.pg-tile-lab{font-size:12px;color:var(--ink-dim);margin:0 0 4px}
+.pg-sec-head{margin:12px 0 4px}
+
+/* ---- the delivery-batch journey (STORY-36.1.05 \xB7 ADR-0306) ------------
+   Four levels, each one page that fits: the phase list, a phase, a batch,
+   and the drawer stack. The rows reuse the 3.0.0 phase and batch classes,
+   without their expand chevron: opening a row opens its level.
+   BACKTICK-FREE ZONE: this comment is inside a template literal. */
+/* Only while the journey is on screen: the stage keeps less padding below it, because
+   every line of chrome is a line of content each page loses. */
+.stage:has(.jr-view){padding-bottom:16px}
+.jr-scope{display:flex;gap:6px;margin:0 0 10px}
+.jr-scope-btn{min-height:32px;padding:6px 12px;border:1px solid var(--line);border-radius:6px;
+  background:var(--panel);color:var(--ink-dim);font:inherit;font-size:13px;cursor:pointer}
+.jr-scope-btn[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.jr-scope-btn:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.jr-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px;font-size:13px;min-width:0}
+.jr-crumb,.jr-back{min-height:28px;padding:4px 8px;border:1px solid transparent;border-radius:6px;
+  background:transparent;color:var(--ink);font:inherit;font-size:13px;cursor:pointer;text-align:left}
+.jr-crumb{text-decoration:underline;text-underline-offset:3px}
+.jr-crumb:hover,.jr-back:hover{background:var(--hover)}
+.jr-crumb:focus-visible,.jr-back:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.jr-back{margin-left:auto;border-color:var(--line);background:var(--panel)}
+.jr-crumb-here{color:var(--ink-dim)}
+.jr-sep{color:var(--ink-faint)}
+.jr-row{margin:0 0 6px;padding:6px 12px}
+.jr-open{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:2px 6px;border:0;
+  border-radius:6px;background:transparent;color:var(--ink);font:inherit;text-align:left;cursor:pointer;min-width:0}
+.jr-open:hover{background:var(--hover)}
+.jr-open:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.jr-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 8px}
+.jr-h{font-family:var(--font-display);font-weight:400;font-size:15px;margin:12px 0 6px}
+.jr-basis{font-size:12px;color:var(--ink-dim);margin:6px 0}
+.jr-batch{border:0;padding:0;background:transparent}
+.jr-batch .ev-block{margin:0 0 8px}
+.jr-slice{cursor:default;margin:0 0 10px}
+.jr-slice-h{font-family:var(--font-display);font-weight:400;font-size:14px;margin:0 0 4px}
+.jr-slice .ev-reasons,.slice-held-list{margin:4px 0 0;padding-left:18px;font-size:12px}
+.jr-actions{margin-top:8px}
+.jr-slice-open{min-height:28px;padding:4px 10px;border:1px solid var(--line);border-radius:6px;
+  background:var(--panel);color:var(--ink);font:inherit;font-size:12px;cursor:pointer}
+.jr-slice-open:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.report-new-tab-note{font-size:12px;color:var(--ink-dim);margin:0 0 6px}
 `;
 function buildCss() {
   return assertNoRemoteUrls(brandFontFaces() + SHELL + "\n" + statusCss() + "\n");
@@ -2010,17 +2118,31 @@ function liftPhases(o) {
   const flat = flatten(strategy, reconciliation);
   const tokenById = /* @__PURE__ */ new Map();
   for (const e of gen.phaseBandEntries(flat)) tokenById.set(String(e.id), e.value);
+  const be = require7(import_node_path7.default.join(o.scriptsDir, "lib", "batch-evidence.js"));
+  const execGroups = Array.isArray(be.EXECUTION_GROUPS) ? be.EXECUTION_GROUPS : [];
+  const evStrategies = (payload.batchEvidence || {}).strategies || [];
   const derived = [];
   let cursor = 0;
   for (const e of epics) {
     const list = Array.isArray(e.phases) ? e.phases : [];
+    const delivery = Array.isArray(e && e.delivery_batches);
+    const evS = delivery ? evStrategies.filter((s) => s && s.file === import_node_path7.default.basename(String(e && e.file || "")))[0] || null : null;
     const row = [];
     for (let j = 0; j < list.length; j++) {
       const p = flat[cursor++];
       if (!p) {
         throw new Error('[board:build] the flattened phase list ran out at epic "' + e.epic + '" phase ' + j + " \u2014 the payload and the shipped flattener disagree about how many phases exist, so no classification can be aligned to a tile");
       }
-      const cat = gen.phaseDisplayGroup(p.run_kind);
+      let cat = gen.phaseDisplayGroup(p.run_kind);
+      if (delivery) {
+        const ph = evS && Array.isArray(evS.phases) ? evS.phases[j] : null;
+        const g = execGroups.filter((x) => x.key === (ph ? ph.group : "execution-unverified"))[0] || { key: "execution-unverified", label: "Unverified", basis: "" };
+        cat = {
+          group: g.key,
+          label: g.label,
+          basis: ph ? g.basis : "the payload carries no batch evidence for this sidecar"
+        };
+      }
       row.push({
         id: p.id,
         label: p.label,
@@ -2063,7 +2185,7 @@ function liftPhases(o) {
       key: g.key,
       label: g.label,
       basis: (gen.PHASE_GROUP_BASIS || {})[g.key] || ""
-    })),
+    })).concat(execGroups.map((g) => ({ key: g.key, label: g.label, basis: g.basis }))),
     basis: gen.PHASE_GROUP_BASIS || {}
   };
 }

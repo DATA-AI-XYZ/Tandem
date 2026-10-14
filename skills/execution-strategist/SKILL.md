@@ -380,6 +380,26 @@ folder is where every sidecar since 2026-08-05 lives).
 
 **`outcome` (optional, per `phase` and per `chat`)** — a single founder-facing sentence describing *what you'll have* once that phase/chat lands (the capability, not the implementation). Omit it (or use `""`) when there's nothing founder-facing to say; it never affects grouping or the dry-run contract. When present, the dashboard's Implementation Strategy view surfaces it on phase headers and chat cards (FEAT-14.2). This mirrors the optional `outcome:` field on Story/Feature frontmatter (SOP §11; nudged by the non-fatal W1 `pm:lint` warning, ADR-0061).
 
+**`delivery_batches` (optional, top level) — a delivery-batch layer between phases and chats
+(ADR-0305).** A project that delivers in sprint-like batches, each reviewed in slices, may
+group the chats a second way: a phase holds delivery batches, a batch holds review slices,
+and a slice IS one chat. Emit it only when the operator asked for batches; the skill's
+grouping, its chats and the autopilot track are unchanged by it. When present:
+
+- each phase carries `delivery_batches: ["B1", …]`, its batches in order;
+- each chat carries `delivery_batch`, `slice` and `slices_in_batch`;
+- each top-level entry carries `id`, `number`, `plan_phase`, `title`, `outcome`, `stories`
+  (in order), `slices` (`{chat, label, stories}` in order), `estimate`,
+  `entry_gates_at_phase_entry`, `in_batch_gates`, `landing_holds`, `owner_actions`,
+  `held_cases`, `depends_on_batches`, `unlocks_batches` and `branches`
+  (`{planning, product}`).
+
+The board then renders phase → delivery batch → review slice → story. Execution mode,
+approvals and landing are NOT carried here: they come from each batch's record (a
+```` ```json batch-record ```` block in its batch report, template
+`91-Templates/BATCH-RECORD.template.md`, validator R34) and from git. An autopilot run in
+this sidecar stays a PROPOSAL on the board until a written run plan authorises it.
+
 ### Markdown report
 
 Renders the same data human-readably: a `## Phase N · <title>` heading per phase (the SAME number

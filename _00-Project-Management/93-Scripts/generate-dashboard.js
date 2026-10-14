@@ -164,6 +164,8 @@ const monitorAnchors = require('./lib/monitor-anchors.js');
 // executed side can honour a written run scope; nothing here ever writes a plan.
 const trackReconcile = require('./lib/track-reconcile.js');
 const autopilotPlan = require('./autopilot-plan.js');
+// STORY-36.1.01 (ADR-0304, the fourth ADR-0230 exception, item 2) — the batch-evidence reader.
+const batchEvidence = require('./lib/batch-evidence.js');
 // STORY-27.3.02 / ADR-0141 — the shape-agnostic report-corpus reader shared by
 // every site that reads 41-Reports.
 const reportTree = require('./lib/report-tree.js');
@@ -3276,6 +3278,9 @@ function buildExecutionStrategy(dir) {
       // would make "this producer emitted no track" indistinguishable from "this epic has
       // nothing to run" at every reader downstream.
       autopilot_runs: Array.isArray(v.strategy.autopilot_runs) ? v.strategy.autopilot_runs : null,
+      // STORY-36.1.01 (ADR-0304, the fourth ADR-0230 exception, item 1) — the delivery-batch
+      // layer, passed through UNCHANGED, or `null` when the sidecar has none, as above.
+      delivery_batches: Array.isArray(v.strategy.delivery_batches) ? v.strategy.delivery_batches : null,
     }))
     .sort((a, b) => String(a.epic).localeCompare(String(b.epic), 'en', { numeric: true }));
   return out;
@@ -5694,6 +5699,11 @@ function main() {
     phases,
     // STORY-29.2.04 AC-3 — the SECOND presentation of the same corpus, flat and serialisable.
     autopilotTrack: flattenAutopilotTrack(trackReconciliation),
+    // STORY-36.1.01 (ADR-0304, item 2) — the batch-evidence reader's output. Empty
+    // (`strategies: []`) unless a sidecar declares `delivery_batches`.
+    batchEvidence: batchEvidence.evaluate({
+      strategy: executionStrategy, pmRoot: PM_ROOT, stories: pm.story, now: localIso(new Date()),
+    }),
     reviews: splitR.reviews,
     audits:  splitR.audits,
     monitorEntries: (monitor && monitor.entries) || [],

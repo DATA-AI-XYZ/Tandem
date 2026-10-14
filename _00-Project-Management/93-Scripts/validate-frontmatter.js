@@ -2467,6 +2467,135 @@ function checkViewsVocabulary(opts = {}) {
   }
 }
 
+// ---------- R34 — THE BATCH RECORD'S SHAPE (STORY-36.1.03 · ADR-0305) ----------
+//
+// A delivery batch's record is one fenced ```json batch-record block in its batch report
+// under 41-Reports. The board's evidence reader (lib/batch-evidence.js) reads it and never
+// throws, so a malformed record would only ever DEGRADE the board — to "Unverified", to
+// "Not started" — and nothing would say why. This rule says why, at lint time, before the
+// record reaches a board.
+//
+// FATAL. Every check is about shape and cross-reference, never about whether the history
+// the record names is true: that is the evidence reader's job, against git, at build time.
+// In particular `autopilot` without a run plan is refused here, because ADR-0305 §2 makes
+// the written run plan the ONLY evidence that can make a batch "Autopilot, authorised".
+//
+// Graceful no-op when the reports folder is absent or holds no record.
+function checkBatchRecords(reportsDir = path.join(PM_ROOT, '41-Reports'), pmRoot = PM_ROOT) {
+  if (!fs.existsSync(reportsDir)) return;
+  let be;
+  try { be = require('./lib/batch-evidence.js'); } catch { return; }
+  const HEX40 = be.SHA_RE;
+  const HEX64 = be.SHA256_RE;
+  const ISO = be.ISO_RE;
+  const nonEmpty = (v) => typeof v === 'string' && v.trim() !== '';
+
+  // The published sidecars, by file name, with their batches and slice labels.
+  const sidecars = new Map();
+  for (const found of reportTree.findReportDocs(reportsDir, (n) => /^EXECUTION-STRATEGY-.*\.json$/.test(n))) {
+    try {
+      const data = JSON.parse(fs.readFileSync(found.full, 'utf8'));
+      if (!Array.isArray(data && data.delivery_batches)) continue;
+      const batches = new Map();
+      for (const b of data.delivery_batches) {
+        if (!b || !b.id) continue;
+        batches.set(String(b.id), new Set((b.slices || []).map((s, i) => String((s && s.label) || (b.id + '.' + (i + 1))))));
+      }
+      sidecars.set(path.basename(found.full), batches);
+    } catch { /* a malformed sidecar is not this rule's fight */ }
+  }
+
+  const seen = new Map();
+  for (const found of reportTree.findReportDocs(reportsDir, (n) => /\.md$/i.test(n))) {
+    const file = found.full;
+    let text;
+    try { text = fs.readFileSync(file, 'utf8'); } catch { continue; }
+    if (text.indexOf('batch-record') === -1) continue;
+    const parsed = be.parseRecordText(text);
+    for (const p of parsed.problems) violate(file, 'R34', p);
+    for (const rec of parsed.records) {
+      const say = (m) => violate(file, 'R34', 'batch record ' + (rec.batch || '(no batch)') + ': ' + m);
+      if (!nonEmpty(rec.batch)) say('`batch` is required');
+      if (!nonEmpty(rec.strategy)) say('`strategy` must name the published EXECUTION-STRATEGY sidecar');
+      const batches = sidecars.get(path.basename(String(rec.strategy || '')));
+      const slices = batches ? batches.get(String(rec.batch)) : null;
+      if (nonEmpty(rec.strategy) && !batches) say('no published sidecar named ' + rec.strategy + ' declares delivery_batches');
+      else if (batches && !slices) say(rec.strategy + ' declares no batch ' + rec.batch);
+      const key = path.basename(String(rec.strategy || '')) + '|' + rec.batch;
+      if (seen.has(key)) say('a second record for the same batch (first in ' + seen.get(key) + ')');
+      else seen.set(key, rel(file));
+
+      if (!be.EXECUTION_VALUES.includes(rec.execution)) say('`execution` must be one of ' + be.EXECUTION_VALUES.join(', '));
+      const entry = rec.entry || {};
+      if (!nonEmpty(entry.by) || !ISO.test(String(entry.at || '')) || !nonEmpty(entry.ref)) {
+        say('`entry` needs `by`, an ISO-8601 `at` with offset, and `ref` (the entry authorisation)');
+      }
+      if (rec.execution === 'autopilot') {
+        if (!nonEmpty(rec.run_plan)) say('autopilot claimed, no run plan: `run_plan` must name the written AUTOPILOT-PLAN');
+        else if (!fs.existsSync(path.join(pmRoot, rec.run_plan))) say('run plan ' + rec.run_plan + ' does not exist');
+      }
+      const br = rec.branches || {};
+      if (!nonEmpty(br.planning) || !nonEmpty(br.product)) say('`branches` needs `planning` and `product`');
+      // Only a `*_REPO` name: the record chooses which environment variable the reader
+      // opens, and an arbitrary name could point it at a secret (the reader refuses one too).
+      if (!be.PRODUCT_REPO_ENV_RE.test(String(rec.product_repo_env || ''))) {
+        say('`product_repo_env` must name a *_REPO environment variable holding the product repository path');
+      }
+      for (const g of (rec.entry_gates_confirmed || [])) if (!nonEmpty(g)) say('`entry_gates_confirmed` holds an empty gate id');
+
+      const m = rec.manifest || {};
+      const manifestKeys = ['planning_main_before', 'product_main_before'].filter((k) => m[k] !== undefined && m[k] !== '');
+      if (manifestKeys.length === 1) say('the landing manifest needs both `planning_main_before` and `product_main_before`, or neither');
+      if (manifestKeys.length === 2) {
+        if (!HEX40.test(String(m.planning_main_before))) say('`manifest.planning_main_before` must be a 40-character commit');
+        if (m.product_main_before !== 'unborn' && !HEX40.test(String(m.product_main_before))) {
+          say('`manifest.product_main_before` must be a 40-character commit or "unborn"');
+        }
+      }
+
+      for (const h of (rec.holds || [])) {
+        if (!nonEmpty(h && h.hold) || !be.HOLD_STATES.includes(h && h.state) || !ISO.test(String((h && h.at) || '')) || !nonEmpty(h && h.ref)) {
+          say('each hold event needs `hold`, `state` (' + be.HOLD_STATES.join('/') + '), an ISO-8601 `at` and `ref`');
+        }
+      }
+      for (const x of (rec.rereview || [])) {
+        if (!nonEmpty(x && x.story) || !be.REREVIEW_STATES.includes(x && x.state)) {
+          say('each re-review ledger entry needs `story` and `state` (' + be.REREVIEW_STATES.join('/') + ')');
+        }
+      }
+
+      const list = Array.isArray(rec.approvals) ? rec.approvals : [];
+      list.forEach((a, i) => {
+        const at = (msg) => say('approval ' + i + ': ' + msg);
+        const kind = a && a.kind;
+        if (!be.APPROVAL_KINDS.includes(kind)) { at('`kind` must be one of ' + be.APPROVAL_KINDS.join(', ')); return; }
+        if (!nonEmpty(a.by) || !ISO.test(String(a.at || '')) || !nonEmpty(a.ref)) at('needs `by`, an ISO-8601 `at` and `ref`');
+        if (!HEX40.test(String(a.planning_reviewed || '')) || !HEX40.test(String(a.product_reviewed || ''))) {
+          at('`planning_reviewed` and `product_reviewed` must be the 40-character commits Codex reviewed');
+        }
+        if (kind === 'renewal' || kind === 'rebind') {
+          const of = Number(a.of);
+          if (!Number.isInteger(of) || of < 0 || of >= i) at('`of` must name an earlier entry by index');
+          else if (kind === 'rebind') {
+            for (const f of ['by', 'ref', 'planning_reviewed', 'product_reviewed']) {
+              if (String(a[f]) !== String((list[of] || {})[f])) at('a rebind must repeat `' + f + '` of entry ' + of);
+            }
+          }
+        } else {
+          if (!Array.isArray(a.scope) || !a.scope.length) at('`scope` must list the reviewed stories');
+          if ((kind === 'slice' || kind === 'slice+acceptance') && slices && !slices.has(String(a.slice))) {
+            at('`slice` must name a slice of ' + rec.batch + ' (' + Array.from(slices).join(', ') + ')');
+          }
+        }
+        if (kind !== 'rebind') {
+          const ev = a.evidence || {};
+          if (!nonEmpty(ev.path) || !HEX64.test(String(ev.sha256 || ''))) at('`evidence` needs `path` and a 64-character `sha256`');
+        }
+      });
+    }
+  }
+}
+
 function checkVerifyAntiPatterns(reportsDir = path.join(PM_ROOT, '41-Reports')) {
   if (!fs.existsSync(reportsDir)) return;
   // STORY-27.3.02 — reader site 4 of 6. Was a flat `readdirSync`. This check is
@@ -2914,6 +3043,13 @@ function main() {
     checkViewsVocabulary();
   }
 
+  // R34 — the batch record's shape (STORY-36.1.03 · ADR-0305). FATAL; normal mode only. A
+  // no-op on a corpus with no record; drivable over a fixture reports folder through its
+  // exported entry point, which is how it is probed.
+  if (!FIXTURES_DIR) {
+    checkBatchRecords();
+  }
+
   // R31 — one board, one document (STORY-28.3.03). FATAL; normal mode only (the isolated
   // fixtures dir carries no 42-Monitor/). Drivable over a fixture board through its exported
   // entry point, which is how it is probed.
@@ -2985,6 +3121,8 @@ module.exports.checkChainSync = checkChainSync;
 module.exports.checkDanglingSuccessors = checkDanglingSuccessors;
 // Exported for test injection (STORY-19.1.03 AC-4 verify-gate self-check).
 module.exports.checkVerifyAntiPatterns = checkVerifyAntiPatterns;
+// STORY-36.1.03 — R34, the batch record's shape, drivable over a fixture reports folder.
+module.exports.checkBatchRecords = checkBatchRecords;
 // Exported for test injection (STORY-19.2.01 kitVersion parity gate).
 module.exports.checkVersionParity = checkVersionParity;
 // Exported for test injection (STORY-21.1.01): lets a harness inspect what checkChainSync
